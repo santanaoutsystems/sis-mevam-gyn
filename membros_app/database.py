@@ -76,6 +76,9 @@ def init_db():
             lgpd_ip_origem TEXT,
             status_lgpd TEXT DEFAULT 'Consentimento Ativo',
             
+            -- Foto de Identificação Facial (3x4 sem óculos)
+            foto_3x4 TEXT,
+
             -- Controle ERP
             status TEXT DEFAULT 'Ativo',
             observacoes TEXT,
@@ -83,18 +86,19 @@ def init_db():
         )
     ''')
 
-    # Migração segura para adicionar colunas LGPD caso o banco já existisse
+    # Migração segura para adicionar colunas LGPD e Foto 3x4 caso o banco já existisse
     cursor.execute("PRAGMA table_info(membros)")
     colunas_membros = [col[1] for col in cursor.fetchall()]
     
-    colunas_novas_lgpd = [
+    colunas_novas = [
         ("lgpd_consentimento", "INTEGER DEFAULT 1"),
         ("lgpd_versao_termo", "TEXT DEFAULT 'v1.0-2026'"),
         ("lgpd_data_consentimento", "TEXT"),
         ("lgpd_ip_origem", "TEXT"),
-        ("status_lgpd", "TEXT DEFAULT 'Consentimento Ativo'")
+        ("status_lgpd", "TEXT DEFAULT 'Consentimento Ativo'"),
+        ("foto_3x4", "TEXT")
     ]
-    for col_nome, col_tipo in colunas_novas_lgpd:
+    for col_nome, col_tipo in colunas_novas:
         if col_nome not in colunas_membros:
             try:
                 cursor.execute(f"ALTER TABLE membros ADD COLUMN {col_nome} {col_tipo}")
@@ -375,10 +379,10 @@ def cadastrar_membro(dados: dict, ip_origem: str = "127.0.0.1") -> int:
             assinatura_rubrica, data_assinatura, hash_autenticidade,
             ocr_documento_nome, ocr_raw_text, lgpd_consentimento,
             lgpd_versao_termo, lgpd_data_consentimento, lgpd_ip_origem,
-            status_lgpd, status, observacoes
+            status_lgpd, foto_3x4, status, observacoes
         ) VALUES (
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
     ''', (
         data_registro,
@@ -418,6 +422,7 @@ def cadastrar_membro(dados: dict, ip_origem: str = "127.0.0.1") -> int:
         data_assinatura,
         ip_origem,
         "Consentimento Ativo",
+        dados.get("foto_3x4", ""),
         dados.get("status", "Ativo"),
         dados.get("observacoes", "")
     ))
@@ -509,6 +514,7 @@ def anonimizar_membro_lgpd(membro_id: int, motivo: str = "Solicitação expressa
             assinatura_rubrica = '',
             nome_assinante = ?,
             ocr_raw_text = '',
+            foto_3x4 = '',
             status = 'Anonimizado / Desligado',
             status_lgpd = 'Consentimento Revogado',
             observacoes = ?

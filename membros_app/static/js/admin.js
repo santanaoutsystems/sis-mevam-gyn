@@ -116,8 +116,15 @@ class ErpDashboard {
         <tr>
           <td><strong>#${m.id}</strong></td>
           <td>
-            <strong>${m.nome_completo}</strong><br/>
-            <small style="color: #64748b;">${m.email || 'Sem e-mail'}</small>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 34px; height: 44px; border-radius: 6px; border: 1.5px solid var(--border-color); overflow: hidden; background: #e2e8f0; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                ${m.foto_3x4 ? `<img src="${m.foto_3x4}" style="width: 100%; height: 100%; object-fit: cover;">` : `<span style="font-size: 1rem; opacity: 0.6;">👤</span>`}
+              </div>
+              <div>
+                <strong>${m.nome_completo}</strong><br/>
+                <small style="color: #64748b;">${m.email || 'Sem e-mail'}</small>
+              </div>
+            </div>
           </td>
           <td>${m.whatsapp || m.telefone || '-'}</td>
           <td>${m.cidade || 'Goiânia'}<br/><small style="color: #64748b;">${m.bairro || '-'}</small></td>
@@ -183,14 +190,18 @@ class ErpDashboard {
     }
 
     corpo.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
-        <div>
-          <h3 style="font-size: 1.25rem; color: #0f172a; margin: 0;">${m.nome_completo}</h3>
-          <span style="font-size: 0.8rem; color: #64748b;">Cadastrado em: ${m.data_registro} (ID: #${m.id})</span>
+      <div style="display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 14px;">
+        <div style="width: 80px; height: 106px; border-radius: 8px; border: 2px solid var(--primary-light); overflow: hidden; background: #e2e8f0; flex-shrink: 0; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm);">
+          ${m.foto_3x4 ? `<img src="${m.foto_3x4}" style="width: 100%; height: 100%; object-fit: cover;">` : `<span style="font-size: 2rem; opacity: 0.5;">👤</span>`}
         </div>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn btn-secondary btn-sm" style="color: #b45309; border-color: #fde68a; background: #fef3c7;" onclick="ErpDashboard.anonimizarDireitoTitular(${m.id})">🛡️ Anonimizar (LGPD)</button>
-          <button class="btn btn-primary btn-sm" onclick="window.open('/api/membros/${m.id}/pdf', '_blank')">Baixar PDF Oficial</button>
+        <div style="flex: 1;">
+          <h3 style="font-size: 1.25rem; color: #0f172a; margin: 0;">${m.nome_completo}</h3>
+          <span style="font-size: 0.8rem; color: #64748b;">Cadastrado em: ${m.data_registro} (ID: #${m.id})</span><br/>
+          <span class="badge badge-info" style="margin-top: 6px; display: inline-block; font-size: 0.72rem;">Foto 3x4 Identificação Facial</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-direction: column;">
+          <button class="btn btn-primary btn-sm" onclick="window.open('/api/membros/${m.id}/pdf', '_blank')">📄 Baixar PDF</button>
+          <button class="btn btn-secondary btn-sm" style="color: #b45309; border-color: #fde68a; background: #fef3c7;" onclick="ErpDashboard.anonimizarDireitoTitular(${m.id})">🛡️ Anonimizar</button>
         </div>
       </div>
 

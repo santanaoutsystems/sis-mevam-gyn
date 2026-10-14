@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentStep = 1;
   const totalSteps = 4;
   let ocrDataExtracted = null;
+  let foto3x4Base64 = "";
 
   // Elementos do DOM
   const wizardSteps = document.querySelectorAll('.wizard-step-content');
@@ -378,6 +379,87 @@ document.addEventListener('DOMContentLoaded', () => {
     filhosContainer.appendChild(tr);
   }
 
+  // --- GESTÃO DA FOTO DE IDENTIFICAÇÃO FACIAL 3x4 (SEM ÓCULOS) ---
+  const btnUploadFoto = document.getElementById('btnUploadFoto3x4');
+  const btnCameraFoto = document.getElementById('btnCameraFoto3x4');
+  const inputArquivo = document.getElementById('inputFoto3x4Arquivo');
+  const inputCamera = document.getElementById('inputFoto3x4Camera');
+  const btnRemoverFoto = document.getElementById('btnRemoverFoto3x4');
+  const previewFoto = document.getElementById('previewFoto3x4');
+  const placeholderFoto = document.getElementById('placeholderFoto3x4');
+  const statusFoto = document.getElementById('statusFoto3x4');
+
+  if (btnUploadFoto && inputArquivo) {
+    btnUploadFoto.addEventListener('click', () => inputArquivo.click());
+    inputArquivo.addEventListener('change', (e) => processarArquivoFoto(e.target.files[0]));
+  }
+
+  if (btnCameraFoto && inputCamera) {
+    btnCameraFoto.addEventListener('click', () => inputCamera.click());
+    inputCamera.addEventListener('change', (e) => processarArquivoFoto(e.target.files[0]));
+  }
+
+  if (btnRemoverFoto) {
+    btnRemoverFoto.addEventListener('click', () => {
+      foto3x4Base64 = "";
+      if (previewFoto) {
+        previewFoto.src = "";
+        previewFoto.style.display = "none";
+      }
+      if (placeholderFoto) placeholderFoto.style.display = "block";
+      btnRemoverFoto.style.display = "none";
+      if (statusFoto) statusFoto.textContent = "";
+      if (inputArquivo) inputArquivo.value = "";
+      if (inputCamera) inputCamera.value = "";
+    });
+  }
+
+  function processarArquivoFoto(file) {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      mostrarToast("Por favor, selecione um arquivo de imagem válido (JPG, PNG ou WEBP).", "error");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // Redimensionar e otimizar para proporção 3x4 (max 600x800) usando canvas
+        const canvas = document.createElement('canvas');
+        const maxW = 600;
+        const maxH = 800;
+        let w = img.width;
+        let h = img.height;
+
+        if (w > maxW || h > maxH) {
+          const ratio = Math.min(maxW / w, maxH / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+
+        foto3x4Base64 = canvas.toDataURL('image/jpeg', 0.85);
+
+        if (previewFoto) {
+          previewFoto.src = foto3x4Base64;
+          previewFoto.style.display = "block";
+        }
+        if (placeholderFoto) placeholderFoto.style.display = "none";
+        if (btnRemoverFoto) btnRemoverFoto.style.display = "inline-block";
+        if (statusFoto) statusFoto.textContent = "✓ Foto 3x4 anexada e otimizada com sucesso!";
+        mostrarToast("Foto 3x4 carregada com sucesso!", "success");
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
   // --- CONTROLES DA RÚBRICA / ASSINATURA ---
   if (btnClearSig) {
     btnClearSig.addEventListener('click', () => signaturePad.clear());
@@ -510,6 +592,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Conformidade LGPD (Lei 13.709/2018)
         lgpd_consentimento: chkLgpd ? chkLgpd.checked : true,
         lgpd_versao_termo: 'v1.0-2026',
+
+        // Foto 3x4 de Identificação Facial
+        foto_3x4: foto3x4Base64,
 
         // OCR Metadados
         ocr_documento_nome: ocrDataExtracted?.fileName || '',

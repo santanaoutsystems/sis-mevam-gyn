@@ -135,13 +135,46 @@ def gerar_pdf_membro(dados_membro: dict) -> bytes:
     story.append(Paragraph(proto_info, corpo_style))
     story.append(Spacer(1, 0.3 * cm))
 
+    # Foto 3x4 de Identificação Facial (sem óculos)
+    foto_3x4_b64 = dados_membro.get('foto_3x4', '')
+    foto_element = None
+    if foto_3x4_b64 and 'base64,' in foto_3x4_b64:
+        try:
+            _, b64_str = foto_3x4_b64.split(',', 1)
+            foto_bytes = base64.b64decode(b64_str)
+            foto_io = io.BytesIO(foto_bytes)
+            foto_element = RLImage(foto_io, width=2.7 * cm, height=3.6 * cm)
+        except Exception:
+            foto_element = None
+
+    if not foto_element:
+        ph_text = Paragraph("<font size=7 color='#64748B'><b>FOTO 3x4</b><br/>(SEM ÓCULOS)</font>", ParagraphStyle('PH', parent=styles['Normal'], alignment=TA_CENTER))
+        t_ph = Table([[ph_text]], colWidths=[2.7 * cm], rowHeights=[3.6 * cm])
+        t_ph.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#94A3B8')),
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9'))
+        ]))
+        foto_element = t_ph
+
+    t_foto_box = Table([[foto_element]], colWidths=[2.9 * cm])
+    t_foto_box.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('LEFTPADDING', (0,0), (-1,-1), 2),
+        ('RIGHTPADDING', (0,0), (-1,-1), 0),
+        ('TOPPADDING', (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+    ]))
+
     # Tabela de Dados Pessoais
     tabela_pessoal_dados = [
         [Paragraph(f"<b>Nome Completo:</b> {dados_membro.get('nome_completo', '')}", corpo_style), ""],
         [Paragraph(f"<b>Endereço:</b> {dados_membro.get('endereco', '')}", corpo_style), ""],
         [
             Paragraph(f"<b>Bairro:</b> {dados_membro.get('bairro', '')}", corpo_style),
-            Paragraph(f"<b>Cidade:</b> {dados_membro.get('cidade', 'Goiânia')} &nbsp;&nbsp; <b>CEP:</b> {dados_membro.get('cep', '')}", corpo_style)
+            Paragraph(f"<b>Cidade:</b> {dados_membro.get('cidade', 'Goiânia')} &nbsp; <b>CEP:</b> {dados_membro.get('cep', '')}", corpo_style)
         ],
         [
             Paragraph(f"<b>Data de Nascimento:</b> {dados_membro.get('data_nascimento', '')}", corpo_style),
@@ -154,7 +187,7 @@ def gerar_pdf_membro(dados_membro: dict) -> bytes:
         [Paragraph(f"<b>Cônjuge:</b> {dados_membro.get('conjuge', 'Não informado')}", corpo_style), ""]
     ]
 
-    t_pessoal = Table(tabela_pessoal_dados, colWidths=[8.5 * cm, 8.5 * cm])
+    t_pessoal = Table(tabela_pessoal_dados, colWidths=[7.0 * cm, 7.1 * cm])
     t_pessoal.setStyle(TableStyle([
         ('SPAN', (0, 0), (1, 0)),
         ('SPAN', (0, 1), (1, 1)),
@@ -162,11 +195,21 @@ def gerar_pdf_membro(dados_membro: dict) -> bytes:
         ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F8FAFC')),
         ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
         ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
     ]))
+
+    t_master_pessoal = Table([[t_pessoal, t_foto_box]], colWidths=[14.1 * cm, 2.9 * cm])
+    t_master_pessoal.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('LEFTPADDING', (0,0), (-1,-1), 0),
+        ('RIGHTPADDING', (0,0), (-1,-1), 0),
+        ('TOPPADDING', (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+    ]))
+
     story.append(Paragraph("<b>1. DADOS PESSOAIS E RESIDENCIAIS</b>", secao_style))
-    story.append(t_pessoal)
+    story.append(t_master_pessoal)
     story.append(Spacer(1, 0.3 * cm))
 
     # Filhos

@@ -180,6 +180,44 @@
               <span class="badge badge-info">Ficha MEVAM GYN</span>
             </div>
 
+            <!-- Bloco de Identificação Facial (Foto 3x4 sem óculos) -->
+            <div class="foto-3x4-container" style="background: var(--bg-body); border: 1.5px dashed var(--border-color); border-radius: var(--radius-md); padding: 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+              <div class="foto-3x4-frame" style="width: 120px; height: 160px; border-radius: 8px; border: 2px solid var(--primary-light); background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; position: relative; box-shadow: var(--shadow-sm); flex-shrink: 0;">
+                <img id="previewFoto3x4" src="" alt="Foto 3x4" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                <div id="placeholderFoto3x4" style="text-align: center; color: var(--text-muted); padding: 8px;">
+                  <div style="font-size: 2.5rem; margin-bottom: 4px;">👤</div>
+                  <span style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--primary);">PADRÃO 3x4</span>
+                </div>
+              </div>
+
+              <div style="flex: 1; min-width: 240px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                  <h4 style="margin: 0; font-size: 1rem; color: var(--text-main); font-family: 'Outfit', sans-serif;">Foto de Identificação Facial (3x4)</h4>
+                  <span class="badge badge-info" style="font-size: 0.7rem;">Obrigatório sem óculos</span>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; line-height: 1.45;">
+                  Foto recente tipo 3x4 para identificação visual do candidato a membro. 
+                  <strong>Instruções:</strong> sem óculos escuros ou de grau, rosto centralizado, nítido e com iluminação clara.
+                </p>
+
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <input type="file" id="inputFoto3x4Arquivo" accept="image/*" style="display: none;">
+                  <input type="file" id="inputFoto3x4Camera" accept="image/*" capture="user" style="display: none;">
+
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnUploadFoto3x4">
+                    📁 Escolher Arquivo
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnCameraFoto3x4">
+                    📸 Tirar Foto com a Câmera
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnRemoverFoto3x4" style="display: none; color: var(--danger);">
+                    🗑️ Remover Foto
+                  </button>
+                </div>
+                <small id="statusFoto3x4" style="display: block; margin-top: 8px; font-size: 0.78rem; color: #10b981; font-weight: 600;"></small>
+              </div>
+            </div>
+
             <div class="form-grid">
               <div class="form-group col-12">
                 <label class="form-label" for="nome_completo">

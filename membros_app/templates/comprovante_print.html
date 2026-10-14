@@ -185,38 +185,50 @@
       </div>
 
       <div class="section-title">1. Dados Pessoais e Residenciais</div>
-      <table class="table-info">
-        <tr>
-          <td class="label">Nome completo:</td>
-          <td colspan="3"><strong>{{ membro.nome_completo }}</strong></td>
-        </tr>
-        <tr>
-          <td class="label">Endereço:</td>
-          <td colspan="3">{{ membro.endereco }}</td>
-        </tr>
-        <tr>
-          <td class="label">Bairro:</td>
-          <td>{{ membro.bairro }}</td>
-          <td class="label">Cidade / CEP:</td>
-          <td>{{ membro.cidade }} - CEP: {{ membro.cep }}</td>
-        </tr>
-        <tr>
-          <td class="label">Data de nascimento:</td>
-          <td>{{ membro.data_nascimento }}</td>
-          <td class="label">Naturalidade:</td>
-          <td>{{ membro.naturalidade }}</td>
-        </tr>
-        <tr>
-          <td class="label">Sexo:</td>
-          <td>{{ membro.sexo }}</td>
-          <td class="label">Estado civil:</td>
-          <td>{{ membro.estado_civil }}</td>
-        </tr>
-        <tr>
-          <td class="label">Cônjuge:</td>
-          <td colspan="3">{{ membro.conjuge or 'Não informado' }}</td>
-        </tr>
-      </table>
+      <div style="display: flex; gap: 14px; align-items: flex-start;">
+        <table class="table-info" style="flex: 1; margin-bottom: 0;">
+          <tr>
+            <td class="label">Nome completo:</td>
+            <td colspan="3"><strong>{{ membro.nome_completo }}</strong></td>
+          </tr>
+          <tr>
+            <td class="label">Endereço:</td>
+            <td colspan="3">{{ membro.endereco }}</td>
+          </tr>
+          <tr>
+            <td class="label">Bairro:</td>
+            <td>{{ membro.bairro }}</td>
+            <td class="label">Cidade / CEP:</td>
+            <td>{{ membro.cidade }} - CEP: {{ membro.cep }}</td>
+          </tr>
+          <tr>
+            <td class="label">Data de nascimento:</td>
+            <td>{{ membro.data_nascimento }}</td>
+            <td class="label">Naturalidade:</td>
+            <td>{{ membro.naturalidade }}</td>
+          </tr>
+          <tr>
+            <td class="label">Sexo:</td>
+            <td>{{ membro.sexo }}</td>
+            <td class="label">Estado civil:</td>
+            <td>{{ membro.estado_civil }}</td>
+          </tr>
+          <tr>
+            <td class="label">Cônjuge:</td>
+            <td colspan="3">{{ membro.conjuge or 'Não informado' }}</td>
+          </tr>
+        </table>
+
+        <!-- Moldura Foto 3x4 sem óculos -->
+        <div style="width: 2.8cm; height: 3.7cm; border: 1.5px solid #0f274a; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; flex-shrink: 0; text-align: center;">
+          {% if membro.foto_3x4 %}
+            <img src="{{ membro.foto_3x4 }}" alt="Foto 3x4" style="width: 100%; height: 100%; object-fit: cover;">
+          {% else %}
+            <div style="font-size: 24pt; opacity: 0.35;">👤</div>
+            <span style="font-size: 6.5pt; font-weight: bold; color: #64748b; line-height: 1.2; margin-top: 4px;">FOTO 3x4<br/>(SEM ÓCULOS)</span>
+          {% endif %}
+        </div>
+      </div>
 
       <div class="section-title">Filhos</div>
       <table class="table-info" style="border: 1px solid #e2e8f0;">
