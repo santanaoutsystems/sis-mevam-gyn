@@ -188,7 +188,8 @@ class ErpDashboard {
           <h3 style="font-size: 1.25rem; color: #0f172a; margin: 0;">${m.nome_completo}</h3>
           <span style="font-size: 0.8rem; color: #64748b;">Cadastrado em: ${m.data_registro} (ID: #${m.id})</span>
         </div>
-        <div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary btn-sm" style="color: #b45309; border-color: #fde68a; background: #fef3c7;" onclick="ErpDashboard.anonimizarDireitoTitular(${m.id})">🛡️ Anonimizar (LGPD)</button>
           <button class="btn btn-primary btn-sm" onclick="window.open('/api/membros/${m.id}/pdf', '_blank')">Baixar PDF Oficial</button>
         </div>
       </div>
@@ -232,14 +233,26 @@ class ErpDashboard {
     modal.style.display = 'flex';
   }
 
+  static anonimizarDireitoTitular(id) {
+    const modalDetalhes = document.getElementById('modalDetalhesMembro');
+    if (modalDetalhes) modalDetalhes.style.display = 'none';
+    const inputId = document.getElementById('anonMembroId');
+    if (inputId) inputId.value = id;
+    const modalAnon = document.getElementById('modalAnonimizacaoLgpd');
+    if (modalAnon) modalAnon.style.display = 'flex';
+  }
+
   static async excluirMembro(id) {
-    if (!confirm(`Deseja realmente excluir o cadastro do membro #${id}?`)) return;
+    if (!confirm(`Deseja realmente excluir o cadastro do membro #${id}? Esta ação elimina definitivamente todos os dados pessoais (Art. 18, VI da LGPD).`)) return;
 
     try {
       const res = await fetch(`/api/membros/${id}`, { method: 'DELETE' });
+      const data = await res.json();
       if (res.ok) {
-        window.mostrarToast("Membro excluído com sucesso.", "success");
+        window.mostrarToast("Membro excluído com sucesso conforme diretrizes da LGPD.", "success");
         window.ErpDashboardInstance.carregarDados();
+      } else {
+        window.mostrarToast(data.error || "Apenas Administradores têm permissão para excluir registros.", "error");
       }
     } catch (e) {
       window.mostrarToast("Erro ao excluir do servidor.", "error");

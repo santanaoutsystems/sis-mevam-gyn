@@ -36,10 +36,20 @@
         <button type="button" class="nav-pill-btn active" id="tabNavCadastro">
           📝 <span>Ficha & Credo</span>
         </button>
-        <button type="button" class="nav-pill-btn" id="tabNavErp">
+        <button type="button" class="nav-pill-btn" id="tabNavErp" style="display: none;">
           📊 <span>Secretaria (ERP)</span>
         </button>
+        <button type="button" class="nav-pill-btn" id="tabNavUsuarios" style="display: none;">
+          👥 <span>Gestão de Acessos</span>
+        </button>
+        <button type="button" class="nav-pill-btn" id="tabNavLgpd" style="display: none;">
+          🛡️ <span>Auditoria LGPD</span>
+        </button>
       </nav>
+
+      <div id="headerUserArea">
+        <!-- Renderizado dinamicamente pelo AuthManager -->
+      </div>
 
       <button type="button" class="btn btn-secondary btn-sm" id="btnToggleTheme" title="Alternar Modo Escuro" onclick="document.body.classList.toggle('dark-mode')">
         🌓
@@ -615,6 +625,17 @@
               <div style="margin-top: 16px; font-size: 0.78rem; color: #64748b; line-height: 1.5; border-top: 1px solid var(--border-color); padding-top: 10px;">
                 🔒 <strong>Validade Digital:</strong> Este registro captura a imagem vetorial da sua rúbrica, data e hora com carimbo criptográfico SHA-256 e IP de conexão, em plena conformidade com a Lei Geral de Proteção de Dados (LGPD) e o regimento eclesiástico do MEVAM GYN.
               </div>
+
+              <!-- Consentimento Formal e Explícito LGPD (Art. 7º, I e Art. 11 da Lei 13.709/2018) -->
+              <div class="lgpd-consent-box">
+                <label class="lgpd-consent-label">
+                  <input type="checkbox" id="checkConsentimentoLgpd" class="lgpd-consent-checkbox" required checked>
+                  <div>
+                    <strong>Consentimento para Tratamento de Dados Pessoais e Religiosos (LGPD - Lei 13.709/2018):</strong><br>
+                    Declaro que li, compreendi e concordo com a <a href="javascript:void(0)" onclick="window.LgpdManagerInstance.abrirModalPolitica()" style="color: var(--primary); text-decoration: underline; font-weight: 600;">Política de Privacidade e Proteção de Dados</a> do Ministério MEVAM Goiânia. Autorizo expressamente o tratamento dos meus dados pessoais e dados religiosos (filiação à igreja) estritamente para finalidades pastorais, eclesiásticas e estatutárias, com validade digital, rúbrica e carimbo criptográfico.
+                  </div>
+                </label>
+              </div>
             </div>
 
           </section>
@@ -727,6 +748,151 @@
 
     </div>
 
+
+    <!-- ========================================== -->
+    <!-- VISÃO 3: GESTÃO DE ACESSOS & USUÁRIOS (RBAC) -->
+    <!-- ========================================== -->
+    <div id="viewUsuarios" style="display: none;">
+
+      <!-- Métricas de Usuários -->
+      <div class="erp-stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon blue">👥</div>
+          <div>
+            <div class="stat-value" id="metricTotalUsuarios">0</div>
+            <div class="stat-label">Total de Usuários</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon amber">👑</div>
+          <div>
+            <div class="stat-value" id="metricAdmins">0</div>
+            <div class="stat-label">Administradores</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon purple">📋</div>
+          <div>
+            <div class="stat-value" id="metricSecretarias">0</div>
+            <div class="stat-label">Equipe Secretaria</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon green">👤</div>
+          <div>
+            <div class="stat-value" id="metricMembros">0</div>
+            <div class="stat-label">Membros Ativos</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Ferramentas de Usuários -->
+      <section class="card-section" style="padding: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div style="flex: 1; min-width: 280px;">
+            <input type="text" id="userSearchInput" class="form-control" placeholder="🔍 Buscar usuário por nome, e-mail ou perfil...">
+          </div>
+          <button type="button" class="btn btn-primary" id="btnNovoUsuarioModal">
+            + Novo Usuário
+          </button>
+        </div>
+      </section>
+
+      <!-- Tabela de Usuários e Permissões -->
+      <div class="table-responsive">
+        <table class="erp-table">
+          <thead>
+            <tr>
+              <th style="width: 70px;">ID</th>
+              <th>Nome & E-mail</th>
+              <th style="width: 200px;">Perfil de Acesso</th>
+              <th style="width: 120px;">Status</th>
+              <th>Último Acesso</th>
+              <th style="width: 80px;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="usuariosTableBody">
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 30px; color: #94a3b8;">
+                Carregando lista de usuários...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- VISÃO 4: GOVERNANÇA & AUDITORIA LGPD      -->
+    <!-- ========================================== -->
+    <div id="viewLgpd" style="display: none;">
+
+      <!-- Banner Institucional DPO & Bases Legais -->
+      <div class="dpo-banner">
+        <div>
+          <h3>🛡️ Painel de Governança e Proteção de Dados (LGPD)</h3>
+          <p>
+            Em conformidade com a <strong>Lei Federal nº 13.709/2018 (LGPD)</strong>. Todos os dados pessoais e dados religiosos de membros são tratados exclusivamente sob consentimento expresso e bases eclesiásticas legítimas.
+          </p>
+          <div class="legal-basis-tags">
+            <span class="legal-tag">⚖️ Art. 7º, I (Consentimento)</span>
+            <span class="legal-tag">⛪ Art. 11, II (Dados Religiosos Sensíveis)</span>
+            <span class="legal-tag">🔒 Art. 46 (Segurança da Informação)</span>
+            <span class="legal-tag">📜 Art. 37 (Registro das Operações)</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button type="button" class="btn btn-accent" id="btnAbrirPoliticaLgpd">
+            📄 Ler Política de Privacidade
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalAnonimizacaoLgpd').style.display='flex'" style="background: rgba(255,255,255,0.15); color: white; border-color: rgba(255,255,255,0.3);">
+            ⚖️ Atender Direito do Titular (Art. 18)
+          </button>
+        </div>
+      </div>
+
+      <!-- Barra de Filtros de Auditoria -->
+      <section class="card-section" style="padding: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div style="flex: 1; min-width: 280px;">
+            <input type="text" id="lgpdSearchInput" class="form-control" placeholder="🔍 Filtrar logs por operador, ação, membro ou IP...">
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnLgpdAtualizarLogs">
+            🔄 Atualizar Trilha de Auditoria
+          </button>
+        </div>
+      </section>
+
+      <!-- Tabela Imutável de Auditoria LGPD -->
+      <div class="table-responsive">
+        <table class="erp-table">
+          <thead>
+            <tr>
+              <th style="width: 150px;">Data & Hora</th>
+              <th>Operador</th>
+              <th>Ação Realizada</th>
+              <th>Recurso / Titular</th>
+              <th>Detalhes da Operação</th>
+              <th style="width: 120px;">IP de Origem</th>
+            </tr>
+          </thead>
+          <tbody id="lgpdTableBody">
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 30px; color: #94a3b8;">
+                Carregando trilha de auditoria...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
   </main>
 
   <!-- ========================================== -->
@@ -776,11 +942,203 @@
     </div>
   </div>
 
+  <!-- ========================================== -->
+  <!-- MODAL: AUTENTICAÇÃO (LOGIN & REGISTRO)     -->
+  <!-- ========================================== -->
+  <div class="modal-overlay" id="modalAuth">
+    <div class="modal-content" style="max-width: 440px; padding: 28px 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <img src="/static/assets/logo_round.jpg" alt="Logo" style="width: 32px; height: 32px; border-radius: 50%;" onerror="this.src='/static/assets/logo_wide.jpg'">
+          <h3 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.25rem;">Acesso MEVAM GYN</h3>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="window.AuthManagerInstance.fecharModalAuth()">✕</button>
+      </div>
+
+      <div class="auth-lgpd-badge">
+        🔒 <span><strong>Ambiente Seguro:</strong> Seus dados são protegidos conforme a Lei Geral de Proteção de Dados (LGPD).</span>
+      </div>
+
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab-btn active" id="tabAuthLogin">🔑 Entrar</button>
+        <button type="button" class="auth-tab-btn" id="tabAuthRegister">📝 Criar Conta</button>
+      </div>
+
+      <!-- Formulário de Login -->
+      <form id="formAuthLogin">
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label">E-mail Cadastrado: <span class="required">*</span></label>
+          <input type="email" id="loginEmail" class="form-control" placeholder="exemplo@mevamgyn.com" required>
+        </div>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label class="form-label">Senha de Acesso: <span class="required">*</span></label>
+          <input type="password" id="loginSenha" class="form-control" placeholder="Digite sua senha" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-bottom: 12px;">
+          Entrar no Sistema
+        </button>
+
+        <div style="background: var(--bg-body); border: 1px dashed var(--border-color); border-radius: 8px; padding: 10px; font-size: 0.78rem; color: var(--text-muted); text-align: center;">
+          💡 <em>Primeiro acesso administrativo:</em> <strong>admin@mevamgyn.com</strong> / <strong>Mevam@2026</strong>
+        </div>
+      </form>
+
+      <!-- Formulário de Registro -->
+      <form id="formAuthRegister" style="display: none;">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label">Nome Completo: <span class="required">*</span></label>
+          <input type="text" id="regNome" class="form-control" placeholder="Seu nome" required>
+        </div>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label">E-mail: <span class="required">*</span></label>
+          <input type="email" id="regEmail" class="form-control" placeholder="seu-email@dominio.com" required>
+        </div>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label">Senha (mínimo 6 dígitos): <span class="required">*</span></label>
+          <input type="password" id="regSenha" class="form-control" placeholder="Crie uma senha segura" required minlength="6">
+        </div>
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label class="form-label">Confirmar Senha: <span class="required">*</span></label>
+          <input type="password" id="regSenhaConfirma" class="form-control" placeholder="Repita a senha" required minlength="6">
+        </div>
+
+        <div style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 16px;">
+          Ao registrar-se, você declara estar ciente de que seus dados serão tratados conforme nossa Política de Privacidade (LGPD).
+        </div>
+
+        <button type="submit" class="btn btn-accent btn-lg" style="width: 100%;">
+          Concluir Cadastro & Entrar
+        </button>
+      </form>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- MODAL: NOVO USUÁRIO (CRIADO PELO ADMIN)    -->
+  <!-- ========================================== -->
+  <div class="modal-overlay" id="modalCriarUsuarioAdmin">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 style="margin: 0; font-size: 1.15rem; font-family: 'Outfit', sans-serif;">Cadastrar Novo Usuário do Sistema</h3>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('modalCriarUsuarioAdmin').style.display='none'">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <form id="formCriarUsuarioAdmin">
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label">Nome Completo: <span class="required">*</span></label>
+            <input type="text" id="adminNewUserNome" class="form-control" placeholder="Nome do usuário" required>
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label">E-mail: <span class="required">*</span></label>
+            <input type="email" id="adminNewUserEmail" class="form-control" placeholder="email@mevamgyn.com" required>
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label">Senha Inicial: <span class="required">*</span></label>
+            <input type="password" id="adminNewUserSenha" class="form-control" placeholder="Defina a senha inicial" required minlength="6">
+          </div>
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label class="form-label">Perfil de Acesso (RBAC): <span class="required">*</span></label>
+            <select id="adminNewUserPerfil" class="form-select" required>
+              <option value="membro">👤 Membro (Acesso restrito ao próprio cadastro)</option>
+              <option value="secretaria">📋 Secretaria (Acesso ao ERP, listagens e fichas)</option>
+              <option value="admin">👑 Administrador (Acesso total, gestão e auditoria LGPD)</option>
+            </select>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalCriarUsuarioAdmin').style.display='none'">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar Usuário</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- MODAL: ATENDER DIREITO DO TITULAR (LGPD)   -->
+  <!-- ========================================== -->
+  <div class="modal-overlay" id="modalAnonimizacaoLgpd">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 style="margin: 0; font-size: 1.15rem; font-family: 'Outfit', sans-serif;">🛡️ Anonimização de Dados (Art. 18 LGPD)</h3>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('modalAnonimizacaoLgpd').style.display='none'">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div style="background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 16px; line-height: 1.45;">
+          ⚠️ <strong>Atenção:</strong> A anonimização revoga expressamente o consentimento do titular e substitui permanentemente dados identificáveis (Nome, CPF/RG, Endereço, Contato e Assinatura) por marcadores criptográficos de conformidade.
+        </div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label">ID do Membro a Anonimizar: <span class="required">*</span></label>
+          <input type="number" id="anonMembroId" class="form-control" placeholder="Ex: 5" required>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label class="form-label">Motivo Formal da Solicitação: <span class="required">*</span></label>
+          <input type="text" id="anonMotivo" class="form-control" placeholder="Ex: Solicitação formal de revogação de consentimento pelo titular" value="Solicitação expressa do titular (Art. 18 da LGPD)">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalAnonimizacaoLgpd').style.display='none'">Cancelar</button>
+          <button type="button" class="btn btn-accent" id="btnConfirmarAnonimizacao" style="background: #dc2626; border-color: #dc2626; color: white;">
+            Confirmar Anonimização Definitiva
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- MODAL: POLÍTICA DE PRIVACIDADE OFICIAL LGPD -->
+  <!-- ========================================== -->
+  <div class="modal-overlay" id="modalPoliticaLgpd">
+    <div class="modal-content" style="max-width: 680px; max-height: 85vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3 style="margin: 0; font-size: 1.25rem; font-family: 'Outfit', sans-serif;">📜 Política de Privacidade & Proteção de Dados (LGPD)</h3>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('modalPoliticaLgpd').style.display='none'">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 24px; font-size: 0.9rem; line-height: 1.6; color: var(--text-main);">
+        <p><strong>Controlador:</strong> Ministério MEVAM Goiânia (Igreja Evangélica Missões Evangelísticas Vinde Amados Meus - Goiânia/GO).</p>
+        <p><strong>Encarregado pelo Tratamento de Dados (DPO):</strong> Ricardo César Santana • Contato: <code>dpo@mevamgyn.com</code>.</p>
+        
+        <h4 style="margin: 16px 0 8px; color: var(--primary);">1. Objeto e Bases Legais</h4>
+        <p>Em obediência à <strong>Lei Federal nº 13.709/2018 (LGPD)</strong>, este sistema processa dados pessoais e dados pessoais sensíveis de filiação religiosa fundamentado no consentimento livre, informado e inequívoco do titular (Art. 7º, I e Art. 11, II, "a" e "d").</p>
+
+        <h4 style="margin: 16px 0 8px; color: var(--primary);">2. Finalidade Específica do Tratamento</h4>
+        <ul style="padding-left: 20px; margin-bottom: 12px;">
+          <li>Cadastro e organização eclesiástica do rol de membros da igreja;</li>
+          <li>Registro solene da Confissão de Fé Cristã e aceitação do estatuto ministerial;</li>
+          <li>Emissão de certidões, fichas e comprovantes com rúbrica digital e carimbo de autenticidade SHA-256;</li>
+          <li>Comunicação pastoral e encaminhamento para células, discipulado e áreas ministeriais.</li>
+        </ul>
+
+        <h4 style="margin: 16px 0 8px; color: var(--primary);">3. Segurança da Informação e Auditoria</h4>
+        <p>Em estrito cumprimento ao Art. 46 e Art. 37 da LGPD, o SIS MEVAM-GYN mantém trilha imutável de auditoria registrando quem acessou, consultou ou emitiu fichas, com carimbo de data, hora e IP do dispositivo. As senhas de usuários são protegidas com criptografia de derivação de chave PBKDF2-SHA256.</p>
+
+        <h4 style="margin: 16px 0 8px; color: var(--primary);">4. Direitos dos Titulares (Art. 18)</h4>
+        <p>O titular tem o direito de solicitar a qualquer momento a confirmação de existência de dados, acesso aos dados cadastrados, portabilidade em formato PDF ou a revogação do consentimento com anonimização/eliminação de seus dados pessoais através do canal oficial do DPO.</p>
+
+        <div style="text-align: center; margin-top: 24px;">
+          <button type="button" class="btn btn-primary" onclick="document.getElementById('modalPoliticaLgpd').style.display='none'">
+            Compreendido & Ciente
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Scripts da Aplicação -->
   <script src="/static/js/signature.js"></script>
   <script src="/static/js/ocr_engine.js"></script>
+  <script src="/static/js/auth.js"></script>
   <script src="/static/js/admin.js"></script>
   <script src="/static/js/app.js"></script>
 
 </body>
 </html>
+

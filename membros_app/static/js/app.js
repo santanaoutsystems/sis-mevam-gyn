@@ -453,6 +453,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      const chkLgpd = document.getElementById('checkConsentimentoLgpd');
+      if (chkLgpd && !chkLgpd.checked) {
+        mostrarToast("É obrigatório consentir com a Política de Privacidade e LGPD para finalizar.", "error");
+        return;
+      }
+
       if (signaturePad.isEmpty()) {
         mostrarToast("Por favor, faça a sua rúbrica/assinatura no quadro digital.", "error");
         return;
@@ -500,6 +506,10 @@ document.addEventListener('DOMContentLoaded', () => {
         nome_assinante: nomeAssinante,
         assinatura_rubrica: signaturePad.toDataURL(),
         data_assinatura: new Date().toLocaleString('pt-BR'),
+
+        // Conformidade LGPD (Lei 13.709/2018)
+        lgpd_consentimento: chkLgpd ? chkLgpd.checked : true,
+        lgpd_versao_termo: 'v1.0-2026',
 
         // OCR Metadados
         ocr_documento_nome: ocrDataExtracted?.fileName || '',

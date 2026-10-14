@@ -1054,3 +1054,224 @@ body.dark-mode .card-icon {
     padding: 0 !important;
   }
 }
+
+/* ==========================================================================
+   ESTILOS DE AUTENTICAÇÃO, CONTROLE DE ACESSOS (RBAC) & LGPD
+   ========================================================================== */
+
+/* Chip de Usuário Logado no Topo */
+.user-profile-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 4px 12px 4px 6px;
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.85rem;
+}
+
+.user-avatar-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary-gradient);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.78rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.user-info-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.user-name-title {
+  font-weight: 600;
+  color: var(--text-main);
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badge-role {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.badge-role.admin {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.badge-role.secretaria {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.badge-role.membro {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+/* Modal de Autenticação */
+.auth-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 20px;
+}
+
+.auth-tab-btn {
+  flex: 1;
+  padding: 12px;
+  background: none;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.auth-tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.auth-lgpd-badge {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body.dark-mode .auth-lgpd-badge {
+  background: #052e16;
+  border-color: #14532d;
+  color: #86efac;
+}
+
+/* Card de Consentimento LGPD no Cadastro */
+.lgpd-consent-box {
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-top: 16px;
+  transition: all var(--transition-fast);
+}
+
+body.dark-mode .lgpd-consent-box {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.lgpd-consent-box:hover {
+  border-color: var(--primary-light);
+}
+
+.lgpd-consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-main);
+  line-height: 1.45;
+}
+
+.lgpd-consent-checkbox {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--primary);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+/* Banner de Governança LGPD & DPO */
+.dpo-banner {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  color: white;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.dpo-banner h3 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.25rem;
+  margin-bottom: 6px;
+}
+
+.dpo-banner p {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  max-width: 680px;
+  line-height: 1.45;
+}
+
+/* Tags de Bases Legais LGPD */
+.legal-basis-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.legal-tag {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Badge de Ação de Auditoria */
+.badge-audit-action {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-audit-action.login { background: #dbeafe; color: #1e40af; }
+.badge-audit-action.cadastro { background: #dcfce7; color: #15803d; }
+.badge-audit-action.consulta { background: #f1f5f9; color: #475569; }
+.badge-audit-action.exclusao { background: #fee2e2; color: #b91c1c; }
+.badge-audit-action.anonimizacao { background: #fef3c7; color: #b45309; }
+.badge-audit-action.alteracao { background: #f3e8ff; color: #7e22ce; }
+
