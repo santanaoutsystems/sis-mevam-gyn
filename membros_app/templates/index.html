@@ -7,6 +7,14 @@
   <meta name="description" content="Sistema SaaS/ERP responsivo para registro de membros com reconhecimento OCR, assinatura digital de rúbrica e aceite da confissão de fé do Ministério MEVAM GYN.">
   <link rel="icon" type="image/jpeg" href="/static/assets/logo_round.jpg">
   
+  <!-- Configurações PWA (Instalável no Android e iPhone) -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#1e3a8a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MEVAM GYN">
+  <link rel="apple-touch-icon" href="/static/assets/logo_round.jpg">
+
   <!-- CSS do Sistema -->
   <link rel="stylesheet" href="/static/css/style.css">
 
@@ -50,6 +58,10 @@
       <div id="headerUserArea">
         <!-- Renderizado dinamicamente pelo AuthManager -->
       </div>
+
+      <button type="button" class="btn btn-secondary btn-sm" id="btnCompartilharApp" title="Compartilhar / Instalar Aplicativo" onclick="window.abrirModalCompartilhar()">
+        📲 <span>Compartilhar App</span>
+      </button>
 
       <button type="button" class="btn btn-secondary btn-sm" id="btnToggleTheme" title="Alternar Modo Escuro" onclick="document.body.classList.toggle('dark-mode')">
         🌓
@@ -1170,12 +1182,108 @@
     </div>
   </div>
 
+  <!-- ========================================== -->
+  <!-- MODAL: COMPARTILHAR / INSTALAR APLICATIVO  -->
+  <!-- ========================================== -->
+  <div class="modal-overlay" id="modalCompartilhar">
+    <div class="modal-content" style="max-width: 520px; padding: 24px;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <img src="/static/assets/logo_round.jpg" alt="Logo" style="width: 32px; height: 32px; border-radius: 50%;" onerror="this.src='/static/assets/logo_wide.jpg'">
+          <h3 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.2rem;">Compartilhar o SIS MEVAM-GYN</h3>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('modalCompartilhar').style.display='none'">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- 1. Link Direto e Copiar -->
+        <div style="margin-bottom: 18px;">
+          <label class="form-label">Link de Acesso Oficial:</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="shareUrlInput" class="form-control" readonly style="background: var(--bg-body); font-weight: 500;">
+            <button type="button" class="btn btn-primary btn-sm" id="btnCopiarLinkShare" style="white-space: nowrap;">
+              📋 Copiar Link
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Compartilhar no WhatsApp -->
+        <div style="margin-bottom: 20px;">
+          <button type="button" class="btn btn-accent btn-lg" id="btnShareWhatsApp" style="width: 100%; background: #25D366; border-color: #25D366; color: white; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 700;">
+            <span>💬 Enviar no WhatsApp da Congregação</span>
+          </button>
+        </div>
+
+        <!-- 3. QR Code para Telão / Recepção -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-md); padding: 16px; text-align: center; margin-bottom: 20px;">
+          <h4 style="font-size: 0.95rem; margin-bottom: 4px; color: #0f172a;">📱 QR Code para Telão ou Recepção</h4>
+          <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 12px;">Os membros apontam a câmera do celular no culto e o sistema abre na hora!</p>
+          <div style="display: flex; justify-content: center;">
+            <img id="shareQrCodeImg" src="" alt="QR Code" style="width: 160px; height: 160px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: white; padding: 6px;">
+          </div>
+        </div>
+
+        <!-- 4. Como Instalar como Aplicativo no Celular -->
+        <div style="background: var(--bg-body); border-left: 3px solid var(--primary); padding: 12px; border-radius: 6px; font-size: 0.82rem; line-height: 1.5;">
+          <strong>📲 Como os membros instalam como App no celular:</strong><br/>
+          • <strong>No Android (Chrome):</strong> Toque nos 3 pontinhos no topo e clique em <em>"Instalar aplicativo"</em> ou <em>"Adicionar à tela inicial"</em>.<br/>
+          • <strong>No iPhone (Safari):</strong> Toque no botão de compartilhar (quadrado com seta pra cima) e selecione <em>"Adicionar à Tela de Início"</em>.
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Scripts da Aplicação -->
   <script src="/static/js/signature.js"></script>
   <script src="/static/js/ocr_engine.js"></script>
   <script src="/static/js/auth.js"></script>
   <script src="/static/js/admin.js"></script>
   <script src="/static/js/app.js"></script>
+
+  <!-- Script de PWA e Compartilhamento -->
+  <script>
+    // Registro do Service Worker para PWA Instalável
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+      });
+    }
+
+    // Modal de Compartilhamento e QR Code
+    window.abrirModalCompartilhar = function() {
+      const modal = document.getElementById('modalCompartilhar');
+      const inputUrl = document.getElementById('shareUrlInput');
+      const imgQr = document.getElementById('shareQrCodeImg');
+      const btnWhats = document.getElementById('btnShareWhatsApp');
+      const btnCopiar = document.getElementById('btnCopiarLinkShare');
+
+      const currentUrl = window.location.origin;
+      inputUrl.value = currentUrl;
+      imgQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(currentUrl)}`;
+
+      btnCopiar.onclick = () => {
+        navigator.clipboard.writeText(currentUrl).then(() => {
+          window.mostrarToast("Link copiado para a área de transferência!", "success");
+        }).catch(() => {
+          inputUrl.select();
+          document.execCommand('copy');
+          window.mostrarToast("Link copiado!", "success");
+        });
+      };
+
+      const textoMensagem = encodeURIComponent(
+        `Graça e Paz, família MEVAM GYN!\n\n` +
+        `Nosso sistema oficial já está no ar para cadastro de membros, ficha pastoral e aceite da Confissão de Fé com rúbrica digital.\n\n` +
+        `Acesse pelo link oficial ou adicione à tela inicial do seu celular como aplicativo:\n${currentUrl}`
+      );
+
+      btnWhats.onclick = () => {
+        window.open(`https://api.whatsapp.com/send?text=${textoMensagem}`, '_blank');
+      };
+
+      modal.style.display = 'flex';
+    };
+  </script>
 
 </body>
 </html>
