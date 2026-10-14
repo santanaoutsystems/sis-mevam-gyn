@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Confissão de Fé & Rúbrica Digital | MEVAM GYN</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" type="image/jpeg" href="/static/assets/logo_round.jpg">
+
+  <style>
+    .credo-page-wrapper {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 24px 16px 60px;
+    }
+    .membro-badge-header {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .membro-foto-box {
+      width: 90px;
+      height: 120px;
+      border-radius: 8px;
+      border: 2px solid var(--accent);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      background: #f1f5f9;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .membro-foto-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .credo-solene-box {
+      background: linear-gradient(135deg, rgba(30, 58, 138, 0.05) 0%, rgba(217, 119, 6, 0.08) 100%);
+      border: 1.5px solid var(--accent);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: var(--text-main);
+      box-shadow: var(--shadow-sm);
+    }
+    .credo-solene-box h3 {
+      font-family: 'Cinzel', serif;
+      color: var(--primary);
+      margin-top: 0;
+      margin-bottom: 12px;
+      font-size: 1.2rem;
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+    .sucesso-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.85);
+      z-index: 99999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .sucesso-box {
+      background: white;
+      border-radius: var(--radius-xl);
+      padding: 32px 24px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      box-shadow: var(--shadow-xl);
+      animation: fadeInPortal 0.35s ease-out;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar Minimalista e Elegante -->
+  <header class="app-header">
+    <div class="header-logo">
+      <img src="/static/assets/logo_round.jpg" alt="Logo MEVAM GYN" onerror="this.src='/static/assets/logo_wide.jpg'">
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <h1 class="header-title" style="margin: 0;">MEVAM GYN</h1>
+          <span style="font-size: 0.72rem; background: rgba(30, 58, 138, 0.1); color: var(--primary); border: 1px solid rgba(30, 58, 138, 0.25); padding: 2px 7px; border-radius: 999px; font-weight: 700;">v1.26</span>
+        </div>
+        <p class="header-subtitle">Confissão de Fé & Rúbrica Digital • Secretaria Oficial</p>
+      </div>
+    </div>
+    <div style="font-size: 0.82rem; font-weight: 700; color: var(--primary); background: rgba(30, 58, 138, 0.08); padding: 6px 12px; border-radius: 20px;">
+      🔒 Ambiente Seguro LGPD
+    </div>
+  </header>
+
+  <main class="credo-page-wrapper">
+
+    <!-- Card de Identificação do Membro Validado -->
+    <div class="membro-badge-header">
+      <div class="membro-foto-box">
+        {% if membro.foto_3x4 %}
+          <img src="{{ membro.foto_3x4 }}" alt="Foto 3x4 do Membro">
+        {% else %}
+          <span style="font-size: 2.2rem; opacity: 0.5;">👤</span>
+        {% endif %}
+      </div>
+      <div style="flex: 1; min-width: 240px;">
+        <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 4px;">
+          <span class="badge badge-success">✓ Ficha Homologada pela Direção</span>
+          <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Protocolo #{{ membro.id }}</span>
+        </div>
+        <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.4rem; color: var(--text-main); margin: 0 0 6px 0;">
+          {{ membro.nome_completo }}
+        </h2>
+        <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+          <strong>WhatsApp:</strong> {{ membro.whatsapp or '-' }} &nbsp;|&nbsp; 
+          <strong>Cidade:</strong> {{ membro.cidade or 'Goiânia' }} - {{ membro.bairro or '' }}<br/>
+          <strong>Data de Nascimento:</strong> {{ membro.data_nascimento or '-' }}
+        </div>
+      </div>
+    </div>
+
+    {% if membro.assinatura_rubrica and membro.credo_aceito %}
+      <!-- Se já estiver assinado -->
+      <section class="card-section" style="text-align: center; padding: 40px 24px;">
+        <div style="font-size: 3rem; margin-bottom: 12px;">🎉</div>
+        <h2 style="color: #065f46; font-family: 'Outfit', sans-serif; font-size: 1.6rem; margin-bottom: 8px;">
+          Confissão de Fé & Rúbrica Já Registradas!
+        </h2>
+        <p style="color: var(--text-muted); max-width: 560px; margin: 0 auto 24px; font-size: 0.95rem; line-height: 1.6;">
+          Este cadastro já foi homologado e a assinatura do termo doutrinário foi efetuada com sucesso em <strong>{{ membro.data_assinatura }}</strong> sob o protocolo seguro LGPD.
+        </p>
+
+        <div style="max-width: 380px; margin: 0 auto 24px; background: #ffffff; border: 1.5px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; box-shadow: var(--shadow-sm);">
+          <img src="{{ membro.assinatura_rubrica }}" alt="Rúbrica Registrada" style="max-height: 90px; max-width: 100%;">
+          <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 8px; border-top: 1px dashed var(--border-color); padding-top: 6px;">
+            <strong>Assinado por:</strong> {{ membro.nome_assinante or membro.nome_completo }}<br/>
+            <strong>Hash LGPD:</strong> {{ (membro.hash_autenticidade or 'VALIDADO-MEVAM-GYN')[:28] }}...
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+          <a href="/api/membros/{{ membro.id }}/pdf" target="_blank" class="btn btn-primary btn-lg">
+            📄 Baixar Ficha Oficial com Rúbrica (PDF)
+          </a>
+          <a href="/" class="btn btn-secondary btn-lg">
+            Voltar ao Início
+          </a>
+        </div>
+      </section>
+
+    {% else %}
+
+      <!-- Convite Pastoral & Formulário de Assinatura -->
+      <div style="background: var(--bg-body); border-left: 4px solid var(--accent); padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; font-size: 0.9rem; line-height: 1.6; color: var(--text-main);">
+        <strong>Graça e Paz, {{ membro.nome_completo }}!</strong><br/>
+        Sua ficha de membresia foi devidamente revisada e homologada pela Secretaria e Direção Geral do MEVAM Goiânia. 
+        Para oficializar sua comunhão e aliança estatutária como membro ativo da igreja, solicitamos a leitura solene da nossa Confissão de Fé abaixo e o desenho da sua <strong>Rúbrica Digital</strong>.
+      </div>
+
+      <!-- Credo Apostólico -->
+      <div class="credo-solene-box">
+        <h3>O CREDO APOSTÓLICO</h3>
+        <p style="margin: 0; text-align: center;">
+          Creio em Deus Pai Todo-Poderoso, Criador dos céus e da terra;<br/>
+          E em Jesus Cristo, seu único Filho, nosso Senhor;<br/>
+          O qual foi concebido por obra do Espírito Santo; Nasceu da virgem, Maria;<br/>
+          Padeceu sob o poder de Pôncio Pilatos; Foi crucificado, morto e sepultado;<br/>
+          E ao terceiro dia, ressurgiu dos mortos;<br/>
+          Subiu ao céu e está assentado à destra de Deus Pai, Todo-Poderoso, de onde há de vir para julgar os vivos e os mortos;<br/>
+          Creio no Espírito Santo, Na Santa Igreja de Cristo, Na comunhão dos santos, Na remissão dos pecados, Na ressurreição do corpo E na vida eterna. <strong>Amém!</strong>
+        </p>
+      </div>
+
+      <!-- Accordion dos 10 Artigos Doutrinários -->
+      <section class="card-section" style="margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; margin: 0; color: var(--text-main);">
+              Os 10 Artigos Doutrinários Oficiais
+            </h3>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Fundamentos bíblicos e princípios eclesiásticos do MEVAM GYN</span>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnToggleAllArtigos">Expandir Todos os 10 Artigos</button>
+        </div>
+
+        <div class="artigos-list">
+          <!-- Artigo 1 -->
+          <div class="artigo-card">
+            <button type="button" class="artigo-trigger">
+              <span><span class="artigo-numero">1</span> A Natureza de Deus e de Seu Cristo</span>
+              <span class="artigo-toggle-icon">▼</span>
+            </button>
+            <div class="artigo-body" style="display: none;">
+              Cremos no único Deus eterno, Criador e Senhor do Mundo, Deus Trino: Pai, Filho e Espírito Santo, que governa todas as coisas segundo a sua vontade. Deus chamou do mundo um povo para si, enviando-o novamente ao mundo como suas testemunhas, para estender o seu reino, edificar o corpo de Cristo, e para a glória de Seu nome. Cremos na divindade de Cristo, seu nascimento virginal, sua morte propiciatória ao verter seu sangue, sua ressurreição corpórea e sua ascensão à destra do Pai. Cremos que Jesus Cristo é o único Salvador e rejeitamos todo e qualquer tipo de sincretismo ou de diálogo inter religioso que coloque o Cristianismo em relação horizontal com as demais religiões e ideologias. Jesus Cristo, sendo ele próprio o único Deus-homem, que se ofereceu a si mesmo como único resgate pelos pecadores, é o único mediador entre Deus e os homens.
+              <div class="artigo-versos">(Isaías 40:28; Mateus 28:19; Efésios 1:11; Atos 15:14; João 17:6,18; Efésios 4:12; 1 Coríntios 5:10; Romanos 12; 2 Coríntios 4:7; Gálatas 1:6-9; Romanos 11:5; 1 Timóteo 2:5-6; Atos 4:12; João 3:16-19; 2 Pedro 3:9; 2 Tessalonicenses 1:7-9; João 4:42; Mateus 11:28; Efésios 1:20,21; Filipenses 2:9-11)</div>
+            </div>
+          </div>
+
+          <!-- Artigo 2 -->
+          <div class="artigo-card">
+            <button type="button" class="artigo-trigger">
+              <span><span class="artigo-numero">2</span> O Ministério do Espírito Santo</span>
+              <span class="artigo-toggle-icon">▼</span>
+            </button>
+            <div class="artigo-body" style="display: none;">
+              Cremos que o Espírito Santo é uma pessoa da Trindade e mais do que apenas um carisma ou poder sobrenatural. Cremos que o Espírito Santo foi derramado sobre a Igreja com poder em Pentecostes, batizando os crentes e liberando os dons do Espírito a eles. O Espírito habita com sua presença em nós para adoração espiritual, santificação pessoal, edificação da Igreja, e para confrontar o reino de Satanás através da evangelização do mundo. Isso é possível mediante as obras de Jesus (pregação do Reino, libertação dos cativos e cura dos enfermos). O Espírito Santo habita em todo os que creem em Jesus Cristo e Ele é nosso ajudador e guia. Acreditamos no enchimento ou capacitação do Espírito Santo, para o ministério hoje. Cremos no atual ministério do Espírito e no exercício de todos os dons do Espírito citados na Bíblia.
+              <div class="artigo-versos">(1 Coríntios 2:4; João 15:26-27; 16:8-11; 1 Coríntios 12:3; João 3:6-8; 2 Coríntios 3:18; João 7:37-39; 1 Tessalonicenses 5:19; Atos 1:8; Salmos 85:4-7; 67:1-5; Gálatas 5:22,23; 1 Coríntios 12:4-31; Romanos 12:3-8)</div>
+            </div>
+          </div>
+
+          <!-- Artigo 3 -->
+          <div class="artigo-card">
+            <button type="button" class="artigo-trigger">
+              <span><span class="artigo-numero">3</span> A Autoridade e o Poder da Bíblia</span>
+              <span class="artigo-toggle-icon">▼</span>
+            </button>
+            <div class="artigo-body" style="display: none;">
+              Afirmamos a inspiração divina, a veracidade e a autoridade das Escrituras tanto do Velho como do Novo Testamento, em sua totalidade, como a única Palavra de Deus escrita, sem erro em tudo o que ela afirma, e a única regra infalível de fé e prática. Afirmamos também o poder da Palavra de Deus para realizar os seus propósitos de salvação. A mensagem da Bíblia é dirigida a toda humanidade, porque a revelação de Deus em Cristo e nas Escrituras é imutável.
+              <div class="artigo-versos">(2 Timóteo 3:16; 2 Pedro 1:21; Lucas 18:31; Romanos 1:16; Mateus 5:17-18; Isaías 55:11; 1 Coríntios 1:21; Romanos 10:17)</div>
+            </div>
+          </div>
+
+          <!-- Artigo 4 -->
+          <div class="artigo-card">
+            <button type="button" class="artigo-trigger">
+              <span><span class="artigo-numero">4</span> A Natureza de Evangelismo e Missões</span>
+              <span class="artigo-toggle-icon">▼</span>
+            </button>
+            <div class="artigo-body" style="display: none;">
+              Evangelizar é difundir as boas novas de que Jesus Cristo morreu por nossos pecados e ressuscitou segundo as Escrituras. É Ele quem oferece o perdão dos pecados e o dom libertador do Espírito Santo a todos os que se arrependem e creem. A proclamação do evangelho exige o discipulado, o engajamento com a comunidade local e o testemunho santo diante da sociedade.
+              <div class="artigo-versos">(1 Coríntios 15:3-4; Lucas 14:25-33; Atos 20:21; Mateus 28:19)</div>
+            </div>
+          </div>
+
+          <!-- Artigo 5 -->
+          <div class="artigo-card">
+            <button type="button" class="artigo-trigger">
+              <span><span class="artigo-numero">5</span> A Igreja: Instrumento do Reino e Responsabilidade Social</span>
+              <span class="artigo-toggle-icon">▼</span>
+            </button>
+            <div class="artigo-body" style="display: none;">
+              Afirmamos que Deus é Criador e Juiz de todos os homens, e devemos compartilhar o Seu interesse pela justiça, paz e reconciliação em toda a sociedade. A fé operante pelo amor expressa-se no cuidado prático com os necessitados e na defesa dos valores do Reino de Deus: O evangelho todo, para o homem todo, para todos os homens.
+              <div class="artigo-versos">(Tiago 2:14-26; Atos 17:26; Miqueias 6:8; Mateus 5:13-16)</div>
+            </div>
+          </div>
+
+          <!-- Artigo 6 -->
+          <div class="artigo-card">
+            <button type="button" class="artigo-trigger">
+              <span><span class="artigo-numero">6</span> O Retorno Visível de Jesus Cristo</span>
+              <span class="artigo-toggle-icon">▼</span>
+            </button>
+            <div class="artigo-body" style="display: none;">
+              Cremos que Jesus Cristo voltará pessoal e visivelmente, em poder e grande glória, para consumar a salvação de Sua Noiva e o juízo dos ímpios, inaugurando novos céus e nova terra onde habita a justiça.
+              <div class="artigo-versos">(Hebreus 9:28; Atos 1:8-11; Apocalipse 21:1-5; 1 Tessalonicenses 4:16-17)</div>
+            </div>
+          </div>
+
+          <!-- Artigo 7 -->
+          <div class="artigo-card">
+            <button type="button" class="artigo-trigger">
+              <span><span class="artigo-numero">7</span> Guerra Espiritual e Autoridade em Cristo</span>
+              <span class="artigo-toggle-icon">▼</span>
+            </button>
+            <div class="artigo-body" style="display: none;">
+              Cremos na realidade do conflito com principados e potestades do mal. Vencemos Satanás e suas hostes pelo sangue do Cordeiro, pela proclamação da verdade, pela oração incessante e pelas armas da justiça.
+              <div class="artigo-versos">(Efésios 6:10-18; 2 Coríntios 10:3-5; Apocalipse 12:11)</div>
+            </div>
+          </div>
+
+          <!-- Artigo 8 -->
+          <div class="artigo-card">
+            <button type="button" class="artigo-trigger">
+              <span><span class="artigo-numero">8</span> O Valor Inegociável da Vida Humana</span>
+              <span class="artigo-toggle-icon">▼</span>
+            </button>
+            <div class="artigo-body" style="display: none;">
+              A vida humana começa no momento da fecundação e é sagrada até a morte natural. Posicionamo-nos firmemente contra o aborto provocado, eutanásia e qualquer atentado à dignidade da pessoa criada à imagem de Deus.
+              <div class="artigo-versos">(Salmos 139:13-16; Gênesis 1:27; Jeremias 1:5)</div>
+            </div>
+          </div>
+
+          <!-- Artigo 9 -->
+          <div class="artigo-card">
+            <button type="button" class="artigo-trigger">
+              <span><span class="artigo-numero">9</span> A Sexualidade Bíblica e a Aliança do Casamento</span>
+              <span class="artigo-toggle-icon">▼</span>
+            </button>
+            <div class="artigo-body" style="display: none;">
+              Deus criou o ser humano intencionalmente macho e fêmea. O casamento é uma aliança santa, heterossexual e monogâmica entre um homem e uma mulher, símbolo do mistério de Cristo e Sua Igreja.
+              <div class="artigo-versos">(Mateus 19:4-6; Efésios 5:22-33; Gênesis 2:18-24)</div>
+            </div>
+          </div>
+
+          <!-- Artigo 10 -->
+          <div class="artigo-card">
+            <button type="button" class="artigo-trigger">
+              <span><span class="artigo-numero">10</span> Comunhão, Pastoreio, Disciplina e Restauração</span>
+              <span class="artigo-toggle-icon">▼</span>
+            </button>
+            <div class="artigo-body" style="display: none;">
+              Reconhecemos a autoridade bíblica pastoral e o princípio do pastoreio e disciplina em amor (Mateus 18:15-17), visando sempre a edificação da Igreja e a redenção e restauração espiritual do crente.
+              <div class="artigo-versos">(Mateus 18:15-17; Gálatas 6:1; 1 Coríntios 5:1-7; Hebreus 13:17)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Termo de Declaração de Aceite Obrigatório -->
+        <div style="margin-top: 20px; padding: 14px; background: #f8fafc; border-radius: var(--radius-md); border: 1.5px solid var(--accent);">
+          <label style="display: flex; gap: 12px; align-items: flex-start; cursor: pointer; font-size: 0.92rem; font-weight: 600; color: var(--text-main);">
+            <input type="checkbox" id="checkConcordanciaCredo" style="width: 20px; height: 20px; margin-top: 2px; accent-color: var(--primary);" required>
+            <span>
+              Declaro que li, compreendi e concordo integralmente de livre e espontânea vontade com o Credo Apostólico e os 10 Artigos Doutrinários do MEVAM GYN, assumindo o compromisso de comunhão cristã com esta igreja.
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Seção de Rúbrica Digital -->
+      <section class="card-section">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-icon">✍️</div>
+            <div>
+              <h2 class="card-title">Assinatura Digital & Rúbrica Oficial</h2>
+              <p class="card-subtitle">Confirmação formal da sua identidade com validade jurídica e eclesiástica.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-grid" style="margin-bottom: 16px;">
+          <div class="form-group col-12">
+            <label class="form-label" for="nomeAssinanteInput">
+              Nome Completo (Conforme Documento): <span class="required">*</span>
+            </label>
+            <input type="text" id="nomeAssinanteInput" class="form-control" value="{{ membro.nome_completo }}" required>
+          </div>
+        </div>
+
+        <div class="signature-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label class="form-label" style="margin: 0;">
+              Desenhe sua Rúbrica / Assinatura abaixo: <span class="required">*</span>
+            </label>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Use o dedo no celular ou mouse no PC</span>
+          </div>
+
+          <div class="signature-pad-wrapper">
+            <span class="signature-watermark" id="signatureWatermark">DESENHE SUA RÚBRICA AQUI</span>
+            <canvas id="signatureCanvas"></canvas>
+          </div>
+
+          <div class="signature-toolbar">
+            <div class="signature-tools-left">
+              <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Cor da Caneta:</span>
+              <button type="button" class="btn btn-secondary btn-sm active" id="btnPenBlue" style="color: #003399; font-weight: bold;">● Azul Caneta</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnPenBlack" style="color: #111827; font-weight: bold;">● Preto</button>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btnUndoSignature">↩ Desfazer</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnClearSignature">🗑️ Limpar</button>
+            </div>
+          </div>
+
+          <div style="margin-top: 14px; font-size: 0.76rem; color: #64748b; line-height: 1.5; border-top: 1px solid var(--border-color); padding-top: 10px;">
+            🔒 <strong>Validade Digital & LGPD:</strong> A rúbrica será gravada com coordenadas vetoriais, endereço IP, data/hora e selo criptográfico SHA-256 conforme a Lei 13.709/2018.
+          </div>
+        </div>
+
+        <div style="margin-top: 24px; text-align: center;">
+          <button type="button" class="btn btn-accent btn-lg" id="btnGravarRubricaCredo" style="padding: 14px 32px; font-size: 1.1rem; width: 100%; max-width: 440px;">
+            ✓ Confirmar Aceite da Fé & Gravar Rúbrica
+          </button>
+        </div>
+      </section>
+
+    {% endif %}
+
+  </main>
+
+  <!-- Rodapé Institucional do Sistema -->
+  <footer style="text-align: center; padding: 24px 16px; color: #64748b; font-size: 0.82rem; border-top: 1px solid #e2e8f0; margin-top: 30px; background: #ffffff;">
+    <p><strong>SIS MEVAM-GYN</strong> • Confissão de Fé & Termo Eclesiástico | Versão Oficial <strong>v1.26</strong></p>
+    <p style="font-size: 0.75rem; margin-top: 4px;">Alameda Juazeiro do Norte, 475 – Chácara 79 / Pq. Amazônia - Goiânia - GO • Em conformidade com a LGPD (Lei 13.709/2018)</p>
+  </footer>
+
+  <!-- Overlay Modal de Sucesso -->
+  <div class="sucesso-overlay" id="overlaySucessoCredo">
+    <div class="sucesso-box">
+      <div style="font-size: 3.5rem; margin-bottom: 8px;">🎉</div>
+      <h2 style="color: #065f46; font-family: 'Outfit', sans-serif; font-size: 1.5rem; margin-bottom: 8px;">
+        Seja Bem-vindo(a) à Família MEVAM GYN!
+      </h2>
+      <p style="color: var(--text-muted); font-size: 0.92rem; line-height: 1.5; margin-bottom: 24px;">
+        Sua Confissão de Fé e Rúbrica Digital foram registradas com sucesso no rol eclesiástico sob total conformidade estatutária e da LGPD.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <a id="btnBaixarPdfFinal" href="/api/membros/{{ membro.id }}/pdf" target="_blank" class="btn btn-primary btn-lg" style="width: 100%;">
+          📄 Baixar Ficha Completa Assinada (PDF)
+        </a>
+        <a href="/" class="btn btn-secondary" style="width: 100%;">
+          Ir para a Página Principal
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="/static/js/signature.js"></script>
+  <script>
+    // Inicialização da Assinatura Digital
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('signatureCanvas');
+      let signaturePad = null;
+      if (canvas) {
+        signaturePad = new SignaturePad(canvas);
+        setTimeout(() => signaturePad.handleResize(), 100);
+      }
+
+      // Ferramentas de Assinatura
+      const btnClear = document.getElementById('btnClearSignature');
+      const btnUndo = document.getElementById('btnUndoSignature');
+      const btnBlue = document.getElementById('btnPenBlue');
+      const btnBlack = document.getElementById('btnPenBlack');
+
+      if (btnClear) btnClear.addEventListener('click', () => signaturePad && signaturePad.clear());
+      if (btnUndo) btnUndo.addEventListener('click', () => signaturePad && signaturePad.undo());
+
+      if (btnBlue && btnBlack) {
+        btnBlue.addEventListener('click', () => {
+          if (signaturePad) signaturePad.setColor('#003399');
+          btnBlue.classList.add('active');
+          btnBlack.classList.remove('active');
+        });
+        btnBlack.addEventListener('click', () => {
+          if (signaturePad) signaturePad.setColor('#111827');
+          btnBlack.classList.add('active');
+          btnBlue.classList.remove('active');
+        });
+      }
+
+      // Accordion dos Artigos
+      const triggers = document.querySelectorAll('.artigo-trigger');
+      triggers.forEach(trigger => {
+        trigger.addEventListener('click', () => {
+          const card = trigger.closest('.artigo-card');
+          const body = card.querySelector('.artigo-body');
+          const icon = trigger.querySelector('.artigo-toggle-icon');
+          if (body.style.display === 'none' || !body.style.display) {
+            body.style.display = 'block';
+            if (icon) icon.textContent = '▲';
+          } else {
+            body.style.display = 'none';
+            if (icon) icon.textContent = '▼';
+          }
+        });
+      });
+
+      // Expandir Todos os Artigos
+      const btnToggleAll = document.getElementById('btnToggleAllArtigos');
+      if (btnToggleAll) {
+        let allExpanded = false;
+        btnToggleAll.addEventListener('click', () => {
+          allExpanded = !allExpanded;
+          document.querySelectorAll('.artigo-body').forEach(b => {
+            b.style.display = allExpanded ? 'block' : 'none';
+          });
+          document.querySelectorAll('.artigo-toggle-icon').forEach(i => {
+            i.textContent = allExpanded ? '▲' : '▼';
+          });
+          btnToggleAll.textContent = allExpanded ? "Recolher Artigos" : "Expandir Todos os 10 Artigos";
+        });
+      }
+
+      // Gravação do Aceite e Rúbrica
+      const btnGravar = document.getElementById('btnGravarRubricaCredo');
+      if (btnGravar) {
+        btnGravar.addEventListener('click', async () => {
+          const checkCredo = document.getElementById('checkConcordanciaCredo');
+          if (!checkCredo || !checkCredo.checked) {
+            mostrarToast("Você precisa marcar a declaração de concordância com o Credo.", "error");
+            checkCredo.focus();
+            return;
+          }
+
+          const nomeAssinante = document.getElementById('nomeAssinanteInput').value.trim();
+          if (!nomeAssinante) {
+            mostrarToast("Por favor, informe seu nome completo no campo da assinatura.", "error");
+            document.getElementById('nomeAssinanteInput').focus();
+            return;
+          }
+
+          if (!signaturePad || signaturePad.isEmpty()) {
+            mostrarToast("Por favor, desenhe sua rúbrica/assinatura no quadro digital.", "error");
+            return;
+          }
+
+          const rubricaBase64 = signaturePad.toDataURL();
+          btnGravar.disabled = true;
+          btnGravar.innerHTML = "⏳ Gravando Assinatura...";
+
+          try {
+            const membroId = {{ membro.id }};
+            const token = "{{ token }}";
+
+            const res = await fetch(`/api/membros/${membroId}/aceite-credo`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                nome_assinante: nomeAssinante,
+                assinatura_rubrica: rubricaBase64,
+                token: token
+              })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Erro ao registrar rúbrica.");
+
+            document.getElementById('overlaySucessoCredo').style.display = 'flex';
+          } catch (err) {
+            mostrarToast(err.message, "error");
+            btnGravar.disabled = false;
+            btnGravar.innerHTML = "✓ Confirmar Aceite da Fé & Gravar Rúbrica";
+          }
+        });
+      }
+
+      function mostrarToast(msg, tipo = "info") {
+        let container = document.getElementById('toastContainer');
+        if (!container) {
+          container = document.createElement('div');
+          container.id = 'toastContainer';
+          container.className = 'toast-container';
+          document.body.appendChild(container);
+        }
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${tipo}`;
+        toast.innerHTML = `<span>${tipo === 'success' ? '✓' : tipo === 'error' ? '✕' : 'ℹ'}</span> <span>${msg}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          setTimeout(() => toast.remove(), 300);
+        }, 4000);
+      }
+    });
+  </script>
+</body>
+</html>

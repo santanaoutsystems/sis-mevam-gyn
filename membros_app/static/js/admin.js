@@ -59,19 +59,19 @@ class ErpDashboard {
 
   atualizarEstatisticas() {
     const total = this.membros.length;
-    const batizados = this.membros.filter(m => m.batizado === 'Sim').length;
+    const aguardando = this.membros.filter(m => m.status === 'Aguardando Análise').length;
     const assinados = this.membros.filter(m => m.assinatura_rubrica).length;
-    const interesseBatismo = this.membros.filter(m => m.interesse_batismo_familia && m.interesse_batismo_familia.toLowerCase().includes('sim')).length;
+    const batizados = this.membros.filter(m => m.batizado === 'Sim').length;
 
     const elTotal = document.getElementById('statTotalMembros');
-    const elBatizados = document.getElementById('statTotalBatizados');
+    const elAguardando = document.getElementById('statAguardandoAnalise');
     const elAssinados = document.getElementById('statTotalAssinados');
-    const elInteresse = document.getElementById('statInteresseBatismo');
+    const elBatizados = document.getElementById('statTotalBatizados');
 
     if (elTotal) elTotal.textContent = total;
-    if (elBatizados) elBatizados.textContent = batizados;
+    if (elAguardando) elAguardando.textContent = aguardando;
     if (elAssinados) elAssinados.textContent = assinados;
-    if (elInteresse) elInteresse.textContent = interesseBatismo;
+    if (elBatizados) elBatizados.textContent = batizados;
   }
 
   renderizarTabela() {
@@ -85,6 +85,8 @@ class ErpDashboard {
         (m.bairro && m.bairro.toLowerCase().includes(this.filtroBusca));
 
       let matchStatus = true;
+      if (this.filtroStatus === 'AguardandoAnalise') matchStatus = (m.status === 'Aguardando Análise');
+      if (this.filtroStatus === 'Validados') matchStatus = (m.status === 'Validado' || m.status === 'Link Enviado');
       if (this.filtroStatus === 'Batizados') matchStatus = (m.batizado === 'Sim');
       if (this.filtroStatus === 'NaoBatizados') matchStatus = (m.batizado !== 'Sim');
       if (this.filtroStatus === 'ComAssinatura') matchStatus = !!m.assinatura_rubrica;
@@ -95,7 +97,7 @@ class ErpDashboard {
     if (filtrados.length === 0) {
       this.tabelaCorpo.innerHTML = `
         <tr>
-          <td colspan="7" style="text-align: center; padding: 32px; color: #94a3b8;">
+          <td colspan="8" style="text-align: center; padding: 32px; color: #94a3b8;">
             Nenhum membro encontrado com os filtros aplicados.
           </td>
         </tr>
@@ -104,20 +106,33 @@ class ErpDashboard {
     }
 
     this.tabelaCorpo.innerHTML = filtrados.map(m => {
+      // Status do Processo de Membresia
+      let statusBadge = `<span class="badge" style="background: #fef3c7; color: #b45309; font-weight: 700;">⏳ Aguardando Análise</span>`;
+      if (m.status === 'Validado') {
+        statusBadge = `<span class="badge" style="background: #dbeafe; color: #1e40af; font-weight: 700;">✓ Validado</span>`;
+      } else if (m.status === 'Link Enviado') {
+        statusBadge = `<span class="badge" style="background: #e0e7ff; color: #4338ca; font-weight: 700;">📲 Link Enviado</span>`;
+      } else if (m.status === 'Ativo' || m.assinatura_rubrica) {
+        statusBadge = `<span class="badge badge-success">✓ Membro Homologado</span>`;
+      }
+
       const temAssinatura = m.assinatura_rubrica ? 
-        `<span class="badge badge-success">✓ Rúbrica Registrada</span>` : 
-        `<span class="badge badge-warning">Pendente</span>`;
+        `<span class="badge badge-success">✓ Rúbrica Assinada</span>` : 
+        `<span class="badge badge-warning">Pendente Aceite</span>`;
 
       const batismoBadge = m.batizado === 'Sim' ? 
         `<span class="badge badge-primary">Sim</span>` : 
         `<span class="badge badge-info">Não</span>`;
+
+      const botaoAcaoValidar = (m.status === 'Aguardando Análise') ? 
+        `<button class="btn btn-sm" style="background: #10b981; color: white; font-weight: 600; padding: 3px 8px; font-size: 0.78rem;" onclick="ErpDashboard.validarMembroDirecao(${m.id})" title="Aprovar e Liberar Link">✅ Validar</button>` : '';
 
       return `
         <tr>
           <td><strong>#${m.id}</strong></td>
           <td>
             <div style="display: flex; align-items: center; gap: 10px;">
-              <div style="width: 34px; height: 44px; border-radius: 6px; border: 1.5px solid var(--border-color); overflow: hidden; background: #e2e8f0; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+              <div style="width: 36px; height: 46px; border-radius: 6px; border: 1.5px solid var(--border-color); overflow: hidden; background: #e2e8f0; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
                 ${m.foto_3x4 ? `<img src="${m.foto_3x4}" style="width: 100%; height: 100%; object-fit: cover;">` : `<span style="font-size: 1rem; opacity: 0.6;">👤</span>`}
               </div>
               <div>
@@ -129,12 +144,15 @@ class ErpDashboard {
           <td>${m.whatsapp || m.telefone || '-'}</td>
           <td>${m.cidade || 'Goiânia'}<br/><small style="color: #64748b;">${m.bairro || '-'}</small></td>
           <td>${batismoBadge}</td>
+          <td>${statusBadge}</td>
           <td>${temAssinatura}</td>
           <td>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn btn-secondary btn-sm" onclick="ErpDashboard.abrirDetalhes(${m.id})">🔍 Ver Ficha</button>
-              <button class="btn btn-primary btn-sm" onclick="window.open('/api/membros/${m.id}/pdf', '_blank')">📄 PDF</button>
-              <button class="btn btn-secondary btn-sm" style="color: #ef4444;" onclick="ErpDashboard.excluirMembro(${m.id})" title="Excluir">✕</button>
+            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+              <button class="btn btn-secondary btn-sm" style="padding: 3px 7px; font-size: 0.78rem;" onclick="ErpDashboard.abrirDetalhes(${m.id})">🔍 Ficha</button>
+              ${botaoAcaoValidar}
+              <button class="btn btn-sm" style="background: #2563eb; color: white; padding: 3px 8px; font-size: 0.78rem;" onclick="ErpDashboard.abrirModalEnvioCredo(${m.id})" title="Enviar WhatsApp com Link e QR Code">📲 WhatsApp/QR</button>
+              <button class="btn btn-primary btn-sm" style="padding: 3px 7px; font-size: 0.78rem;" onclick="window.open('/api/membros/${m.id}/pdf', '_blank')">📄 PDF</button>
+              <button class="btn btn-secondary btn-sm" style="color: #ef4444; padding: 3px 6px; font-size: 0.78rem;" onclick="ErpDashboard.excluirMembro(${m.id})" title="Excluir">✕</button>
             </div>
           </td>
         </tr>
@@ -269,6 +287,103 @@ class ErpDashboard {
       window.mostrarToast("Erro ao excluir do servidor.", "error");
     }
   }
+
+  static async validarMembroDirecao(id) {
+    if (!confirm(`Confirma a validação cadastral do membro #${id}? Isso homologará a ficha e abrirá o envio do link de Confissão de Fé.`)) return;
+
+    try {
+      const res = await fetch(`/api/membros/${id}/validar`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao validar membro.");
+
+      window.mostrarToast(data.message || "Cadastro validado com sucesso!", "success");
+      await window.ErpDashboardInstance.carregarDados();
+      ErpDashboard.abrirModalEnvioCredo(id);
+    } catch (err) {
+      window.mostrarToast(err.message, "error");
+    }
+  }
+
+  static abrirModalEnvioCredo(id) {
+    const dashboard = window.ErpDashboardInstance;
+    const m = dashboard.membros.find(item => item.id == id);
+    if (!m) return;
+
+    const modal = document.getElementById('modalEnviarCredoWhatsapp');
+    if (!modal) return;
+
+    const elNome = document.getElementById('modalCredoMembroNome');
+    const inputUrl = document.getElementById('modalCredoUrlInput');
+    const imgQr = document.getElementById('modalCredoQrCodeImg');
+    const btnWhats = document.getElementById('btnDispararWhatsAppCredo');
+    const btnEmail = document.getElementById('btnDispararEmailCredo');
+    const btnCopiar = document.getElementById('btnCopiarLinkCredo');
+    const btnMarcar = document.getElementById('btnMarcarLinkEnviado');
+
+    const token = m.token_aceite || '';
+    const urlAcesso = `${window.location.origin}/credo-aceite/${m.id}?token=${token}`;
+
+    if (elNome) elNome.textContent = `${m.nome_completo} (Protocolo #${m.id})`;
+    if (inputUrl) inputUrl.value = urlAcesso;
+    if (imgQr) imgQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(urlAcesso)}`;
+
+    if (btnCopiar) {
+      btnCopiar.onclick = () => {
+        navigator.clipboard.writeText(urlAcesso).then(() => {
+          window.mostrarToast("Link do Credo copiado com sucesso!", "success");
+        }).catch(() => {
+          inputUrl.select();
+          document.execCommand('copy');
+          window.mostrarToast("Link copiado!", "success");
+        });
+      };
+    }
+
+    const limparTel = (m.whatsapp || m.telefone || '').replace(/\D/g, '');
+    let numWhats = limparTel;
+    if (numWhats.length === 10 || numWhats.length === 11) {
+      numWhats = '55' + numWhats;
+    }
+
+    const textoMensagem = 
+      `Graça e Paz, ${m.nome_completo}!\n\n` +
+      `Sua ficha cadastral no MEVAM Goiânia foi devidamente analisada e homologada pela Secretaria e Direção Geral.\n\n` +
+      `Para concluir sua aliança de membros e formalizar sua comunhão com a igreja, acesse o link abaixo para ler a nossa Confissão de Fé e registrar a sua Rúbrica Digital:\n` +
+      `${urlAcesso}\n\n` +
+      `Ficamos muito felizes em ter você conosco! Qualquer dúvida estamos à disposição.`;
+
+    if (btnWhats) {
+      btnWhats.onclick = () => {
+        fetch(`/api/membros/${m.id}/link-enviado`, { method: 'POST' }).catch(() => {});
+        const waUrl = `https://api.whatsapp.com/send?phone=${numWhats}&text=${encodeURIComponent(textoMensagem)}`;
+        window.open(waUrl, '_blank');
+      };
+    }
+
+    if (btnEmail) {
+      btnEmail.onclick = () => {
+        fetch(`/api/membros/${m.id}/link-enviado`, { method: 'POST' }).catch(() => {});
+        const mailUrl = `mailto:${m.email || ''}?subject=${encodeURIComponent("MEVAM GYN: Homologação Cadastral & Confissão de Fé")}&body=${encodeURIComponent(textoMensagem)}`;
+        window.location.href = mailUrl;
+      };
+    }
+
+    if (btnMarcar) {
+      btnMarcar.onclick = async () => {
+        try {
+          await fetch(`/api/membros/${m.id}/link-enviado`, { method: 'POST' });
+          window.mostrarToast("Status atualizado para 'Link Enviado'!", "success");
+          modal.style.display = 'none';
+          await dashboard.carregarDados();
+        } catch (e) {
+          window.mostrarToast("Erro ao marcar envio.", "error");
+        }
+      };
+    }
+
+    modal.style.display = 'flex';
+  }
+
 
   exportarCsv() {
     if (this.membros.length === 0) {

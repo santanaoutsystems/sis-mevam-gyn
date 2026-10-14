@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const progressBar = document.getElementById('stepperProgressBar');
   const btnPrev = document.getElementById('btnPrevStep');
   const btnNext = document.getElementById('btnNextStep');
+  const btnSalvarPre = document.getElementById('btnSalvarPreCadastro');
   const btnFinalizar = document.getElementById('btnFinalizarCadastro');
   const btnClearSig = document.getElementById('btnClearSignature');
   const btnUndoSig = document.getElementById('btnUndoSignature');
@@ -54,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tabCadastro.classList.remove('active');
       viewCadastro.style.display = 'none';
       viewErp.style.display = 'block';
-      if (window.ErpDashboard) window.ErpDashboard.carregarDados();
+      if (window.ErpDashboardInstance) window.ErpDashboardInstance.carregarDados();
     });
   }
 
@@ -78,17 +79,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const percent = ((currentStep - 1) / (totalSteps - 1)) * 100;
     if (progressBar) progressBar.style.width = `${percent}%`;
 
-    // Atualiza botões
+    // Atualiza botões do rodapé conforme o passo atual
     if (btnPrev) btnPrev.style.visibility = (currentStep === 1) ? 'hidden' : 'visible';
-    
-    if (currentStep === totalSteps) {
-      if (btnNext) btnNext.style.display = 'none';
-      if (btnFinalizar) btnFinalizar.style.display = 'inline-flex';
-      // Ajusta tamanho da assinatura após o container ficar visível
-      setTimeout(() => signaturePad.handleResize(), 50);
-    } else {
-      if (btnNext) btnNext.style.display = 'inline-flex';
+
+    if (currentStep === 1) {
+      if (btnNext) {
+        btnNext.style.display = 'inline-flex';
+        btnNext.textContent = 'Preencher Ficha Cadastral →';
+      }
+      if (btnSalvarPre) btnSalvarPre.style.display = 'none';
       if (btnFinalizar) btnFinalizar.style.display = 'none';
+    } else if (currentStep === 2) {
+      // Passo 2: Ficha Cadastral -> Salvar Ficha para Análise da Direção
+      if (btnNext) btnNext.style.display = 'none';
+      if (btnSalvarPre) btnSalvarPre.style.display = 'inline-flex';
+      if (btnFinalizar) btnFinalizar.style.display = 'none';
+    } else if (currentStep === 3) {
+      if (btnNext) {
+        btnNext.style.display = 'inline-flex';
+        btnNext.textContent = 'Ver Rúbrica →';
+      }
+      if (btnSalvarPre) btnSalvarPre.style.display = 'none';
+      if (btnFinalizar) btnFinalizar.style.display = 'none';
+    } else if (currentStep === 4) {
+      if (btnNext) btnNext.style.display = 'none';
+      if (btnSalvarPre) btnSalvarPre.style.display = 'none';
+      if (btnFinalizar) btnFinalizar.style.display = 'inline-flex';
+      setTimeout(() => signaturePad.handleResize(), 50);
     }
 
     // Scroll para o topo no mobile
@@ -116,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Clique direto nos passos
+  // Clique direto nos passos do stepper
   stepItems.forEach(item => {
     item.addEventListener('click', () => {
       const targetStep = parseInt(item.getAttribute('data-step'));
@@ -127,20 +144,88 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // Validação Estrita de Todos os Campos das Etapas 1, 2 e 3
+  function validarFichaCadastralIntegral() {
+    // 1. Validar Foto 3x4 Obrigatória
+    if (!foto3x4Base64) {
+      window.mostrarToast("⚠️ A Foto 3x4 é obrigatória: Por favor, tire ou anexe sua foto sem óculos para identificação facial.", "error");
+      const fotoBox = document.querySelector('.foto-3x4-container');
+      if (fotoBox) destacarCampoErro(fotoBox);
+      return false;
+    }
+
+    // Lista com todos os campos das seções 1, 2 e 3
+    const camposObrigatorios = [
+      { id: 'nome_completo', nome: 'Nome Completo' },
+      { id: 'data_nascimento', nome: 'Data de Nascimento' },
+      { id: 'naturalidade', nome: 'Naturalidade (Cidade/UF)' },
+      { id: 'estado_civil', nome: 'Estado Civil' },
+      { id: 'cep', nome: 'CEP' },
+      { id: 'endereco', nome: 'Endereço Completo' },
+      { id: 'bairro', nome: 'Bairro' },
+      { id: 'cidade', nome: 'Cidade / UF' },
+      { id: 'whatsapp', nome: 'WhatsApp Principal' },
+      { id: 'telefone', nome: 'Telefone Fixo / Recado' },
+      { id: 'email', nome: 'E-mail de Contato' },
+      { id: 'escolaridade', nome: 'Escolaridade' },
+      { id: 'formacao_academica', nome: 'Formação Acadêmica' },
+      { id: 'profissao', nome: 'Profissão / Ocupação' },
+      { id: 'empresa', nome: 'Empresa que Trabalha' },
+      { id: 'data_batismo', nome: 'Data do Batismo' },
+      { id: 'onde_congregava', nome: 'Onde congregava' },
+      { id: 'area_ministerial', nome: 'Área ministerial anterior' },
+      { id: 'interesse_batismo_familia', nome: 'Interesse de batismo na família' }
+    ];
+
+    // Validação especial de cônjuge
+    const estCivil = document.getElementById('estado_civil')?.value;
+    const inputConjuge = document.getElementById('conjuge');
+    if ((estCivil === 'Casado(a)' || estCivil === 'União Estável') && inputConjuge) {
+      if (!inputConjuge.value.trim() || inputConjuge.value.trim().toLowerCase() === 'não se aplica') {
+        window.mostrarToast("Por favor, preencha o Nome do Cônjuge para estado civil Casado(a) ou União Estável.", "error");
+        destacarCampoErro(inputConjuge);
+        return false;
+      }
+    }
+
+    // Verificar cada campo da lista
+    for (const c of camposObrigatorios) {
+      const el = document.getElementById(c.id);
+      if (!el || !el.value.trim()) {
+        window.mostrarToast(`Campo obrigatório: "${c.nome}" não pode ficar em branco ou nulo.`, "error");
+        if (el) destacarCampoErro(el);
+        return false;
+      }
+    }
+
+    // Validar se adicionou filhos e deixou algum campo em branco
+    const filhosLinhas = document.querySelectorAll('#filhosContainer tr');
+    for (const tr of filhosLinhas) {
+      const fnome = tr.querySelector('.filho-nome')?.value.trim();
+      const fnasc = tr.querySelector('.filho-nasc')?.value.trim();
+      const fidade = tr.querySelector('.filho-idade')?.value.trim();
+      if (!fnome || !fnasc || !fidade) {
+        window.mostrarToast("Todos os campos do filho adicionado (Nome, Nascimento e Idade) são obrigatórios.", "error");
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function destacarCampoErro(el) {
+    el.style.borderColor = '#ef4444';
+    el.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.25)';
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (typeof el.focus === 'function') el.focus();
+    setTimeout(() => {
+      el.style.boxShadow = '';
+    }, 3500);
+  }
+
   function validarPassoAtual(step) {
     if (step === 2) {
-      const nome = document.getElementById('nome_completo').value.trim();
-      const whatsapp = document.getElementById('whatsapp').value.trim();
-      if (!nome) {
-        mostrarToast("Por favor, preencha o Nome Completo.", "error");
-        document.getElementById('nome_completo').focus();
-        return false;
-      }
-      if (!whatsapp) {
-        mostrarToast("Por favor, preencha o WhatsApp ou Telefone.", "error");
-        document.getElementById('whatsapp').focus();
-        return false;
-      }
+      return validarFichaCadastralIntegral();
     }
     if (step === 3) {
       const termoCheckbox = document.getElementById('chkCredoAceito');
@@ -515,7 +600,87 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // --- FINALIZAR E SALVAR CADASTRO ---
+  // --- SALVAR FICHA CADASTRAL (APÓS ETAPAS 1, 2 E 3) ---
+  if (btnSalvarPre) {
+    btnSalvarPre.addEventListener('click', async () => {
+      if (!validarFichaCadastralIntegral()) return;
+
+      const filhos = [];
+      document.querySelectorAll('#filhosContainer tr').forEach(tr => {
+        const n = tr.querySelector('.filho-nome')?.value.trim();
+        const d = tr.querySelector('.filho-nasc')?.value.trim();
+        const i = tr.querySelector('.filho-idade')?.value.trim();
+        if (n) filhos.push({ nome: n, nascimento: d, idade: i });
+      });
+
+      const payload = {
+        data_registro: new Date().toLocaleDateString('pt-BR'),
+        nome_completo: document.getElementById('nome_completo').value.trim(),
+        endereco: document.getElementById('endereco').value.trim(),
+        bairro: document.getElementById('bairro').value.trim(),
+        cidade: document.getElementById('cidade').value.trim() || 'Goiânia',
+        cep: document.getElementById('cep').value.trim(),
+        data_nascimento: document.getElementById('data_nascimento').value.trim(),
+        naturalidade: document.getElementById('naturalidade').value.trim(),
+        sexo: document.querySelector('input[name="sexo"]:checked')?.value || 'Masc.',
+        estado_civil: document.getElementById('estado_civil').value,
+        conjuge: document.getElementById('conjuge').value.trim() || 'Não se aplica',
+        filhos: filhos,
+        email: document.getElementById('email').value.trim(),
+        telefone: document.getElementById('telefone').value.trim(),
+        whatsapp: document.getElementById('whatsapp').value.trim(),
+        escolaridade: document.getElementById('escolaridade').value,
+        formacao_academica: document.getElementById('formacao_academica').value.trim(),
+        profissao: document.getElementById('profissao').value.trim(),
+        empresa: document.getElementById('empresa').value.trim(),
+        batizado: document.querySelector('input[name="batizado"]:checked')?.value || 'Não',
+        data_batismo: document.getElementById('data_batismo').value.trim(),
+        congregava_antes: document.querySelector('input[name="congregava_antes"]:checked')?.value || 'Não',
+        onde_congregava: document.getElementById('onde_congregava').value.trim(),
+        area_ministerial: document.getElementById('area_ministerial').value.trim(),
+        interesse_batismo_familia: document.getElementById('interesse_batismo_familia').value.trim(),
+
+        foto_3x4: foto3x4Base64,
+        status: 'Aguardando Análise',
+        lgpd_consentimento: true,
+        lgpd_versao_termo: 'v1.26-2026',
+        ocr_documento_nome: ocrDataExtracted?.fileName || '',
+        ocr_raw_text: ocrDataExtracted?.rawText || ''
+      };
+
+      btnSalvarPre.disabled = true;
+      btnSalvarPre.innerHTML = "⏳ Gravando Ficha...";
+
+      try {
+        const response = await fetch('/api/membros', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const resJson = await response.json();
+        if (response.ok && resJson.id) {
+          mostrarSucessoModal(resJson.id, payload);
+          window.mostrarToast("Ficha salva com sucesso e encaminhada para a análise da direção!", "success");
+        } else {
+          throw new Error(resJson.error || "Erro ao salvar ficha cadastral.");
+        }
+      } catch (err) {
+        console.error("Erro na gravação:", err);
+        window.mostrarToast("Erro ao conectar com servidor. Salvando cópia local...", "error");
+        const offlineMembros = JSON.parse(localStorage.getItem('membros_offline') || '[]');
+        payload.id = 'LOCAL-' + Date.now();
+        offlineMembros.push(payload);
+        localStorage.setItem('membros_offline', JSON.stringify(offlineMembros));
+        mostrarSucessoModal(payload.id, payload);
+      } finally {
+        btnSalvarPre.disabled = false;
+        btnSalvarPre.innerHTML = "💾 Salvar Ficha & Enviar para Análise da Direção";
+      }
+    });
+  }
+
+  // --- FINALIZAR E SALVAR CADASTRO (FLUXO COMPLETO DIRETO) ---
   if (btnFinalizar) {
     btnFinalizar.addEventListener('click', async () => {
       // Validações Finais

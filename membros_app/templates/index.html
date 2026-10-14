@@ -34,13 +34,16 @@
     <a href="/" class="brand-wrapper">
       <img src="/static/assets/logo_round.jpg" alt="Logo MEVAM GYN" class="brand-logo" onerror="this.src='/static/assets/logo_wide.jpg'">
       <div class="brand-text">
-        <h1>MEVAM GYN</h1>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <h1>MEVAM GYN</h1>
+          <span style="font-size: 0.72rem; background: rgba(37,99,235,0.12); color: #2563eb; border: 1px solid rgba(37,99,235,0.25); padding: 2px 8px; border-radius: 999px; font-weight: 700; letter-spacing: 0.5px;">v1.26</span>
+        </div>
         <span>Membros & Fé • SaaS ERP</span>
       </div>
     </a>
 
     <div class="header-actions">
-      <nav class="nav-pills">
+      <nav class="nav-pills" id="mainNavPills" style="display: none;">
         <button type="button" class="nav-pill-btn active" id="tabNavCadastro">
           📝 <span>Ficha & Credo</span>
         </button>
@@ -73,9 +76,94 @@
   <main class="app-container">
 
     <!-- ========================================== -->
-    <!-- VISÃO 1: FLUXO DE CADASTRO E CREDOS DO MEMBRO -->
+    <!-- PRIMEIRA TELA OBRIGATÓRIA: PORTAL DE ACESSO -->
     <!-- ========================================== -->
-    <div id="viewCadastro">
+    <div id="viewPortalAcesso" class="portal-acesso-wrapper">
+      <div class="portal-acesso-card">
+        <div class="portal-logo-glow">
+          <img src="/static/assets/logo_round.jpg" alt="Logo MEVAM GYN" onerror="this.src='/static/assets/logo_wide.jpg'">
+        </div>
+        
+        <h2 class="portal-title">MEVAM GYN</h2>
+        <p class="portal-subtitle">Portal Oficial de Membresia, Credo & Gestão Eclesiástica</p>
+
+        <div class="auth-lgpd-badge" style="justify-content: center; text-align: left;">
+          🔒 <span><strong>Ambiente Seguro:</strong> Acesso criptografado e dados protegidos pela LGPD (Lei 13.709/2018).</span>
+        </div>
+
+        <div class="portal-tabs">
+          <button type="button" class="portal-tab-btn active" id="portalTabLogin">🔑 Entrar na Conta</button>
+          <button type="button" class="portal-tab-btn" id="portalTabRegister">📝 Criar Nova Conta</button>
+        </div>
+
+        <!-- Formulário de Login (Entrar) -->
+        <form id="portalFormLogin" style="text-align: left;">
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label">E-mail Cadastrado: <span class="required">*</span></label>
+            <input type="email" id="portalLoginEmail" class="form-control" placeholder="exemplo@mevamgyn.com" required>
+          </div>
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label class="form-label">Senha de Acesso: <span class="required">*</span></label>
+            <input type="password" id="portalLoginSenha" class="form-control" placeholder="Digite sua senha" required>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-bottom: 14px;">
+            Entrar no Sistema →
+          </button>
+
+          <div style="background: var(--bg-body); border: 1px dashed var(--border-color); border-radius: 8px; padding: 10px; font-size: 0.78rem; color: var(--text-muted); text-align: center;">
+            💡 <em>Acesso da Administração Geral:</em> <strong>admin@mevamgyn.com</strong> / <strong>Mevam@2026</strong>
+          </div>
+        </form>
+
+        <!-- Formulário de Registro (Criar Conta) -->
+        <form id="portalFormRegister" style="display: none; text-align: left;">
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label">Nome Completo: <span class="required">*</span></label>
+            <input type="text" id="portalRegNome" class="form-control" placeholder="Digite seu nome completo" required>
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label">Seu E-mail: <span class="required">*</span></label>
+            <input type="email" id="portalRegEmail" class="form-control" placeholder="seu-email@dominio.com" required>
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label">Senha (mínimo 6 caracteres): <span class="required">*</span></label>
+            <input type="password" id="portalRegSenha" class="form-control" placeholder="Crie uma senha de acesso" required minlength="6">
+          </div>
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label">Confirmar Senha: <span class="required">*</span></label>
+            <input type="password" id="portalRegSenhaConfirma" class="form-control" placeholder="Repita a senha" required minlength="6">
+          </div>
+
+          <div style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.4;">
+            Ao criar sua conta, você consente com o tratamento dos seus dados para finalidades eclesiásticas do MEVAM GYN conforme nossa Política de Privacidade.
+          </div>
+
+          <button type="submit" class="btn btn-accent btn-lg" style="width: 100%;">
+            Criar Minha Conta & Entrar →
+          </button>
+        </form>
+
+        <div style="margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
+          <a href="javascript:void(0)" onclick="window.LgpdManagerInstance.abrirModalPolitica()" style="color: var(--primary); text-decoration: underline; font-weight: 600;">
+            📄 Termos & Política LGPD
+          </a>
+          <a href="javascript:void(0)" onclick="window.abrirModalCompartilhar()" style="color: var(--text-muted); text-decoration: none;">
+            📲 Compartilhar App
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TELAS DA APLICAÇÃO (LIBERADAS APÓS LOGIN)  -->
+    <!-- ========================================== -->
+    <div id="appViewsWrapper" style="display: none;">
+
+      <!-- ========================================== -->
+      <!-- VISÃO 1: FLUXO DE CADASTRO E CREDOS DO MEMBRO -->
+      <!-- ========================================== -->
+      <div id="viewCadastro">
 
       <!-- Stepper / Barra de Progresso Mobile-First -->
       <div class="stepper-wrapper">
@@ -189,7 +277,12 @@
                   <p class="card-subtitle">Informações cadastrais oficiais do novo membro.</p>
                 </div>
               </div>
-              <span class="badge badge-info">Ficha MEVAM GYN</span>
+              <span class="badge badge-info">Ficha MEVAM GYN • v1.26</span>
+            </div>
+
+            <!-- Banner de Preenchimento Integral Obrigatório -->
+            <div style="background: rgba(217, 119, 6, 0.08); border-left: 4px solid var(--accent); padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 0.86rem; color: var(--text-main); line-height: 1.5;">
+              🔒 <strong>Regra Obrigatória da Direção:</strong> Todos os campos das seções <strong>1 (Pessoais), 2 (Contato/Profissional) e 3 (Vida Cristã)</strong> são de preenchimento obrigatório, incluindo a <strong>Foto 3x4</strong>. Nenhum campo pode ficar em branco ou nulo. Após salvar o cadastro, seus dados serão conferidos pela Secretaria e você receberá via WhatsApp/E-mail o link exclusivo com QR Code para leitura do Credo e assinatura da Rúbrica Digital.
             </div>
 
             <!-- Bloco de Identificação Facial (Foto 3x4 sem óculos) -->
@@ -204,7 +297,7 @@
 
               <div style="flex: 1; min-width: 240px;">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                  <h4 style="margin: 0; font-size: 1rem; color: var(--text-main); font-family: 'Outfit', sans-serif;">Foto de Identificação Facial (3x4)</h4>
+                  <h4 style="margin: 0; font-size: 1rem; color: var(--text-main); font-family: 'Outfit', sans-serif;">Foto de Identificação Facial (3x4) <span class="required">*</span></h4>
                   <span class="badge badge-info" style="font-size: 0.7rem;">Obrigatório sem óculos</span>
                 </div>
                 <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; line-height: 1.45;">
@@ -239,17 +332,21 @@
               </div>
 
               <div class="form-group col-4">
-                <label class="form-label" for="data_nascimento">Data de Nascimento</label>
-                <input type="text" id="data_nascimento" class="form-control" placeholder="DD/MM/AAAA">
+                <label class="form-label" for="data_nascimento">
+                  Data de Nascimento <span class="required">*</span>
+                </label>
+                <input type="text" id="data_nascimento" class="form-control" placeholder="DD/MM/AAAA" required>
               </div>
 
               <div class="form-group col-4">
-                <label class="form-label" for="naturalidade">Naturalidade (Cidade/UF)</label>
-                <input type="text" id="naturalidade" class="form-control" placeholder="Ex: Goiânia - GO">
+                <label class="form-label" for="naturalidade">
+                  Naturalidade (Cidade/UF) <span class="required">*</span>
+                </label>
+                <input type="text" id="naturalidade" class="form-control" placeholder="Ex: Goiânia - GO" required>
               </div>
 
               <div class="form-group col-4">
-                <label class="form-label">Sexo</label>
+                <label class="form-label">Sexo <span class="required">*</span></label>
                 <div class="radio-pill-group">
                   <div class="radio-pill">
                     <input type="radio" id="sexo_masc" name="sexo" value="Masc." checked>
@@ -263,8 +360,10 @@
               </div>
 
               <div class="form-group col-4">
-                <label class="form-label" for="estado_civil">Estado Civil</label>
-                <select id="estado_civil" class="form-select">
+                <label class="form-label" for="estado_civil">
+                  Estado Civil <span class="required">*</span>
+                </label>
+                <select id="estado_civil" class="form-select" required>
                   <option value="Solteiro(a)">Solteiro(a)</option>
                   <option value="Casado(a)">Casado(a)</option>
                   <option value="Divorciado(a)">Divorciado(a)</option>
@@ -274,29 +373,39 @@
               </div>
 
               <div class="form-group col-8">
-                <label class="form-label" for="conjuge">Nome do Cônjuge (se casado)</label>
-                <input type="text" id="conjuge" class="form-control" placeholder="Nome completo do esposo(a)">
+                <label class="form-label" for="conjuge">
+                  Nome do Cônjuge (Obrigatório se casado/união) <span class="required">*</span>
+                </label>
+                <input type="text" id="conjuge" class="form-control" placeholder="Nome do esposo(a) ou 'Não se aplica'">
               </div>
 
               <!-- Endereço com Busca Automática de CEP -->
               <div class="form-group col-3">
-                <label class="form-label" for="cep">CEP (Auto-Busca)</label>
-                <input type="text" id="cep" class="form-control" placeholder="00000-000">
+                <label class="form-label" for="cep">
+                  CEP (Auto-Busca) <span class="required">*</span>
+                </label>
+                <input type="text" id="cep" class="form-control" placeholder="00000-000" required>
               </div>
 
               <div class="form-group col-6">
-                <label class="form-label" for="endereco">Endereço (Rua, Av, Número, Compl.)</label>
-                <input type="text" id="endereco" class="form-control" placeholder="Rua, número, quadra, lote...">
+                <label class="form-label" for="endereco">
+                  Endereço (Rua, Av, Número, Compl.) <span class="required">*</span>
+                </label>
+                <input type="text" id="endereco" class="form-control" placeholder="Rua, número, quadra, lote..." required>
               </div>
 
               <div class="form-group col-3">
-                <label class="form-label" for="bairro">Bairro</label>
-                <input type="text" id="bairro" class="form-control" placeholder="Setor / Bairro">
+                <label class="form-label" for="bairro">
+                  Bairro <span class="required">*</span>
+                </label>
+                <input type="text" id="bairro" class="form-control" placeholder="Setor / Bairro" required>
               </div>
 
               <div class="form-group col-12">
-                <label class="form-label" for="cidade">Cidade / UF</label>
-                <input type="text" id="cidade" class="form-control" value="Goiânia - GO">
+                <label class="form-label" for="cidade">
+                  Cidade / UF <span class="required">*</span>
+                </label>
+                <input type="text" id="cidade" class="form-control" value="Goiânia - GO" required>
               </div>
             </div>
 
@@ -305,7 +414,7 @@
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <div>
                   <strong style="font-size: 0.95rem; color: var(--text-main);">Filhos</strong>
-                  <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Adicione os filhos se houver.</span>
+                  <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Adicione os filhos se houver (todos os campos do filho tornam-se obrigatórios se adicionado).</span>
                 </div>
                 <button type="button" class="btn btn-secondary btn-sm" id="btnAddFilho">+ Adicionar Filho</button>
               </div>
@@ -333,7 +442,7 @@
                 <div class="card-icon">📱</div>
                 <div>
                   <h2 class="card-title">2. Contato & Atividade Profissional</h2>
-                  <p class="card-subtitle">Meios de comunicação e qualificação.</p>
+                  <p class="card-subtitle">Meios de comunicação e qualificação profissional do membro.</p>
                 </div>
               </div>
             </div>
@@ -341,24 +450,30 @@
             <div class="form-grid">
               <div class="form-group col-6">
                 <label class="form-label" for="whatsapp">
-                  WhatsApp <span class="required">*</span>
+                  WhatsApp Principal <span class="required">*</span>
                 </label>
                 <input type="tel" id="whatsapp" class="form-control" placeholder="(62) 90000-0000" required>
               </div>
 
               <div class="form-group col-6">
-                <label class="form-label" for="telefone">Telefone Fixo / Recado</label>
-                <input type="tel" id="telefone" class="form-control" placeholder="(62) 3000-0000">
+                <label class="form-label" for="telefone">
+                  Telefone Fixo / Recado <span class="required">*</span>
+                </label>
+                <input type="tel" id="telefone" class="form-control" placeholder="(62) 3000-0000 ou mesmo número" required>
               </div>
 
               <div class="form-group col-12">
-                <label class="form-label" for="email">E-mail</label>
-                <input type="email" id="email" class="form-control" placeholder="seuemail@exemplo.com">
+                <label class="form-label" for="email">
+                  E-mail de Contato <span class="required">*</span>
+                </label>
+                <input type="email" id="email" class="form-control" placeholder="seuemail@exemplo.com" required>
               </div>
 
               <div class="form-group col-4">
-                <label class="form-label" for="escolaridade">Escolaridade</label>
-                <select id="escolaridade" class="form-select">
+                <label class="form-label" for="escolaridade">
+                  Escolaridade <span class="required">*</span>
+                </label>
+                <select id="escolaridade" class="form-select" required>
                   <option value="">Selecione...</option>
                   <option value="Ensino Fundamental">Ensino Fundamental</option>
                   <option value="Ensino Médio">Ensino Médio</option>
@@ -371,18 +486,24 @@
               </div>
 
               <div class="form-group col-8">
-                <label class="form-label" for="formacao_academica">Formação Acadêmica (Curso/Área)</label>
-                <input type="text" id="formacao_academica" class="form-control" placeholder="Ex: Administração, Direito, Engenharia...">
+                <label class="form-label" for="formacao_academica">
+                  Formação Acadêmica (Curso/Área) <span class="required">*</span>
+                </label>
+                <input type="text" id="formacao_academica" class="form-control" placeholder="Ex: Administração, Direito, Ensino Médio..." required>
               </div>
 
               <div class="form-group col-6">
-                <label class="form-label" for="profissao">Profissão / Ocupação</label>
-                <input type="text" id="profissao" class="form-control" placeholder="Ex: Contador, Professor, Empresário...">
+                <label class="form-label" for="profissao">
+                  Profissão / Ocupação <span class="required">*</span>
+                </label>
+                <input type="text" id="profissao" class="form-control" placeholder="Ex: Contador, Professor, Empresário, Autônomo..." required>
               </div>
 
               <div class="form-group col-6">
-                <label class="form-label" for="empresa">Empresa que Trabalha</label>
-                <input type="text" id="empresa" class="form-control" placeholder="Nome da empresa ou autônomo">
+                <label class="form-label" for="empresa">
+                  Empresa que Trabalha <span class="required">*</span>
+                </label>
+                <input type="text" id="empresa" class="form-control" placeholder="Nome da empresa ou 'Autônomo' / 'Do Lar' / 'Aposentado'" required>
               </div>
             </div>
           </section>
@@ -401,7 +522,7 @@
 
             <div class="form-grid">
               <div class="form-group col-4">
-                <label class="form-label">Batizado nas Águas?</label>
+                <label class="form-label">Batizado nas Águas? <span class="required">*</span></label>
                 <div class="radio-pill-group">
                   <div class="radio-pill">
                     <input type="radio" id="batizado_sim" name="batizado" value="Sim" checked>
@@ -415,12 +536,14 @@
               </div>
 
               <div class="form-group col-8">
-                <label class="form-label" for="data_batismo">Data do Batismo (se souber)</label>
-                <input type="text" id="data_batismo" class="form-control" placeholder="DD/MM/AAAA ou Ano aproximado">
+                <label class="form-label" for="data_batismo">
+                  Data do Batismo (se souber ou 'Não batizado') <span class="required">*</span>
+                </label>
+                <input type="text" id="data_batismo" class="form-control" placeholder="DD/MM/AAAA ou Ano aproximado / 'Não batizado'" required>
               </div>
 
               <div class="form-group col-4">
-                <label class="form-label">Congregava antes em outra igreja?</label>
+                <label class="form-label">Congregava antes em outra igreja? <span class="required">*</span></label>
                 <div class="radio-pill-group">
                   <div class="radio-pill">
                     <input type="radio" id="congregava_sim" name="congregava_antes" value="Sim">
@@ -434,18 +557,24 @@
               </div>
 
               <div class="form-group col-8">
-                <label class="form-label" for="onde_congregava">Onde congregava? (Igreja / Cidade)</label>
-                <input type="text" id="onde_congregava" class="form-control" placeholder="Nome da igreja anterior">
+                <label class="form-label" for="onde_congregava">
+                  Onde congregava? (Igreja / Cidade ou 'Primeira Igreja') <span class="required">*</span>
+                </label>
+                <input type="text" id="onde_congregava" class="form-control" placeholder="Nome da igreja anterior ou 'Primeira Igreja'" required>
               </div>
 
               <div class="form-group col-12">
-                <label class="form-label" for="area_ministerial">Área ministerial que já praticou antes</label>
-                <input type="text" id="area_ministerial" class="form-control" placeholder="Ex: Louvor, Mídia, Infantil, Diaconia, Ensino, Recepção, Intercessão...">
+                <label class="form-label" for="area_ministerial">
+                  Área ministerial que já praticou antes <span class="required">*</span>
+                </label>
+                <input type="text" id="area_ministerial" class="form-control" placeholder="Ex: Louvor, Mídia, Infantil, Diaconia, Ensino ou 'Nenhuma'" required>
               </div>
 
               <div class="form-group col-12">
-                <label class="form-label" for="interesse_batismo_familia">Há alguém na família que tem interesse de se batizar ainda esse ano?</label>
-                <input type="text" id="interesse_batismo_familia" class="form-control" placeholder="Ex: Sim (esposa e filho de 14 anos) ou Não">
+                <label class="form-label" for="interesse_batismo_familia">
+                  Há alguém na família que tem interesse de se batizar este ano? <span class="required">*</span>
+                </label>
+                <input type="text" id="interesse_batismo_familia" class="form-control" placeholder="Ex: Sim (esposa e filho de 14 anos) ou 'Não'" required>
               </div>
             </div>
           </section>
@@ -703,6 +832,10 @@
             Próximo Passo →
           </button>
 
+          <button type="button" class="btn btn-accent btn-lg" id="btnSalvarPreCadastro" style="display: none; background: #059669; border-color: #059669; color: white;">
+            💾 Salvar Ficha & Enviar para Análise
+          </button>
+
           <button type="button" class="btn btn-accent btn-lg" id="btnFinalizarCadastro" style="display: none;">
             ✓ Finalizar & Registrar Aceite
           </button>
@@ -728,15 +861,15 @@
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon green">💧</div>
+          <div class="stat-icon amber" style="background: rgba(245, 158, 11, 0.15); color: #d97706;">⏳</div>
           <div>
-            <div class="stat-value" id="statTotalBatizados">0</div>
-            <div class="stat-label">Batizados nas Águas</div>
+            <div class="stat-value" id="statAguardandoAnalise">0</div>
+            <div class="stat-label">Aguardando Análise</div>
           </div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon amber">✍️</div>
+          <div class="stat-icon green">✍️</div>
           <div>
             <div class="stat-value" id="statTotalAssinados">0</div>
             <div class="stat-label">Com Rúbrica & Credo</div>
@@ -744,10 +877,10 @@
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon purple">🎯</div>
+          <div class="stat-icon purple">💧</div>
           <div>
-            <div class="stat-value" id="statInteresseBatismo">0</div>
-            <div class="stat-label">Interesse em Batismo</div>
+            <div class="stat-value" id="statTotalBatizados">0</div>
+            <div class="stat-label">Batizados nas Águas</div>
           </div>
         </div>
       </div>
@@ -942,6 +1075,8 @@
       </div>
 
     </div>
+
+    </div> <!-- /appViewsWrapper -->
 
   </main>
 
@@ -1232,6 +1367,108 @@
       </div>
     </div>
   </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: SUCESSO DE PRÉ-CADASTRO (v1.26)     -->
+  <!-- ========================================== -->
+  <div class="modal-overlay" id="modalSucesso">
+    <div class="modal-content" style="max-width: 500px; text-align: center; padding: 32px 24px;">
+      <div style="font-size: 3.5rem; margin-bottom: 8px;">🎉</div>
+      <h3 style="color: #065f46; font-family: 'Outfit', sans-serif; font-size: 1.5rem; margin-bottom: 6px;">
+        Ficha Cadastral Salva com Sucesso!
+      </h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">
+        Protocolo Gerado: <strong id="sucessoProtocolo" style="color: var(--primary);">#</strong> &nbsp;|&nbsp; 
+        Membro: <strong id="sucessoNome"></strong>
+      </p>
+
+      <div style="background: rgba(30, 58, 138, 0.05); border: 1.5px solid var(--primary-light); border-radius: var(--radius-md); padding: 16px; margin-bottom: 24px; text-align: left; font-size: 0.86rem; line-height: 1.6; color: var(--text-main);">
+        📋 <strong>Próximas Etapas da Direção:</strong><br/>
+        1. Suas etapas 1, 2 e 3 foram salvas integralmente sem pendências.<br/>
+        2. A Secretaria e a Direção da igreja farão a conferência dos dados.<br/>
+        3. Você receberá via <strong>WhatsApp e/ou E-mail o Link Oficial e QR Code</strong> para a leitura da Confissão de Fé e assinatura digital da sua Rúbrica.
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+        <button type="button" class="btn btn-primary" id="btnDownloadPdfSucesso">
+          📄 Baixar Ficha (PDF)
+        </button>
+        <button type="button" class="btn btn-secondary" id="btnImprimirSucesso">
+          🖨️ Visualizar Comprovante
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalSucesso').style.display='none'; location.reload();">
+          Concluir / Novo Cadastro
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: ENVIAR CONFISSÃO DE FÉ & QR CODE   -->
+  <!-- ========================================== -->
+  <div class="modal-overlay" id="modalEnviarCredoWhatsapp">
+    <div class="modal-content" style="max-width: 520px; padding: 24px;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.4rem;">📲</span>
+          <div>
+            <h3 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.2rem;">Enviar Confissão de Fé & Rúbrica</h3>
+            <span style="font-size: 0.8rem; color: var(--text-muted);" id="modalCredoMembroNome">Membro Selecionado</span>
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('modalEnviarCredoWhatsapp').style.display='none'">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-md); padding: 12px; margin-bottom: 16px; font-size: 0.84rem; color: #1e40af; line-height: 1.5;">
+          ✓ <strong>Ficha Homologada pela Direção:</strong> Envie o link oficial e QR Code para o membro efetuar a leitura do Credo e o desenho da rúbrica digital.
+        </div>
+
+        <!-- QR Code para Leitura no Celular -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-md); padding: 14px; text-align: center; margin-bottom: 16px;">
+          <h4 style="font-size: 0.88rem; margin: 0 0 4px 0; color: #0f172a;">📱 QR Code Exclusivo do Membro</h4>
+          <p style="font-size: 0.78rem; color: #64748b; margin: 0 0 10px 0;">O membro aponta a câmera do celular para ler o Credo e assinar na hora!</p>
+          <div style="display: flex; justify-content: center;">
+            <img id="modalCredoQrCodeImg" src="" alt="QR Code" style="width: 170px; height: 170px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: white; padding: 6px;">
+          </div>
+        </div>
+
+        <!-- Link Direto e Copiar -->
+        <div style="margin-bottom: 16px;">
+          <label class="form-label" style="font-size: 0.82rem;">Link de Acesso Exclusivo:</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="modalCredoUrlInput" class="form-control" readonly style="background: var(--bg-body); font-size: 0.82rem;">
+            <button type="button" class="btn btn-primary btn-sm" id="btnCopiarLinkCredo" style="white-space: nowrap;">
+              📋 Copiar
+            </button>
+          </div>
+        </div>
+
+        <!-- Botão Direto para WhatsApp -->
+        <div style="margin-bottom: 12px;">
+          <button type="button" class="btn btn-accent btn-lg" id="btnDispararWhatsAppCredo" style="width: 100%; background: #25D366; border-color: #25D366; color: white; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 700;">
+            <span>💬 Enviar no WhatsApp do Membro</span>
+          </button>
+        </div>
+
+        <!-- Botão Enviar por E-mail & Marcar Enviado -->
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-secondary" id="btnDispararEmailCredo" style="flex: 1; font-size: 0.86rem;">
+            ✉️ Enviar via E-mail
+          </button>
+          <button type="button" class="btn btn-secondary" id="btnMarcarLinkEnviado" style="flex: 1; font-size: 0.86rem; color: #0284c7;">
+            ✓ Marcar como Enviado
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rodapé Institucional do Sistema -->
+  <footer style="text-align: center; padding: 24px 16px; color: #64748b; font-size: 0.82rem; border-top: 1px solid #e2e8f0; margin-top: 40px; background: #ffffff;">
+    <p><strong>SIS MEVAM-GYN</strong> • Sistema Integrado de Gestão, Membros & Fé | Versão Oficial <strong>v1.26</strong></p>
+    <p style="font-size: 0.75rem; margin-top: 4px;">Alameda Juazeiro do Norte, 475 – Chácara 79 / Pq. Amazônia - Goiânia - GO • Em conformidade com a LGPD (Lei 13.709/2018)</p>
+  </footer>
 
   <!-- Scripts da Aplicação -->
   <script src="/static/js/signature.js"></script>

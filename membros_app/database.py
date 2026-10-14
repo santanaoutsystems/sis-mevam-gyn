@@ -96,7 +96,11 @@ def init_db():
         ("lgpd_data_consentimento", "TEXT"),
         ("lgpd_ip_origem", "TEXT"),
         ("status_lgpd", "TEXT DEFAULT 'Consentimento Ativo'"),
-        ("foto_3x4", "TEXT")
+        ("foto_3x4", "TEXT"),
+        ("token_aceite", "TEXT"),
+        ("validado_por", "TEXT"),
+        ("data_validacao", "TEXT"),
+        ("link_credo_enviado", "INTEGER DEFAULT 0")
     ]
     for col_nome, col_tipo in colunas_novas:
         if col_nome not in colunas_membros:
@@ -155,6 +159,13 @@ def init_db():
 def gerar_hash_auditoria(nome, data_assinatura, assinatura_rubrica, ip=""):
     conteudo = f"{nome}|{data_assinatura}|{assinatura_rubrica[:100] if assinatura_rubrica else ''}|{ip}|MEVAM_GYN_LGPD_2026"
     return hashlib.sha256(conteudo.encode('utf-8')).hexdigest()
+
+
+def gerar_token_membro(membro_id: int) -> str:
+    """Gera token seguro determinístico para o link de aceite do membro sem expor ID sequencial puro."""
+    salt = "MEVAM_GYN_CREDO_SECRET_2026"
+    return hashlib.sha256(f"{membro_id}_{salt}".encode()).hexdigest()[:16]
+
 
 
 # ==============================================================================
@@ -423,14 +434,113 @@ def cadastrar_membro(dados: dict, ip_origem: str = "127.0.0.1") -> int:
         ip_origem,
         "Consentimento Ativo",
         dados.get("foto_3x4", ""),
-        dados.get("status", "Ativo"),
+        dados.get("status") or ("Ativo" if assinatura_rubrica else "Aguardando Análise"),
         dados.get("observacoes", "")
     ))
 
     novo_id = cursor.lastrowid
+    token = gerar_token_membro(novo_id)
+    cursor.execute("UPDATE membros SET token_aceite = ? WHERE id = ?", (token, novo_id))
+
     conn.commit()
     conn.close()
     return novo_id
+
+
+def validar_membro_secretaria(membro_id: int, validador_nome: str = "Secretaria MEVAM") -> dict:
+    """Valida o cadastro do membro após análise da direção, liberando o envio da Confissão de Fé."""
+    init_db()
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    token = gerar_token_membro(membro_id)
+
+    cursor.execute('''
+        UPDATE membros SET
+            status = 'Validado',
+            validado_por = ?,
+            data_validacao = ?,
+            token_aceite = ?
+        WHERE id = ?
+    ''', (validador_nome, agora, token, membro_id))
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "success",
+        "membro_id": membro_id,
+        "data_validacao": agora,
+        "validado_por": validador_nome,
+        "token": token
+    }
+
+
+def marcar_link_credo_enviado(membro_id: int) -> bool:
+    """Registra que o link/QR Code de Confissão de Fé foi despachado para o membro."""
+    init_db()
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        UPDATE membros SET
+            link_credo_enviado = 1,
+            status = CASE WHEN status = 'Aguardando Análise' OR status = 'Validado' THEN 'Link Enviado' ELSE status END
+        WHERE id = ?
+    ''', (membro_id,))
+
+    conn.commit()
+    conn.close()
+    return True
+
+
+def registrar_aceite_credo(membro_id: int, nome_assinante: str, assinatura_rubrica: str, ip_origem: str = "") -> dict:
+    """Registra a assinatura da rúbrica digital e formaliza a Confissão de Fé do membro após análise da direção."""
+    init_db()
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    hash_auth = gerar_hash_auditoria(nome_assinante, agora, assinatura_rubrica, ip=ip_origem)
+
+    cursor.execute('''
+        UPDATE membros SET
+            credo_aceito = 1,
+            nome_assinante = ?,
+            assinatura_rubrica = ?,
+            data_assinatura = ?,
+            hash_autenticidade = ?,
+            status = 'Ativo',
+            status_lgpd = 'Consentimento Ativo'
+        WHERE id = ?
+    ''', (nome_assinante.strip(), assinatura_rubrica, agora, hash_auth, membro_id))
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "success",
+        "membro_id": membro_id,
+        "data_assinatura": agora,
+        "hash_autenticidade": hash_auth
+    }
+
+
+def obter_membro_por_token(membro_id: int, token: str = "") -> dict | None:
+    """Busca membro e valida integridade do token de acesso do Credo."""
+    membro = obter_membro_por_id(membro_id)
+    if not membro:
+        return None
+    token_esperado = gerar_token_membro(membro_id)
+    token_banco = membro.get("token_aceite")
+    if token and (token == token_esperado or token == token_banco):
+        return membro
+    # Se o token estiver em branco, retorna None por segurança
+    if not token:
+        return None
+    return None
+
 
 
 def listar_membros(busca: str = "", status: str = "", limit: int = 200):
@@ -564,6 +674,10 @@ def obter_estatisticas():
     areas_cursor = cursor.execute("SELECT area_ministerial, COUNT(*) as qtd FROM membros WHERE area_ministerial != '' GROUP BY area_ministerial ORDER BY qtd DESC LIMIT 5").fetchall()
     areas = [{"area": a[0], "total": a[1]} for a in areas_cursor]
 
+    # Métricas de Workflow de Membresia
+    aguardando_analise = cursor.execute("SELECT COUNT(*) FROM membros WHERE status = 'Aguardando Análise'").fetchone()[0]
+    validados_link = cursor.execute("SELECT COUNT(*) FROM membros WHERE status IN ('Validado', 'Link Enviado')").fetchone()[0]
+
     conn.close()
     return {
         "total_membros": total,
@@ -571,6 +685,8 @@ def obter_estatisticas():
         "nao_batizados": total - batizados,
         "interesse_batismo": interesse_batismo,
         "com_assinatura": com_assinatura,
+        "aguardando_analise": aguardando_analise,
+        "validados_link": validados_link,
         "consentimentos_ativos": consentimentos_ativos,
         "revogados_lgpd": revogados,
         "areas_principais": areas

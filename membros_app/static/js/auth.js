@@ -47,7 +47,7 @@ class AuthManager {
       });
     }
 
-    // Submissão do Formulário de Registro
+    // Submissão do Formulário de Registro (Modal)
     if (formRegister) {
       formRegister.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -64,6 +64,51 @@ class AuthManager {
         await this.realizarRegistro(nome, email, senha);
       });
     }
+
+    // Portal de Acesso Inicial (Primeira Tela)
+    const portalTabLogin = document.getElementById('portalTabLogin');
+    const portalTabRegister = document.getElementById('portalTabRegister');
+    const portalFormLogin = document.getElementById('portalFormLogin');
+    const portalFormRegister = document.getElementById('portalFormRegister');
+
+    if (portalTabLogin && portalTabRegister && portalFormLogin && portalFormRegister) {
+      portalTabLogin.addEventListener('click', () => {
+        portalTabLogin.classList.add('active');
+        portalTabRegister.classList.remove('active');
+        portalFormLogin.style.display = 'block';
+        portalFormRegister.style.display = 'none';
+      });
+
+      portalTabRegister.addEventListener('click', () => {
+        portalTabRegister.classList.add('active');
+        portalTabLogin.classList.remove('active');
+        portalFormLogin.style.display = 'none';
+        portalFormRegister.style.display = 'block';
+      });
+
+      portalFormLogin.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('portalLoginEmail').value.trim();
+        const senha = document.getElementById('portalLoginSenha').value;
+        await this.realizarLogin(email, senha);
+      });
+
+      portalFormRegister.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nome = document.getElementById('portalRegNome').value.trim();
+        const email = document.getElementById('portalRegEmail').value.trim();
+        const senha = document.getElementById('portalRegSenha').value;
+        const senhaConfirma = document.getElementById('portalRegSenhaConfirma').value;
+
+        if (senha !== senhaConfirma) {
+          window.mostrarToast("As senhas não coincidem.", "error");
+          return;
+        }
+
+        await this.realizarRegistro(nome, email, senha);
+      });
+    }
+
 
     // Botões da Aba de Usuários e LGPD
     const tabUsuarios = document.getElementById('tabNavUsuarios');
@@ -150,6 +195,15 @@ class AuthManager {
 
     document.getElementById('btnHeaderLogout').addEventListener('click', () => this.realizarLogout());
 
+    // Alternar visão: Esconder Portal de Acesso e Exibir Aplicação
+    const portal = document.getElementById('viewPortalAcesso');
+    const appViews = document.getElementById('appViewsWrapper');
+    const mainNav = document.getElementById('mainNavPills');
+
+    if (portal) portal.style.display = 'none';
+    if (appViews) appViews.style.display = 'block';
+    if (mainNav) mainNav.style.display = 'flex';
+
     // Ajustar visibilidade das abas conforme permissão
     const tabErp = document.getElementById('tabNavErp');
     const tabUsuarios = document.getElementById('tabNavUsuarios');
@@ -162,13 +216,22 @@ class AuthManager {
 
   renderizarUsuarioDeslogado() {
     const container = document.getElementById('headerUserArea');
-    if (!container) return;
+    if (container) {
+      container.innerHTML = `
+        <button type="button" class="btn btn-primary btn-sm" onclick="window.AuthManagerInstance.abrirModalAuth('login')">
+          🔑 Entrar / Cadastrar
+        </button>
+      `;
+    }
 
-    container.innerHTML = `
-      <button type="button" class="btn btn-primary btn-sm" onclick="window.AuthManagerInstance.abrirModalAuth('login')">
-        🔑 Entrar / Cadastrar
-      </button>
-    `;
+    // Alternar visão: Exibir Portal de Acesso e Esconder Aplicação
+    const portal = document.getElementById('viewPortalAcesso');
+    const appViews = document.getElementById('appViewsWrapper');
+    const mainNav = document.getElementById('mainNavPills');
+
+    if (portal) portal.style.display = 'flex';
+    if (appViews) appViews.style.display = 'none';
+    if (mainNav) mainNav.style.display = 'none';
 
     // Esconder abas restritas se deslogado
     const tabErp = document.getElementById('tabNavErp');

@@ -129,9 +129,10 @@ def gerar_pdf_membro(dados_membro: dict) -> bytes:
 
     story.append(Spacer(1, 0.4 * cm))
 
-    # Data de Registro e Protocolo
+    # Data de Registro, Protocolo e Status
     data_reg = dados_membro.get('data_registro') or datetime.now().strftime('%d/%m/%Y')
-    proto_info = f"<b>Data do Registro:</b> {data_reg} &nbsp;&nbsp;|&nbsp;&nbsp; <b>ID / Protocolo:</b> #{dados_membro.get('id', 'NOVO')}"
+    status_cad = dados_membro.get('status', 'Aguardando Análise')
+    proto_info = f"<b>Data do Registro:</b> {data_reg} &nbsp;&nbsp;|&nbsp;&nbsp; <b>ID / Protocolo:</b> #{dados_membro.get('id', 'NOVO')} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Status:</b> <font color='#2563EB'><b>{status_cad.upper()}</b></font>"
     story.append(Paragraph(proto_info, corpo_style))
     story.append(Spacer(1, 0.3 * cm))
 
@@ -367,7 +368,7 @@ def gerar_pdf_membro(dados_membro: dict) -> bytes:
     hash_auth = dados_membro.get('hash_autenticidade', 'AUTHENTICATED-MEVAM-GYN')
 
     # Tratar imagem da rúbrica / assinatura base64
-    rubrica_element = Paragraph("<i>Assinatura Digital Registrada</i>", corpo_style)
+    rubrica_element = None
     rubrica_b64 = dados_membro.get('assinatura_rubrica', '')
     if rubrica_b64 and 'data:image' in rubrica_b64:
         try:
@@ -375,8 +376,14 @@ def gerar_pdf_membro(dados_membro: dict) -> bytes:
             img_bytes = base64.b64decode(base64_str)
             img_io = io.BytesIO(img_bytes)
             rubrica_element = RLImage(img_io, width=4.5 * cm, height=1.6 * cm)
-        except Exception as e:
+        except Exception:
             rubrica_element = Paragraph("<i>[Rúbrica Digital Gravada]</i>", corpo_style)
+    else:
+        rubrica_element = Paragraph(
+            "<font color='#D97706'><b>PENDENTE DE ANÁLISE / ACEITE PASTORAL</b></font><br/>"
+            "<font size=7 color='#64748B'>Aguardando análise da direção e envio do link de confirmação para o membro.</font>",
+            corpo_style
+        )
 
     bloco_assinatura = [
         [Paragraph(f"<b>NOME COMPLETO:</b><br/><font size=10 color='#0F274A'><b>{nome_assinante.upper()}</b></font>", corpo_style),

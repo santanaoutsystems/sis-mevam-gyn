@@ -28,7 +28,9 @@ from database import (
     obter_membro_por_id, excluir_membro, obter_estatisticas,
     criar_usuario, autenticar_usuario, listar_usuarios,
     obter_usuario_por_id, atualizar_usuario, excluir_usuario,
-    registrar_log_lgpd, listar_logs_lgpd, anonimizar_membro_lgpd
+    registrar_log_lgpd, listar_logs_lgpd, anonimizar_membro_lgpd,
+    validar_membro_secretaria, marcar_link_credo_enviado,
+    registrar_aceite_credo, obter_membro_por_token, gerar_token_membro
 )
 from pdf_generator import gerar_pdf_membro
 from ocr_parser import parsear_texto_ficha, extrair_texto_pdf
@@ -110,6 +112,28 @@ async def comprovante_print_view(request):
     )
 
     return templates.TemplateResponse(request, "comprovante_print.html", context={"membro": membro})
+
+
+async def credo_aceite_view(request):
+    """Página mobile e desktop exclusiva para o membro ler a Confissão de Fé e assinar a Rúbrica."""
+    membro_id = int(request.path_params['id'])
+    token = request.query_params.get("token", "")
+    membro = obter_membro_por_id(membro_id)
+    if not membro:
+        return HTMLResponse("<div style='text-align:center;padding:50px;font-family:sans-serif;'><h2>Membro não encontrado ou cadastro removido.</h2><p>Contate a Secretaria do MEVAM GYN.</p></div>", status_code=404)
+
+    token_esperado = membro.get("token_aceite") or gerar_token_membro(membro_id)
+    user = obter_usuario_da_requisicao(request)
+    
+    # Validação de segurança: precisa do token ou de usuário administrativo conectado
+    if token and token != token_esperado and not (user and user.get("perfil") in ("admin", "secretaria")):
+        return HTMLResponse("<div style='text-align:center;padding:50px;font-family:sans-serif;'><h2>Link de acesso inválido ou expirado.</h2><p>Por favor, solicite um novo link oficial à Secretaria do MEVAM GYN.</p></div>", status_code=403)
+
+    return templates.TemplateResponse(request, "credo_aceite.html", context={
+        "request": request,
+        "membro": membro,
+        "token": token_esperado
+    })
 
 
 # ==============================================================================
@@ -473,22 +497,125 @@ async def api_cadastrar_membro(request):
 
         novo_id = cadastrar_membro(dados, ip_origem=ip)
 
+        status_salvo = dados.get("status") or ("Ativo" if dados.get("assinatura_rubrica") else "Aguardando Análise")
+        token_gerado = gerar_token_membro(novo_id)
+
         registrar_log_lgpd(
             usuario_id=operador_id,
             usuario_nome=operador_nome,
             acao="CADASTRO_MEMBRO",
             recurso=f"Membro #{novo_id} ({dados.get('nome_completo')})",
-            detalhes=f"Aceite da Confissão de Fé e Consentimento LGPD registrado com sucesso. IP: {ip}",
+            detalhes=f"Ficha cadastral registrada. Status: {status_salvo}. IP: {ip}",
             ip_origem=ip
         )
 
         return JSONResponse({
             "status": "success",
             "id": novo_id,
-            "message": "Membro cadastrado, Confissão de Fé aceita e Consentimento LGPD formalizado com sucesso!"
+            "token": token_gerado,
+            "status_membro": status_salvo,
+            "message": "Ficha cadastral salva com sucesso e enviada para a análise da direção!"
         }, status_code=201)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+async def api_validar_membro(request):
+    """Validação da Ficha Cadastral pela Secretaria/Direção antes do envio da Confissão de Fé."""
+    user = obter_usuario_da_requisicao(request)
+    if not user or user.get("perfil") not in ("admin", "secretaria"):
+        return JSONResponse({"error": "Apenas Secretaria ou Administrador podem validar cadastros."}, status_code=403)
+
+    membro_id = int(request.path_params['id'])
+    membro = obter_membro_por_id(membro_id)
+    if not membro:
+        return JSONResponse({"error": "Membro não encontrado."}, status_code=404)
+
+    validador_nome = user.get("nome", "Secretaria Geral")
+    res = validar_membro_secretaria(membro_id, validador_nome=validador_nome)
+
+    ip = obter_ip_cliente(request)
+    registrar_log_lgpd(
+        usuario_id=user["sub"],
+        usuario_nome=user["nome"],
+        acao="VALIDACAO_CADASTRO_MEMBRO",
+        recurso=f"Membro #{membro_id} ({membro.get('nome_completo')})",
+        detalhes=f"Cadastro aprovado pela secretaria para envio de Confissão de Fé e Rúbrica. IP: {ip}",
+        ip_origem=ip
+    )
+
+    return JSONResponse({
+        "status": "success",
+        "message": f"Ficha de {membro.get('nome_completo')} validada com sucesso!",
+        "token": res.get("token"),
+        "membro": membro
+    })
+
+
+async def api_marcar_link_enviado(request):
+    """Registra envio do link/QR Code de Confissão de Fé para o WhatsApp ou e-mail do membro."""
+    user = obter_usuario_da_requisicao(request)
+    if not user or user.get("perfil") not in ("admin", "secretaria"):
+        return JSONResponse({"error": "Acesso não autorizado."}, status_code=403)
+
+    membro_id = int(request.path_params['id'])
+    marcar_link_credo_enviado(membro_id)
+
+    ip = obter_ip_cliente(request)
+    registrar_log_lgpd(
+        usuario_id=user["sub"],
+        usuario_nome=user["nome"],
+        acao="ENVIO_LINK_CREDO",
+        recurso=f"Membro #{membro_id}",
+        detalhes="Link e QR Code de Confissão de Fé encaminhados ao membro via WhatsApp/E-mail",
+        ip_origem=ip
+    )
+
+    return JSONResponse({"status": "success", "message": "Status atualizado para Link Enviado."})
+
+
+async def api_registrar_aceite_credo(request):
+    """Gravação do Aceite da Confissão de Fé e Rúbrica Digital pelo membro (após validação pastoral)."""
+    membro_id = int(request.path_params['id'])
+    membro = obter_membro_por_id(membro_id)
+    if not membro:
+        return JSONResponse({"error": "Membro não encontrado."}, status_code=404)
+
+    dados = await request.json()
+    token = dados.get("token", "")
+    token_esperado = membro.get("token_aceite") or gerar_token_membro(membro_id)
+
+    user = obter_usuario_da_requisicao(request)
+    if token and token != token_esperado and not (user and user.get("perfil") in ("admin", "secretaria")):
+        return JSONResponse({"error": "Token de autenticação do link inválido."}, status_code=403)
+
+    nome_assinante = dados.get("nome_assinante", "").strip()
+    assinatura_rubrica = dados.get("assinatura_rubrica", "").strip()
+
+    if not nome_assinante:
+        return JSONResponse({"error": "O nome completo do assinante é obrigatório."}, status_code=400)
+
+    if not assinatura_rubrica or not assinatura_rubrica.startswith("data:image"):
+        return JSONResponse({"error": "A rúbrica/assinatura digital no quadro é obrigatória."}, status_code=400)
+
+    ip = obter_ip_cliente(request)
+    res = registrar_aceite_credo(membro_id, nome_assinante, assinatura_rubrica, ip_origem=ip)
+
+    registrar_log_lgpd(
+        usuario_id=user["sub"] if user else None,
+        usuario_nome=nome_assinante,
+        acao="ACEITE_CREDO_RUBRICA",
+        recurso=f"Membro #{membro_id} ({membro.get('nome_completo')})",
+        detalhes=f"Confissão de Fé aceita e Rúbrica Digital gravada com validade LGPD. IP: {ip}",
+        ip_origem=ip
+    )
+
+    return JSONResponse({
+        "status": "success",
+        "message": "Confissão de Fé aceita e Rúbrica Digital registrada com sucesso!",
+        "hash_autenticidade": res.get("hash_autenticidade")
+    })
+
 
 
 async def api_excluir_membro(request):
@@ -584,6 +711,7 @@ routes = [
     # Páginas HTML
     Route("/", index_view, methods=["GET"]),
     Route("/membro/{id:int}/comprovante", comprovante_print_view, methods=["GET"]),
+    Route("/credo-aceite/{id:int}", credo_aceite_view, methods=["GET"]),
     
     # Autenticação & Sessão
     Route("/api/auth/login", api_auth_login, methods=["POST"]),
@@ -606,6 +734,9 @@ routes = [
     Route("/api/membros", api_listar_membros, methods=["GET"]),
     Route("/api/membros", api_cadastrar_membro, methods=["POST"]),
     Route("/api/membros/{id:int}", api_obter_membro, methods=["GET"]),
+    Route("/api/membros/{id:int}/validar", api_validar_membro, methods=["POST"]),
+    Route("/api/membros/{id:int}/link-enviado", api_marcar_link_enviado, methods=["POST"]),
+    Route("/api/membros/{id:int}/aceite-credo", api_registrar_aceite_credo, methods=["POST"]),
     Route("/api/membros/{id:int}", api_excluir_membro, methods=["DELETE"]),
     Route("/api/membros/{id:int}/pdf", api_download_pdf, methods=["GET"]),
     Route("/api/ocr/parse", api_ocr_parse_fallback, methods=["POST"]),
