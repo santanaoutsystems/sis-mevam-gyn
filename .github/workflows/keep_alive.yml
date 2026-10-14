@@ -1,0 +1,22 @@
+name: Render Keep-Alive (Prevenção de Repouso)
+
+on:
+  schedule:
+    # Executa a cada 10 minutos todos os dias
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Permite disparo manual via painel do GitHub
+
+jobs:
+  ping-render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Executar Ping no SIS MEVAM-GYN (Render)
+        run: |
+          echo "Disparando ping de atividade para evitar hibernacao no Render..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "https://sis-mevam-gyn.onrender.com/healthz" || echo "FALHA")
+          echo "Status retornado pelo servidor: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "Servidor SIS MEVAM-GYN esta ativo e respondendo perfeitamente!"
+          else
+            echo "Aviso: Codigo de resposta HTTP $STATUS recebido durante o ping."
+          fi

@@ -704,10 +704,55 @@ async def api_estatisticas(request):
     return JSONResponse(stats)
 
 
+async def api_healthz(request):
+    """Endpoint de Health Check e Keep-Alive para monitoramento e prevenção de repouso."""
+    from datetime import datetime
+    return JSONResponse({
+        "status": "healthy",
+        "app": "SIS MEVAM-GYN",
+        "versao": "v1.27",
+        "timestamp": datetime.now().isoformat()
+    })
+
+
+def iniciar_keep_alive():
+    """Inicia thread em segundo plano para realizar auto-ping e manter a aplicação ativa no Render."""
+    import threading
+    import time
+    import urllib.request
+
+    def worker():
+        # Aguarda 45 segundos para a aplicação estabilizar após a subida
+        time.sleep(45)
+        url = os.environ.get("KEEP_ALIVE_URL", "https://sis-mevam-gyn.onrender.com/healthz")
+        while True:
+            try:
+                req = urllib.request.Request(
+                    url,
+                    headers={"User-Agent": "SIS-MEVAM-GYN-KeepAlive/1.0 (Python Background Ping)"}
+                )
+                with urllib.request.urlopen(req, timeout=15) as res:
+                    print(f"[Keep-Alive] Ping no servidor {url} executado com sucesso (Status {res.status})")
+            except Exception as e:
+                print(f"[Keep-Alive] Verificação de atividade: {e}")
+            
+            # Repete a cada 9 minutos (540s) para garantir que o Render não atinja os 15 min de repouso
+            time.sleep(540)
+
+    # Inicia a thread somente se não estiver explicitamente desativada
+    if os.environ.get("DISABLE_KEEP_ALIVE", "0") != "1":
+        t = threading.Thread(target=worker, daemon=True, name="RenderKeepAliveThread")
+        t.start()
+
+
 # ==============================================================================
 # MAPEAMENTO DE ROTAS DA APLICAÇÃO
 # ==============================================================================
 routes = [
+    # Health Check & Keep-Alive (Prevenção de Repouso no Render)
+    Route("/healthz", api_healthz, methods=["GET"]),
+    Route("/api/ping", api_healthz, methods=["GET"]),
+
     # Páginas HTML
     Route("/", index_view, methods=["GET"]),
     Route("/membro/{id:int}/comprovante", comprovante_print_view, methods=["GET"]),
@@ -750,6 +795,7 @@ app = Starlette(debug=True, routes=routes)
 
 if __name__ == "__main__":
     porta = int(os.environ.get("PORT", 8080))
+    iniciar_keep_alive()
     print("=========================================================")
     print(f"SIS MEVAM-GYN (Membros, OCR, Credo, Auth & LGPD) Rodando!")
     print(f"Acesso em Celular / iPhone / PC: http://localhost:{porta}")

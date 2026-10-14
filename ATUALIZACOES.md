@@ -8,7 +8,8 @@ Registro cronológico e detalhado de todas as versões do sistema **SIS MEVAM-GY
 
 | Versão | Data | Módulo / Foco Principal | Status |
 | :--- | :---: | :--- | :---: |
-| **v1.26** | Outubro/2026 | **Ficha Cadastral Integral, Desacoplamento do Credo & Validação por QR Code/WhatsApp** | **Ativa / Produção** |
+| **v1.27** | Outubro/2026 | **Keep-Alive Automatizado (Anti-Repouso no Render), Health Check & GitHub Actions** | **Ativa / Produção** |
+| **v1.26** | Outubro/2026 | Ficha Cadastral Integral, Desacoplamento do Credo & Validação por QR Code/WhatsApp | Homologada |
 | **v1.25** | Setembro/2026 | Otimização de Agenda, Supabase e Notificações de Escala | Arquivada |
 | **v1.24** | Agosto/2026 | Controle de Auditoria, Segurança e Exportação de Relatórios | Arquivada |
 | **v1.22** | Julho/2026 | Integração com Supabase Cloud e Painel Mensal de Ministérios | Arquivada |
@@ -21,7 +22,19 @@ Registro cronológico e detalhado de todas as versões do sistema **SIS MEVAM-GY
 
 ## 🚀 Detalhamento das Atualizações
 
-### [v1.26] - Outubro/2026 (Atualização Vigente)
+### [v1.27] - Outubro/2026 (Atualização Vigente)
+**Módulo:** *Prevenção de Repouso (Keep-Alive), Health Check & Alta Disponibilidade no Render*
+
+#### 1. Eliminação da Tela de Repouso (Cold Start)
+- Implementação de arquitetura de alta disponibilidade em 3 camadas para impedir que a hospedagem no Render entre em repouso após 15 minutos de inatividade:
+  - **Camada 1 (Endpoint de Alta Performance):** Rotas `/healthz` e `/api/ping` em `server.py` que respondem em milissegundos sem sobrecarga de banco de dados.
+  - **Camada 2 (GitHub Actions Scheduled Ping):** Workflow `.github/workflows/keep_alive.yml` executando pings externos automáticos a cada 10 minutos a partir da nuvem do GitHub.
+  - **Camada 3 (Thread Interna Assíncrona):** Função `iniciar_keep_alive()` em `server.py` realizando verificação periódica a cada 9 minutos.
+- **Resultado:** Acesso imediato em smartphones e computadores sem exibir a tela de carregamento do provedor de nuvem.
+
+---
+
+### [v1.26] - Outubro/2026
 **Módulo:** *Ficha Cadastral, Credo Desacoplado & Validação Pastoral com QR Code/WhatsApp*
 
 #### 1. Obrigatoriedade Integral dos Dados Cadastrais
