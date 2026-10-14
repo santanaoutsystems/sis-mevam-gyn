@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: sis-mevam-gyn
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: python membros_app/server.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9

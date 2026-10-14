@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual SIS MEVAM-GYN v1.10</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        h1 {
+            text-align: center;
+            color: #1a1a1a;
+            font-size: 2.5em;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 1.2em;
+            font-style: italic;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+        .section {
+            margin-bottom: 35px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #fff;
+            border-left: 6px solid #ccc;
+        }
+        .section h2 {
+            font-size: 1.6em;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+        }
+        .section ul {
+            font-size: 1.15em;
+            padding-left: 20px;
+        }
+        .section li {
+            margin-bottom: 12px;
+        }
+        
+        /* Cores Temáticas para cada seção */
+        .sec-blue { border-left-color: #0d6efd; background-color: #f0f7ff; }
+        .sec-blue h2 { color: #0d6efd; }
+        
+        .sec-yellow { border-left-color: #d39e00; background-color: #fffdf0; }
+        .sec-yellow h2 { color: #b38600; }
+        
+        .sec-green { border-left-color: #198754; background-color: #f0fdf4; }
+        .sec-green h2 { color: #198754; }
+        
+        .sec-purple { border-left-color: #6f42c1; background-color: #f8f0ff; }
+        .sec-purple h2 { color: #6f42c1; }
+        
+        .sec-red { border-left-color: #dc3545; background-color: #fff0f1; }
+        .sec-red h2 { color: #dc3545; }
+
+        .sec-dark { border-left-color: #212529; background-color: #f8f9fa; }
+        .sec-dark h2 { color: #212529; }
+
+        .highlight {
+            font-weight: bold;
+            color: #000;
+        }
+        .alert {
+            background-color: #ffeeba;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            color: #856404;
+            margin-top: 15px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        @media print {
+            body { background-color: #fff; }
+            .container { box-shadow: none; padding: 0; }
+            .section { page-break-inside: avoid; border: 1px solid #ddd; border-left: 6px solid #ccc; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📱 SIS MEVAM-GYN</h1>
+    <div class="subtitle">Manual Oficial de Operações - Versão 1.10<br>Gestão de Eventos, Auditoria e Financeiro</div>
+
+    <!-- SEÇÃO 1 -->
+    <div class="section sec-blue">
+        <h2>🔵 1. ACESSO E NAVEGAÇÃO</h2>
+        <p>O sistema agora utiliza um <strong>Menu Lateral Flutuante</strong> para libertar espaço no ecrã e facilitar o uso no telemóvel.</p>
+        <ul>
+            <li><span class="highlight">LOGIN OBRIGATÓRIO:</span> Selecione o seu nome e insira a sua senha individual. Todas as ações ficam registadas em seu nome por questões de segurança.</li>
+            <li><span class="highlight">MENU LATERAL:</span> Utilize a barra lateral à esquerda (ou o ícone de menu no telemóvel) para transitar entre a Agenda, Inscrições, Financeiro e Cadastros.</li>
+        </ul>
+    </div>
+
+    <!-- SEÇÃO 2 -->
+    <div class="section sec-yellow">
+        <h2>🟡 2. CADASTRAR A EQUIPE E OS DEPARTAMENTOS</h2>
+        <p><em>Aceda a "⚙️ Cadastros (Equipe/Deptos)" no menu lateral.</em></p>
+        <ul>
+            <li><span class="highlight">DEPARTAMENTOS:</span> Registe os grupos oficiais (Ex: Jovens, Casais) e os seus respetivos líderes.</li>
+            <li><span class="highlight">ADMINISTRADORES:</span> Cadastre os líderes com Nome, E-mail (para receberem os alertas automáticos) e uma Senha.</li>
+            <li><span style="color: #dc3545;"><strong>🔒 REGRA DE SEGURANÇA:</strong> A senha criada deve ter obrigatoriamente um mínimo de 4 dígitos.</span></li>
+        </ul>
+    </div>
+
+    <!-- SEÇÃO 3 -->
+    <div class="section sec-green">
+        <h2>🟢 3. GESTÃO DE EVENTOS</h2>
+        <p><em>Como agendar e corrigir eventos.</em></p>
+        <ul>
+            <li><span class="highlight">NOVO EVENTO:</span> No menu, vá a "➕ Criar Novo Evento". Defina data, hora, limite de vagas e o valor base (Inteira). O sistema notifica toda a equipe por e-mail automaticamente.</li>
+            <li><span class="highlight">EDITAR / CANCELAR:</span> Aceda a "✏️ Editar / Excluir Evento". Se alterar a data ou cancelar a programação, o sistema emite um alerta imediato para o e-mail de todos os administradores.</li>
+        </ul>
+    </div>
+
+    <!-- SEÇÃO 4 -->
+    <div class="section sec-purple">
+        <h2>🟣 4. INSCRIÇÕES E AUDITORIA OBRIGATÓRIA</h2>
+        <p><em>Controlo rigoroso de vagas e justificativas de alterações (Aceder a "👥 Inscrições e Auditoria").</em></p>
+        <ul>
+            <li><span class="highlight">NOVA INSCRIÇÃO:</span> Selecione o tipo de ingresso (Inteira, Meia ou Cortesia). O sistema calcula o valor final automaticamente. Registe se o pagamento está <em>Confirmado</em> ou <em>Pendente (A Receber)</em>.</li>
+            <li><span class="highlight">EDITAR / EXCLUIR E AUDITORIA:</span> Na aba de edição, pode corrigir o status do pagamento ou cancelar a vaga. <br><strong>⚠️ ATENÇÃO:</strong> Qualquer alteração ou exclusão exige o preenchimento obrigatório do campo "Justificativa da Alteração". Esta informação fica gravada no histórico de segurança.</li>
+        </ul>
+    </div>
+
+    <!-- SEÇÃO 5 -->
+    <div class="section sec-dark">
+        <h2>📊 5. DASHBOARD FINANCEIRO</h2>
+        <p><em>O centro de inteligência financeira do evento (Aceder a "📊 Dashboard Financeiro").</em></p>
+        <ul>
+            <li><span class="highlight">RECEITAS:</span> O sistema separa automaticamente o que entrou em Pix, Cartão ou Dinheiro, e exibe em tempo real o valor dos Inadimplentes (A Receber).</li>
+            <li><span class="highlight">DESPESAS:</span> Utilize o botão <em>"➕ Lançar Nova Despesa"</em> para registar o aluguer do espaço, alimentação, descartáveis, etc.</li>
+            <li><span class="highlight">RESULTADO FINAL:</span> O painel calcula matematicamente a (Receita Total - Despesas) e mostra o lucro exato do evento, além de exibir gráficos visuais do desempenho.</li>
+        </ul>
+    </div>
+
+    <!-- SEÇÃO 6 -->
+    <div class="section sec-red">
+        <h2>🔴 6. RELATÓRIOS PARA IMPRESSÃO</h2>
+        <p><em>Aceda a "🖨️ Relatórios" no menu lateral.</em></p>
+        <ul>
+            <li>Filtre a lista para visualizar todos os inscritos ou apenas os que estão a dever (Inadimplentes).</li>
+            <li>Para imprimir em papel A4 ou salvar em PDF com um layout limpo (apenas com o logótipo da igreja e a tabela zebrada), pressione <strong>Ctrl + P</strong> (ou Cmd + P) diretamente no seu navegador. O sistema oculta automaticamente os botões e o menu lateral na hora da impressão.</li>
+        </ul>
+    </div>
+
+    <div class="footer">
+        SIS MEVAM-GYN (Goiânia) - Documento Oficial e Atualizado (v1.10)
+    </div>
+</div>
+
+</body>
+</html>

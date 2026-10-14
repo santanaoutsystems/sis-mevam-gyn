@@ -1,0 +1,559 @@
+import streamlit as st
+from supabase import create_client, Client
+from datetime import datetime, date
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import pandas as pd
+
+# ==========================================
+# 1. Configuração Principal e Interface Web
+# ==========================================
+st.set_page_config(page_title="SIS MEVAM-GYN", page_icon="📅", layout="wide")
+
+esconder_elementos = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    [data-testid="stToolbar"] {visibility: hidden !important;}
+    
+    /* Remover elementos de rodapé e perfil do Streamlit */
+    .viewerBadge_container__1QSob, footer, #stStatusWidget, .styles_viewerBadge__1yG5_ {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
+    /* Tabelas com Alta Legibilidade e Cores Intercaladas (Zebrada) */
+    .dataframe {
+        font-size: 16px !important;
+    }
+    .dataframe tbody tr:nth-child(even) { background-color: #f2f4f7 !important; }
+    .dataframe tbody tr:nth-child(odd) { background-color: #ffffff !important; }
+    .dataframe th { background-color: #0d6efd !important; color: white !important; font-size: 16px !important; padding: 10px !important; }
+    .dataframe td { padding: 12px 10px !important; }
+    
+    /* Ocultar elementos na hora de imprimir / Salvar em PDF */
+    @media print {
+        .stButton, form, .stSelectbox, .stRadio, .stDateInput { display: none !important; }
+        .printable-area { display: block !important; width: 100%; font-size: 16px; line-height: 1.6; }
+        body { background-color: white; }
+    }
+    </style>
+    """
+st.markdown(esconder_elementos, unsafe_allow_html=True)
+
+col_logo, col_titulo = st.columns([2, 8])
+with col_logo:
+    try:
+        st.image("Mevamgyn_logo.jpg", use_column_width=True)
+    except:
+        st.write("*(Logo)*")
+with col_titulo:
+    st.markdown("### Gestão e Financeiro\n**SIS MEVAM-GYN** 📅 *(Ambiente Seguro LGPD)*")
+
+# ==========================================
+# 2. Funções de E-mail e Logs (Seguras)
+# ==========================================
+def enviar_alerta_evento(tipo_alerta, titulo_evento, data_hora, departamento, emails_destino):
+    if not emails_destino:
+        return 
+    
+    # ⚠️ COLOQUE AQUI O E-MAIL E A SENHA DE APP:
+    email_remetente = "naifesan@gmail.com"
+    senha_app = "ofweerbmpbvnzexs"
+
+    if tipo_alerta == "novo":
+        assunto = f"🚨 SIS MEVAM-GYN: Novo Evento Agendado - {titulo_evento}"
+        texto_intro = "Um novo evento foi adicionado ao calendário oficial."
+    elif tipo_alerta == "atualizado":
+        assunto = f"🔄 SIS MEVAM-GYN: Evento Atualizado - {titulo_evento}"
+        texto_intro = "ATENÇÃO: Um evento existente sofreu alterações!"
+    elif tipo_alerta == "cancelado":
+        assunto = f"❌ SIS MEVAM-GYN: Evento CANCELADO - {titulo_evento}"
+        texto_intro = "ATENÇÃO: O evento abaixo foi CANCELADO."
+
+    corpo = f"A Paz! {texto_intro}\n\n📌 Evento: {titulo_evento}\n📅 Data/Hora: {data_hora}\n🏢 Departamento: {departamento}\n\nAcesse o painel para mais detalhes."
+
+    try:
+        servidor = smtplib.SMTP('smtp.gmail.com', 587)
+        servidor.starttls()
+        servidor.login(email_remetente, senha_app)
+        for destinatario in emails_destino:
+            msg = MIMEMultipart()
+            msg['From'] = email_remetente
+            msg['To'] = destinatario
+            msg['Subject'] = assunto
+            msg.attach(MIMEText(corpo, 'plain', 'utf-8'))
+            servidor.sendmail(email_remetente, destinatario, msg.as_string())
+        servidor.quit()
+    except Exception:
+        pass
+
+# ==========================================
+# 3. Banco de Dados (Supabase)
+# ==========================================
+URL_SUPABASE = "https://sbitcxnqmjvnfwxccxwq.supabase.co"
+CHAVE_SUPABASE = "sb_publishable_sZmAEEZihVmm3ts51XogJg_ECUc4rmg"
+
+@st.cache_resource
+def iniciar_supabase():
+    return create_client(URL_SUPABASE, CHAVE_SUPABASE)
+supabase = iniciar_supabase()
+
+def registrar_log(acao):
+    usuario = st.session_state.get("usuario_logado", "Desconhecido")
+    try:
+        supabase.table("logs_auditoria").insert({"usuario": usuario, "acao": acao}).execute()
+    except Exception:
+        pass
+
+# ==========================================
+# 4. Tela de Login Obrigatória (Autenticação Segura)
+# ==========================================
+if "usuario_logado" not in st.session_state:
+    st.session_state["usuario_logado"] = None
+
+if st.session_state["usuario_logado"] is None:
+    st.markdown("---")
+    st.subheader("🔐 Acesso Restrito da Liderança")
+    st.info("🔒 Sistema protegido em conformidade com as diretrizes de segurança de dados e LGPD.")
+    
+    try:
+        res_admins_login = supabase.table("administradores").select("id, nome, senha").execute()
+        admins_cadastrados = res_admins_login.data if res_admins_login.data else []
+    except Exception:
+        admins_cadastrados = []
+        
+    lista_nomes = ["Ricardo César Santana", "Admin Geral"] + [a['nome'] for a in admins_cadastrados if a['nome'] not in ["Ricardo César Santana", "Admin Geral"]]
+        
+    with st.form("login_form"):
+        usuario_selecionado = st.selectbox("Quem está acessando?", lista_nomes)
+        senha_digitada = st.text_input("Senha de Acesso", type="password")
+        if st.form_submit_button("Entrar no Sistema", use_container_width=True):
+            # Validação master para Ricardo César Santana ou Admin Geral com a senha mestre mevam314107
+            if (usuario_selecionado in ["Ricardo César Santana", "Admin Geral"]) and senha_digitada == "mevam314107":
+                st.session_state["usuario_logado"] = usuario_selecionado
+                registrar_log(f"Login efetuado ({usuario_selecionado} - Master)")
+                st.rerun()
+            else:
+                admin_obj = next((a for a in admins_cadastrados if a['nome'] == usuario_selecionado), None)
+                if admin_obj and admin_obj.get('senha') == senha_digitada:
+                    st.session_state["usuario_logado"] = usuario_selecionado
+                    registrar_log(f"Login efetuado ({usuario_selecionado})")
+                    st.rerun()
+                else:
+                    st.error("❌ Credenciais inválidas. Acesso negado.")
+    st.stop()
+
+# ==========================================
+# 5. MENU PRINCIPAL MOBILE-FIRST (Com Acesso Restrito de Auditoria)
+# ==========================================
+st.markdown("---")
+col_user, col_logout = st.columns([7, 3])
+with col_user:
+    st.info(f"👤 **{st.session_state['usuario_logado']}** | 🔒 Sessão Autenticada")
+with col_logout:
+    if st.button("Sair", use_container_width=True):
+        registrar_log("Logout efetuado")
+        st.session_state["usuario_logado"] = None
+        st.rerun()
+
+# Lista base de módulos visíveis para todos
+lista_modulos = [
+    "📋 Agenda de Eventos", 
+    "➕ Criar Novo Evento", 
+    "✏️ Editar / Excluir Evento", 
+    "👥 Inscrições e Auditoria", 
+    "📊 Dashboard Financeiro", 
+    "🖨️ Relatórios e PDF",
+    "⚙️ Cadastros (Equipe/Deptos)"
+]
+
+# SEGURANÇA: Se o usuário logado for Ricardo César Santana ou Admin Geral, libera a Auditoria exclusiva
+if st.session_state["usuario_logado"] in ["Ricardo César Santana", "Admin Geral"]:
+    lista_modulos.append("🔍 Auditoria do Sistema (Restrito)")
+
+menu = st.selectbox("📌 SELECIONE O MÓDULO:", lista_modulos)
+st.markdown("---")
+
+# Prepara listas base e responsáveis dos departamentos
+try:
+    res_deptos = supabase.table("departamentos").select("*").execute()
+    lista_deptos_obj = res_deptos.data if res_deptos.data else []
+    lista_deptos_nomes = [d['nome'] for d in lista_deptos_obj] if lista_deptos_obj else ["Geral"]
+    mapa_responsaveis = {d['nome']: d.get('responsavel', 'Geral') for d in lista_deptos_obj}
+except Exception:
+    lista_deptos_nomes = ["Geral"]
+    mapa_responsaveis = {"Geral": "Geral"}
+
+try:
+    res_eventos = supabase.table("eventos").select("*").order("data_inicio", desc=False).execute()
+    eventos = res_eventos.data if res_eventos.data else []
+except Exception:
+    eventos = []
+
+# ==========================================
+# MÓDULOS DO SISTEMA
+# ==========================================
+
+if menu == "📋 Agenda de Eventos":
+    st.subheader("Eventos Agendados e Calendário")
+    
+    modo_agenda = st.radio("Formato de Visualização:", ["Lista Detalhada", "Visão Calendário (Mensal / Anual)"], horizontal=True)
+    
+    if modo_agenda == "Visão Calendário (Mensal / Anual)":
+        col_cal1, col_cal2 = st.columns(2)
+        with col_cal1: ano_sel = st.selectbox("Ano:", [2026, 2027, 2028], index=0)
+        with col_cal2: mes_sel = st.selectbox("Mês:", ["Todos (Visão Anual)", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"], index=datetime.now().month)
+        
+        mes_num = None if mes_sel == "Todos (Visão Anual)" else ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"].index(mes_sel) + 1
+        
+        eventos_calendario = []
+        for ev in eventos:
+            d_obj = datetime.strptime(ev['data_inicio'][:10], "%Y-%m-%d")
+            if d_obj.year == ano_sel and (mes_num is None or d_obj.month == mes_num):
+                resp = mapa_responsaveis.get(ev.get('departamento', 'Geral'), 'Equipe')
+                eventos_calendario.append({
+                    "Data": d_obj.strftime("%d/%m/%Y"),
+                    "Dia": d_obj.strftime("%A"),
+                    "Horário": ev['data_inicio'][11:16],
+                    "Evento": ev['titulo'],
+                    "Departamento / Responsável": f"{ev.get('departamento', 'Geral')} / {resp}",
+                    "Criado ou alterado por": ev.get('criado_por', st.session_state['usuario_logado'])
+                })
+        
+        if eventos_calendario:
+            df_cal = pd.DataFrame(eventos_calendario)
+            st.dataframe(df_cal, use_container_width=True, hide_index=True)
+        else:
+            st.info("Nenhum evento agendado para o período selecionado.")
+    else:
+        if eventos:
+            for ev in eventos:
+                data_br = datetime.strptime(ev['data_inicio'][:10], "%Y-%m-%d").strftime("%d/%m/%Y")
+                hora_str = ev['data_inicio'][11:16]
+                res_vagas = supabase.table("inscricoes").select("id").eq("evento_id", ev['id']).execute()
+                ocupadas = len(res_vagas.data) if res_vagas.data else 0
+                
+                resp_depto = mapa_responsaveis.get(ev.get('departamento', 'Geral'), 'Líder')
+                vagas_txt = "Ilimitado (Livre Acesso)" if ev['limite_vagas'] == 0 else f"{ev['limite_vagas'] - ocupadas} vagas restantes"
+                
+                with st.expander(f"📌 {ev['titulo']} - ({data_br})"):
+                    st.write(f"🏢 **Departamento / Responsável:** {ev.get('departamento', 'Geral')} / {resp_depto}")
+                    st.write(f"📅 **Data e Hora:** {data_br} às {hora_str}")
+                    st.write(f"✍️ **Criado ou alterado por:** {ev.get('criado_por', st.session_state['usuario_logado'])}")
+                    st.write(f"💰 **Valor Base (Inteira):** R$ {ev['valor_inscricao']}")
+                    st.write(f"👥 **Vagas:** {vagas_txt}")
+                    if ev.get('historico_alteracoes'):
+                        st.info(f"📜 **Histórico de Auditoria:**\n{ev.get('historico_alteracoes')}")
+        else:
+            st.info("Nenhum evento marcado no momento.")
+
+elif menu == "➕ Criar Novo Evento":
+    st.subheader("Agendar Novo Evento")
+    with st.form("form_evento_novo", clear_on_submit=True):
+        titulo = st.text_input("Título do Evento")
+        departamento = st.selectbox("Departamento Responsável", lista_deptos_nomes)
+        data_inicio = st.date_input("Data", format="DD/MM/YYYY")
+        hora_inicio = st.time_input("Hora")
+        valor = st.number_input("Valor de Inscrição Base (R$)", min_value=0.0, format="%.2f")
+        vagas = st.number_input("Limite de Vagas (Digite 0 para Livre Acesso)", min_value=0, value=50)
+        
+        if st.form_submit_button("Salvar na Agenda", use_container_width=True):
+            data_busca = str(data_inicio)
+            busca_conflito = supabase.table("eventos").select("titulo, departamento").gte("data_inicio", f"{data_busca}T00:00:00").lte("data_inicio", f"{data_busca}T23:59:59").execute()
+            
+            conflito_encontrado = False
+            nome_conflito = ""
+            if busca_conflito.data:
+                for ev_existente in busca_conflito.data:
+                    if ev_existente['departamento'] != departamento:
+                        conflito_encontrado = True
+                        nome_conflito = ev_existente['titulo']
+                        break
+            
+            if conflito_encontrado:
+                st.error(f"❌ Conflito de Agenda: O departamento '{ev_existente['departamento']}' já possui o evento '{nome_conflito}' agendado nesta data.")
+            else:
+                usuario_atual = st.session_state['usuario_logado']
+                agora_str = datetime.now().strftime('%d/%m/%Y às %H:%M')
+                novo_evento = {
+                    "titulo": titulo, 
+                    "data_inicio": f"{data_inicio}T{hora_inicio}", 
+                    "departamento": departamento, 
+                    "valor_inscricao": float(valor), 
+                    "limite_vagas": int(vagas),
+                    "criado_por": f"{usuario_atual} em {agora_str}",
+                    "historico_alteracoes": f"[{agora_str}] Criado por {usuario_atual}"
+                }
+                supabase.table("eventos").insert(novo_evento).execute()
+                registrar_log(f"Criou o evento: '{titulo}' para o depto '{departamento}'")
+                
+                res_admins = supabase.table("administradores").select("email").execute()
+                lista_emails = [a['email'] for a in res_admins.data if a.get('email')]
+                enviar_alerta_evento("novo", titulo, f"{data_inicio.strftime('%d/%m/%Y')} às {hora_inicio}", departamento, lista_emails)
+                st.success("✅ Evento gravado com sucesso e formulário limpo!")
+
+elif menu == "✏️ Editar / Excluir Evento":
+    st.subheader("Corrigir ou Cancelar (Com Auditoria Obrigatória)")
+    if eventos:
+        opcoes = {f"{e['titulo']} ({datetime.strptime(e['data_inicio'][:10], '%Y-%m-%d').strftime('%d/%m/%Y')})": e for e in eventos}
+        evento_selecionado = st.selectbox("Escolha o evento:", list(opcoes.keys()))
+        dados_ev = opcoes[evento_selecionado]
+        
+        with st.form("form_editar_excluir", clear_on_submit=True):
+            st.warning("⚠️ Qualquer alteração ou exclusão exige justificativa para fins de auditoria.")
+            novo_titulo = st.text_input("Alterar Título", value=dados_ev['titulo'])
+            nova_data = st.date_input("Alterar Data", value=datetime.strptime(dados_ev['data_inicio'][:10], "%Y-%m-%d").date(), format="DD/MM/YYYY")
+            justificativa_ev = st.text_area("Justificativa da Alteração/Exclusão (Obrigatório)", placeholder="Ex: Mudança de horário aprovada pela liderança")
+            
+            btn_atualizar = st.form_submit_button("Atualizar Evento", use_container_width=True)
+            btn_excluir = st.form_submit_button("❌ Excluir Evento", use_container_width=True)
+            
+            if btn_atualizar:
+                if not justificativa_ev.strip():
+                    st.error("❌ Preencha a justificativa obrigatória para atualizar o evento.")
+                else:
+                    usuario_atual = st.session_state['usuario_logado']
+                    agora_str = datetime.now().strftime('%d/%m/%Y às %H:%M')
+                    hora_atual = dados_ev['data_inicio'][11:19]
+                    historico_atual = dados_ev.get('historico_alteracoes', '')
+                    novo_historico = f"{historico_atual}\n[{agora_str}] Atualizado por {usuario_atual}: {justificativa_ev}".strip()
+                    
+                    supabase.table("eventos").update({
+                        "titulo": novo_titulo, 
+                        "data_inicio": f"{nova_data}T{hora_atual}",
+                        "criado_por": f"{usuario_atual} em {agora_str}",
+                        "historico_alteracoes": novo_historico
+                    }).eq("id", dados_ev['id']).execute()
+                    
+                    registrar_log(f"Atualizou evento para '{novo_titulo}'. Motivo: {justificativa_ev}")
+                    st.success("✅ Evento atualizado e auditado com sucesso!")
+                
+            if btn_excluir:
+                if not justificativa_ev.strip():
+                    st.error("❌ Preencha a justificativa obrigatória para excluir o evento.")
+                else:
+                    supabase.table("eventos").delete().eq("id", dados_ev['id']).execute()
+                    registrar_log(f"Cancelou evento '{dados_ev['titulo']}'. Motivo: {justificativa_ev}")
+                    st.warning("🗑️ Evento excluído e registrado na auditoria!")
+    else:
+        st.info("Nenhum evento agendado.")
+
+elif menu == "👥 Inscrições e Auditoria":
+    st.subheader("Gestão de Inscrições e Consentimento LGPD")
+    if eventos:
+        opcoes_ev_insc = {f"{e['titulo']} ({e['data_inicio'][:10]})": e for e in eventos}
+        ev_selecionado_insc = st.selectbox("Selecione o Evento:", list(opcoes_ev_insc.keys()))
+        dados_ev = opcoes_ev_insc[ev_selecionado_insc]
+        valor_base = dados_ev['valor_inscricao']
+        
+        sub_nova, sub_editar = st.tabs(["➕ Nova Inscrição", "✏️ Editar/Excluir"])
+        
+        with sub_nova:
+            with st.form("form_nova_inscricao_limpa", clear_on_submit=True):
+                nome_insc = st.text_input("Nome Completo")
+                tel_insc = st.text_input("Telefone")
+                tipo_ing = st.selectbox("Tipo de Ingresso", ["Inteira", "Meia (5-11 anos)", "Cortesia/Isento"])
+                forma_pag = st.selectbox("Forma de Pagamento", ["Pix", "Cartão de Crédito", "Cartão de Débito", "Dinheiro", "A Receber"])
+                status_pag = st.radio("Status", ["Confirmado", "Pendente"])
+                
+                st.caption("🔒 **Conformidade LGPD:** Ao cadastrar, confirma-se o consentimento do titular para o tratamento dos dados estritamente para fins de organização e controle financeiro deste evento.")
+                concordou_lgpd = st.checkbox("Declaro que o participante está ciente e concorda com o tratamento de seus dados para esta finalidade.")
+
+                if st.form_submit_button("Confirmar Inscrição", use_container_width=True):
+                    if not concordou_lgpd:
+                        st.error("❌ É obrigatório obter o consentimento (LGPD) do participante para prosseguir com a inscrição.")
+                    else:
+                        valor_final = valor_base if "Inteira" in tipo_ing else (valor_base / 2 if "Meia" in tipo_ing else 0.0)
+                        nova_insc = {
+                            "evento_id": dados_ev['id'], "nome": nome_insc, "telefone": tel_insc,
+                            "forma_pagamento": forma_pag, "status_pagamento": status_pag,
+                            "tipo_ingresso": tipo_ing, "valor_pago": float(valor_final),
+                            "observacoes": "Consentimento LGPD coletado."
+                        }
+                        supabase.table("inscricoes").insert(nova_insc).execute()
+                        registrar_log(f"Inscreveu {nome_insc} no evento {dados_ev['titulo']}")
+                        st.success("✅ Inscrição Registrada em conformidade com a LGPD!")
+                    
+        with sub_editar:
+            res_inscritos = supabase.table("inscricoes").select("*").eq("evento_id", dados_ev['id']).execute()
+            inscritos = res_inscritos.data if res_inscritos.data else []
+            
+            if inscritos:
+                opc_inscritos = {f"{i['nome']} - {i['status_pagamento']}": i for i in inscritos}
+                participante_sel = st.selectbox("Selecione o Participante:", list(opc_inscritos.keys()))
+                dados_participante = opc_inscritos[participante_sel]
+                
+                with st.form("form_editar_inscricao_limpa", clear_on_submit=True):
+                    st.warning("⚠️ Alterações exigem justificativa.")
+                    novo_nome = st.text_input("Nome", value=dados_participante['nome'])
+                    novo_tel = st.text_input("Telefone", value=dados_participante.get('telefone', ''))
+                    
+                    lista_tipos = ["Inteira", "Meia (5-11 anos)", "Cortesia/Isento"]
+                    idx_tipo = lista_tipos.index(dados_participante.get('tipo_ingresso', 'Inteira')) if dados_participante.get('tipo_ingresso') in lista_tipos else 0
+                    novo_tipo = st.selectbox("Tipo", lista_tipos, index=idx_tipo)
+                    
+                    lista_formas = ["Pix", "Cartão de Crédito", "Cartão de Débito", "Dinheiro", "A Receber"]
+                    idx_forma = lista_formas.index(dados_participante.get('forma_pagamento', 'Pix')) if dados_participante.get('forma_pagamento') in lista_formas else 0
+                    nova_forma = st.selectbox("Pagamento", lista_formas, index=idx_forma)
+                    
+                    idx_status = 0 if dados_participante.get('status_pagamento') == 'Confirmado' else 1
+                    novo_status = st.radio("Status", ["Confirmado", "Pendente"], index=idx_status)
+                    
+                    justificativa = st.text_area("Justificativa da Alteração/Exclusão (Obrigatório)")
+                    
+                    btn_atualizar_insc = st.form_submit_button("Atualizar Cadastro", use_container_width=True)
+                    btn_excluir_insc = st.form_submit_button("❌ Excluir Inscrição", use_container_width=True)
+                    
+                    if btn_atualizar_insc:
+                        if not justificativa.strip():
+                            st.error("❌ Preencha a justificativa.")
+                        else:
+                            valor_final_edit = valor_base if "Inteira" in novo_tipo else (valor_base / 2 if "Meia" in novo_tipo else 0.0)
+                            historico_obs = f"{dados_participante.get('observacoes', '')}\n[{datetime.now().strftime('%d/%m %H:%M')}] {st.session_state['usuario_logado']}: {justificativa}".strip()
+                            
+                            supabase.table("inscricoes").update({
+                                "nome": novo_nome, "telefone": novo_tel, "tipo_ingresso": novo_tipo,
+                                "forma_pagamento": nova_forma, "status_pagamento": novo_status,
+                                "valor_pago": float(valor_final_edit), "observacoes": historico_obs
+                            }).eq("id", dados_participante['id']).execute()
+                            registrar_log(f"Atualizou a inscrição de {novo_nome}. Motivo: {justificativa}")
+                            st.success("✅ Atualizado com sucesso!")
+                            
+                    if btn_excluir_insc:
+                        if not justificativa.strip():
+                            st.error("❌ Preencha a justificativa.")
+                        else:
+                            supabase.table("inscricoes").delete().eq("id", dados_participante['id']).execute()
+                            registrar_log(f"Excluiu {dados_participante['nome']}. Motivo: {justificativa}")
+                            st.warning("🗑️ Inscrição excluída com sucesso!")
+            else:
+                st.info("Nenhum participante inscrito ainda.")
+    else:
+        st.info("Crie um evento primeiro.")
+
+elif menu == "📊 Dashboard Financeiro":
+    st.subheader("Dashboard Financeiro")
+    if eventos:
+        ev_fin = st.selectbox("Analisar Evento:", list({f"{e['titulo']}": e for e in eventos}.keys()))
+        evento_selecionado = next(e for e in eventos if e['titulo'] == ev_fin)
+        ev_id = evento_selecionado['id']
+        
+        res_insc = supabase.table("inscricoes").select("*").eq("evento_id", ev_id).execute()
+        res_custos = supabase.table("custos_evento").select("*").eq("evento_id", ev_id).execute()
+        inscricoes = res_insc.data if res_insc.data else []
+        custos = res_custos.data if res_custos.data else []
+        
+        total_pix = sum(i['valor_pago'] for i in inscricoes if i['forma_pagamento'] == 'Pix' and i['status_pagamento'] == 'Confirmado')
+        total_cc = sum(i['valor_pago'] for i in inscricoes if i['forma_pagamento'] == 'Cartão de Crédito' and i['status_pagamento'] == 'Confirmado')
+        total_cd = sum(i['valor_pago'] for i in inscricoes if i['forma_pagamento'] == 'Cartão de Débito' and i['status_pagamento'] == 'Confirmado')
+        total_dinheiro = sum(i['valor_pago'] for i in inscricoes if i['forma_pagamento'] == 'Dinheiro' and i['status_pagamento'] == 'Confirmado')
+        a_receber = sum(i['valor_pago'] for i in inscricoes if i['status_pagamento'] == 'Pendente')
+        
+        receita_total = total_pix + total_cc + total_cd + total_dinheiro
+        despesa_total = sum(c['valor'] for c in custos)
+        resultado_final = receita_total - despesa_total
+        
+        qtd_inteira = len([i for i in inscricoes if "Inteira" in i['tipo_ingresso']])
+        qtd_meia = len([i for i in inscricoes if "Meia" in i['tipo_ingresso']])
+        qtd_cortesia = len([i for i in inscricoes if "Cortesia" in i['tipo_ingresso']])
+        
+        st.markdown(f"#### Resultado Final:\n### R$ {resultado_final:,.2f}")
+        st.success(f"💰 Receita: R$ {receita_total:,.2f}")
+        st.error(f"📉 Despesa: R$ {despesa_total:,.2f}")
+        st.warning(f"⏳ A Receber: R$ {a_receber:,.2f}")
+        
+        with st.expander("➕ Lançar Nova Despesa"):
+            with st.form("form_despesa_limpa", clear_on_submit=True):
+                desc_custo = st.text_input("Descrição da Despesa")
+                valor_custo = st.number_input("Valor (R$)", min_value=0.0)
+                if st.form_submit_button("Registrar Custo", use_container_width=True):
+                    supabase.table("custos_evento").insert({"evento_id": ev_id, "descricao": desc_custo, "valor": valor_custo}).execute()
+                    st.success("Despesa registada e campos limpos!")
+                    
+        st.write("**Receitas por Meio de Pagamento**")
+        dados_grafico = pd.DataFrame({
+            "Forma": ["Pix", "Cartão", "Dinheiro", "A Receber"],
+            "Valor": [total_pix, (total_cc + total_cd), total_dinheiro, a_receber]
+        })
+        st.bar_chart(dados_grafico.set_index("Forma"))
+        st.caption(f"**Público:** {qtd_inteira} Inteiras | {qtd_meia} Meias | {qtd_cortesia} Cortesias")
+    else:
+        st.info("Nenhum evento cadastrado.")
+
+elif menu == "🖨️ Relatórios e PDF":
+    st.subheader("Central de Relatórios e PDF Profissional")
+    tipo_relatorio_geral = st.radio("Selecione o tipo de relatório:", ["Relatório de Inscritos por Evento", "Relatório de Eventos por Período"])
+    
+    if tipo_relatorio_geral == "Relatório de Inscritos por Evento":
+        if eventos:
+            ev_rel = st.selectbox("Selecione o Evento:", list({f"{e['titulo']}": e for e in eventos}.keys()))
+            tipo_sub = st.radio("Filtro:", ["Lista Completa de Participantes", "Inadimplentes (A Receber)", "Extrato Financeiro e Resumo"])
+            
+            if st.button("Gerar Visualização para Impressão/PDF", use_container_width=True):
+                ev_id_rel = next(e['id'] for e in eventos if e['titulo'] == ev_rel)
+                
+                st.markdown("<div class='printable-area'>", unsafe_allow_html=True)
+                
+                col_p1, col_p2 = st.columns([2, 8])
+                with col_p1:
+                    try:
+                        st.image("Mevamgyn_logo.jpg", width=110)
+                    except:
+                        st.write("*(MEVAM GYN)*")
+                with col_p2:
+                    st.markdown(f"### MINISTÉRIO MEVAM GYN\n**Evento:** {ev_rel}\n**Relatório:** {tipo_sub}")
+                st.markdown(f"*Emitido em:* {datetime.now().strftime('%d/%m/%Y às %H:%M')} por **{st.session_state['usuario_logado']}**")
+                st.markdown("---")
+                
+                if tipo_sub in ["Lista Completa de Participantes", "Inadimplentes (A Receber)"]:
+                    res_insc_rel = supabase.table("inscricoes").select("*").eq("evento_id", ev_id_rel).execute()
+                    dados = res_insc_rel.data if res_insc_rel.data else []
+                    
+                    if tipo_sub == "Inadimplentes (A Receber)":
+                        dados = [d for d in dados if d['status_pagamento'] == 'Pendente']
+                        
+                    if dados:
+                        df = pd.DataFrame(dados)[['nome', 'telefone', 'tipo_ingresso', 'forma_pagamento', 'status_pagamento', 'valor_pago']]
+                        df.columns = ['Nome', 'Telefone', 'Tipo', 'Meio', 'Status', 'Valor (R$)']
+                        st.dataframe(df, use_container_width=True, hide_index=True)
+                    else:
+                        st.warning("Nenhum registo encontrado.")
+                        
+                elif tipo_sub == "Extrato Financeiro e Resumo":
+                    res_insc = supabase.table("inscricoes").select("*").eq("evento_id", ev_id_rel).execute()
+                    res_custos = supabase.table("custos_evento").select("*").eq("evento_id", ev_id_rel).execute()
+                    inscricoes = res_insc.data if res_insc.data else []
+                    custos = res_custos.data if res_custos.data else []
+                    
+                    tot_rec = sum(i['valor_pago'] for i in inscricoes if i['status_pagamento'] == 'Confirmado')
+                    tot_esp = sum(c['valor'] for c in custos)
+                    tot_pend = sum(i['valor_pago'] for i in inscricoes if i['status_pagamento'] == 'Pendente')
+                    
+                    st.markdown(f"#### 💰 Resumo Financeiro Consolidado")
+                    st.write(f"- **Receita Confirmada:** R$ {tot_rec:,.2f}")
+                    st.write(f"- **Total de Custos/Despesas:** R$ {tot_esp:,.2f}")
+                    st.write(f"- **Resultado Líquido:** R$ {tot_rec - tot_esp:,.2f}")
+                    st.write(f"- **Valores Pendentes (A Receber):** R$ {tot_pend:,.2f}")
+                    
+                    if custos:
+                        st.markdown("#### 📉 Lançamento de Custos")
+                        df_c = pd.DataFrame(custos)[['descricao', 'valor']]
+                        df_c.columns = ['Descrição da Despesa', 'Valor (R$)']
+                        st.dataframe(df_c, use_container_width=True, hide_index=True)
+
+                st.markdown("---")
+                st.caption("📄 **Como salvar em PDF:** Pressione **Ctrl + P** (ou partilhe/imprima no iPhone) e selecione **'Guardar como PDF'**.")
+                st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            st.info("Nenhum evento registado.")
+            
+    else:
+        st.subheader("Relatório de Eventos por Período (Com Auditoria e Responsáveis)")
+        col_d1, col_d2 = st.columns(2)
+        with col_d1: data_ini_filtro = st.date_input("Data Inicial", value=date.today(), format="DD/MM/YYYY")
+        with col_d2: data_fim_filtro = st.date_input("Data Final", value=date.today(), format="DD/MM/YYYY")
+        
+        if st.button("Gerar Relatório de Eventos",

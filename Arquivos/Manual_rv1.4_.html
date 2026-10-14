@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual SIS MEVAM-GYN</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        h1 {
+            text-align: center;
+            color: #1a1a1a;
+            font-size: 2.5em;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 1.2em;
+            font-style: italic;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+        .section {
+            margin-bottom: 35px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #fff;
+            border-left: 6px solid #ccc;
+        }
+        .section h2 {
+            font-size: 1.6em;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+        }
+        .section ul {
+            font-size: 1.15em;
+            padding-left: 20px;
+        }
+        .section li {
+            margin-bottom: 12px;
+        }
+        
+        /* Cores Temáticas para cada seção */
+        .sec-blue { border-left-color: #0d6efd; background-color: #f0f7ff; }
+        .sec-blue h2 { color: #0d6efd; }
+        
+        .sec-yellow { border-left-color: #d39e00; background-color: #fffdf0; }
+        .sec-yellow h2 { color: #b38600; }
+        
+        .sec-green { border-left-color: #198754; background-color: #f0fdf4; }
+        .sec-green h2 { color: #198754; }
+        
+        .sec-purple { border-left-color: #6f42c1; background-color: #f8f0ff; }
+        .sec-purple h2 { color: #6f42c1; }
+        
+        .sec-red { border-left-color: #dc3545; background-color: #fff0f1; }
+        .sec-red h2 { color: #dc3545; }
+
+        .highlight {
+            font-weight: bold;
+            color: #000;
+        }
+        .alert {
+            background-color: #ffeeba;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            color: #856404;
+            margin-top: 15px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        @media print {
+            body { background-color: #fff; }
+            .container { box-shadow: none; padding: 0; }
+            .section { page-break-inside: avoid; border: 1px solid #ddd; border-left: 6px solid #ccc; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📱 SIS MEVAM-GYN</h1>
+    <div class="subtitle">Manual Completo do Administrador<br>Gestão de Eventos, Inscrições e Vagas</div>
+
+    <!-- SEÇÃO 1 -->
+    <div class="section sec-blue">
+        <h2>🔵 1. PRIMEIROS PASSOS: O ACESSO</h2>
+        <p>Você não precisa instalar nenhum aplicativo pesado! O SIS MEVAM-GYN funciona direto na internet.</p>
+        <ul>
+            <li><span class="highlight">PASSO 1:</span> Clique no <strong>LINK OFICIAL</strong> do sistema recebido no WhatsApp.</li>
+            <li><span class="highlight">PASSO 2 (LOGIN):</span> O sistema pedirá a sua identificação. Selecione o seu nome na lista e digite a sua <strong>senha individual</strong> para desbloquear a agenda.</li>
+            <li><span class="highlight">DICA DE OURO 🌟:</span> No navegador do seu celular, clique nos 3 pontinhos (canto superior) e escolha <strong>"Adicionar à Tela Inicial"</strong>. O sistema vai virar um aplicativo no seu celular!</li>
+        </ul>
+    </div>
+
+    <!-- SEÇÃO 2 -->
+    <div class="section sec-yellow">
+        <h2>🟡 2. PASSO INICIAL: CADASTRAR EQUIPE E SENHAS</h2>
+        <p><em>Antes de criar eventos, cadastre os departamentos e a liderança na Aba "Cadastros".</em></p>
+        <ul>
+            <li><span class="highlight">🏢 DEPARTAMENTOS:</span> Vá na aba <strong>Cadastros</strong>, digite o nome do grupo (Ex: Jovens, Casais) e o líder responsável. Toque em <strong>Gravar</strong>.</li>
+            <li><span class="highlight">👨‍💼 ADMINISTRADORES (ACESSOS):</span> Na mesma aba, cadastre o Nome, E-mail e crie uma <strong>Senha de Acesso</strong> para cada líder.<br>
+            <span style="color: #dc3545; font-size: 0.9em; display: inline-block; margin-top: 5px;"><strong>🔒 REGRA DE SEGURANÇA:</strong> Ao cadastrar um novo usuário, a senha criada deve ter <strong>no mínimo 4 dígitos</strong> (podem ser números, letras ou ambos).</span></li>
+        </ul>
+        <div class="alert">⚠️ ATENÇÃO: É para os e-mails cadastrados aqui que o sistema enviará os alertas automáticos de novos eventos, alterações de datas e relatórios de vagas esgotadas!</div>
+    </div>
+
+    <!-- SEÇÃO 3 -->
+    <div class="section sec-green">
+        <h2>🟢 3. CRIAR UM NOVO EVENTO</h2>
+        <p><em>Como colocar uma nova programação na agenda oficial (Aba "Criar Novo Evento").</em></p>
+        <ul>
+            <li><span class="highlight">PASSO 1:</span> Digite o <strong>TÍTULO</strong> e escolha o <strong>DEPARTAMENTO</strong> na lista.</li>
+            <li><span class="highlight">PASSO 2:</span> Defina a <strong>DATA</strong> e a <strong>HORA</strong>.</li>
+            <li><span class="highlight">PASSO 3:</span> Preencha o <strong>Valor da Inscrição</strong> e o <strong>Limite de Vagas</strong> (quantas cadeiras estarão disponíveis).</li>
+            <li><span class="highlight">PASSO 4:</span> Toque no botão verde <strong>SALVAR NA AGENDA</strong>.</li>
+            <li><span class="highlight">📩 Mágica do Sistema:</span> Assim que salvar, toda a liderança receberá um e-mail avisando do novo evento e o seu nome ficará registrado na aba de Auditoria.</li>
+        </ul>
+    </div>
+
+    <!-- SEÇÃO 4 -->
+    <div class="section sec-purple">
+        <h2>🟣 4. GESTÃO DE INSCRIÇÕES E PAGAMENTOS</h2>
+        <p><em>Como registrar quem vai participar e controlar o dinheiro (Aba "Inscrições e Vagas").</em></p>
+        <ul>
+            <li><span class="highlight">PASSO 1:</span> Escolha o evento na lista superior e observe o <strong>PLACAR 📊</strong>. Ele mostra exatamente quantas vagas já foram preenchidas e quantas restam.</li>
+            <li><span class="highlight">PASSO 2 (CADASTRAR):</span> Preencha Nome, WhatsApp e E-mail do participante. Selecione a <strong>Forma de Pagamento</strong> e marque se está <em>Pendente</em> ou <em>Confirmado</em>.</li>
+            <li><span class="highlight">PASSO 3 (FINANCEIRO):</span> Se alguém pagou depois, vá na sub-aba <strong>Confirmar Pagamentos</strong>, escolha o nome da pessoa e mude o status para <strong>Confirmado (Pago)</strong>, ajustando a data do acerto.</li>
+        </ul>
+        <div class="alert">🚨 ALERTAS DE LOTAÇÃO: Quando faltarem apenas 10 vagas, o sistema avisa os líderes. Quando chegar a ZERO, o sistema trava novas inscrições e dispara um e-mail oficial de "VAGAS ESGOTADAS"!</div>
+    </div>
+
+    <!-- SEÇÃO 5 -->
+    <div class="section sec-red">
+        <h2>🔴 5. CORRIGIR OU CANCELAR EVENTOS</h2>
+        <p><em>Marcou a data errada ou o evento foi cancelado? Resolva em segundos (Aba "Editar/Excluir Eventos").</em></p>
+        <ul>
+            <li><span class="highlight">EDITAR:</span> Selecione o evento, mude o que precisar (nome ou data) e toque em <strong>Atualizar Evento</strong>. (Todos recebem um e-mail com a nova data).</li>
+            <li><span class="highlight">CANCELAR:</span> Selecione o evento e toque no botão vermelho <strong>Excluir Evento</strong>. (Todos recebem um e-mail informando o cancelamento da agenda).</li>
+        </ul>
+    </div>
+
+    <div class="footer">
+        SIS MEVAM-GYN (Goiânia) - Documento Oficial e Atualizado
+    </div>
+</div>
+
+</body>
+</html>

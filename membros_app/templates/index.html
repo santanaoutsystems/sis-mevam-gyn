@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>SIS MEVAM-GYN | Cadastro de Membros, OCR & Confissão de Fé</title>
+  <meta name="description" content="Sistema SaaS/ERP responsivo para registro de membros com reconhecimento OCR, assinatura digital de rúbrica e aceite da confissão de fé do Ministério MEVAM GYN.">
+  <link rel="icon" type="image/jpeg" href="/static/assets/logo_round.jpg">
+  
+  <!-- CSS do Sistema -->
+  <link rel="stylesheet" href="/static/css/style.css">
+
+  <!-- Bibliotecas OCR e PDF (CDN ultra-rápidas) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+</head>
+<body>
+
+  <!-- Topo / Navbar do Sistema -->
+  <header class="app-header">
+    <a href="/" class="brand-wrapper">
+      <img src="/static/assets/logo_round.jpg" alt="Logo MEVAM GYN" class="brand-logo" onerror="this.src='/static/assets/logo_wide.jpg'">
+      <div class="brand-text">
+        <h1>MEVAM GYN</h1>
+        <span>Membros & Fé • SaaS ERP</span>
+      </div>
+    </a>
+
+    <div class="header-actions">
+      <nav class="nav-pills">
+        <button type="button" class="nav-pill-btn active" id="tabNavCadastro">
+          📝 <span>Ficha & Credo</span>
+        </button>
+        <button type="button" class="nav-pill-btn" id="tabNavErp">
+          📊 <span>Secretaria (ERP)</span>
+        </button>
+      </nav>
+
+      <button type="button" class="btn btn-secondary btn-sm" id="btnToggleTheme" title="Alternar Modo Escuro" onclick="document.body.classList.toggle('dark-mode')">
+        🌓
+      </button>
+    </div>
+  </header>
+
+  <!-- Container Principal -->
+  <main class="app-container">
+
+    <!-- ========================================== -->
+    <!-- VISÃO 1: FLUXO DE CADASTRO E CREDOS DO MEMBRO -->
+    <!-- ========================================== -->
+    <div id="viewCadastro">
+
+      <!-- Stepper / Barra de Progresso Mobile-First -->
+      <div class="stepper-wrapper">
+        <div class="stepper-steps">
+          <div class="stepper-progress-bar" id="stepperProgressBar"></div>
+
+          <div class="step-item active" data-step="1">
+            <div class="step-circle">1</div>
+            <div class="step-label">OCR & Arquivo</div>
+          </div>
+
+          <div class="step-item" data-step="2">
+            <div class="step-circle">2</div>
+            <div class="step-label">Ficha Cadastral</div>
+          </div>
+
+          <div class="step-item" data-step="3">
+            <div class="step-circle">3</div>
+            <div class="step-label">Confissão de Fé</div>
+          </div>
+
+          <div class="step-item" data-step="4">
+            <div class="step-circle">4</div>
+            <div class="step-label">Rúbrica & Aceite</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORMULÁRIO MULTI-ETAPAS -->
+      <form id="formCadastroMembro" onsubmit="return false;">
+
+        <!-- ----------------------------------------- -->
+        <!-- PASSO 1: OCR E UPLOAD INTELIGENTE          -->
+        <!-- ----------------------------------------- -->
+        <div class="wizard-step-content" id="step-1">
+          <section class="card-section">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon">📷</div>
+                <div>
+                  <h2 class="card-title">Reconhecimento OCR de Documentos</h2>
+                  <p class="card-subtitle">Fotografe ou anexe sua ficha de membro, RG, CNH ou PDF para pré-preenchimento automático inteligente.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Caixa de Drop & Câmera -->
+            <div class="ocr-box" id="ocrDropzone">
+              <input type="file" id="docFileInput" accept="application/pdf,image/png,image/jpeg,image/jpg,image/webp" style="display: none;">
+              <input type="file" id="cameraFileInput" accept="image/*" capture="environment" style="display: none;">
+
+              <div class="ocr-icon-bounce">📄</div>
+              <h3 class="ocr-title">Arraste seu documento ou use a câmera</h3>
+              <p class="ocr-desc">Suporta PDF, JPG, PNG e fotos tiradas pelo smartphone/iPhone. Nosso sistema de OCR extrai automaticamente seu nome, endereço, telefone, datas e histórico!</p>
+
+              <div class="ocr-buttons-row">
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('cameraFileInput').click()">
+                  📸 Tirar Foto com Celular
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('docFileInput').click()">
+                  📁 Selecionar Arquivo do Dispositivo
+                </button>
+              </div>
+
+              <!-- Indicador de Carregamento e Progresso do OCR -->
+              <div class="ocr-progress-box" id="ocrProgressBox">
+                <div class="ocr-status-line">
+                  <span id="ocrStatusText">Processando documento...</span>
+                  <span id="ocrPercentText"></span>
+                </div>
+                <div class="progress-bar-container">
+                  <div class="progress-bar-fill" id="ocrProgressBarFill"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Badge de Resultado do OCR -->
+            <div class="ocr-badge-card" id="ocrResultBadge" style="display: none;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.4rem;">✨</span>
+                <div>
+                  <strong style="color: #065f46;">OCR processado com sucesso!</strong>
+                  <p style="font-size: 0.8rem; color: #047857; margin: 0;" id="ocrCountDisplay">0 campos identificados</p>
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm btn-primary" onclick="document.getElementById('btnNextStep').click()">
+                Ver Ficha Preenchida →
+              </button>
+            </div>
+
+            <div style="text-align: center; margin-top: 24px;">
+              <button type="button" class="btn btn-secondary" onclick="document.getElementById('btnNextStep').click()">
+                Pular OCR e Preencher Manualmente →
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <!-- ----------------------------------------- -->
+        <!-- PASSO 2: FICHA CADASTRAL DE MEMBROS        -->
+        <!-- ----------------------------------------- -->
+        <div class="wizard-step-content" id="step-2" style="display: none;">
+
+          <!-- Dados Pessoais -->
+          <section class="card-section">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon">👤</div>
+                <div>
+                  <h2 class="card-title">1. Dados Pessoais & Residenciais</h2>
+                  <p class="card-subtitle">Informações cadastrais oficiais do novo membro.</p>
+                </div>
+              </div>
+              <span class="badge badge-info">Ficha MEVAM GYN</span>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group col-12">
+                <label class="form-label" for="nome_completo">
+                  Nome Completo <span class="required">*</span>
+                </label>
+                <input type="text" id="nome_completo" class="form-control" placeholder="Digite seu nome completo" required>
+              </div>
+
+              <div class="form-group col-4">
+                <label class="form-label" for="data_nascimento">Data de Nascimento</label>
+                <input type="text" id="data_nascimento" class="form-control" placeholder="DD/MM/AAAA">
+              </div>
+
+              <div class="form-group col-4">
+                <label class="form-label" for="naturalidade">Naturalidade (Cidade/UF)</label>
+                <input type="text" id="naturalidade" class="form-control" placeholder="Ex: Goiânia - GO">
+              </div>
+
+              <div class="form-group col-4">
+                <label class="form-label">Sexo</label>
+                <div class="radio-pill-group">
+                  <div class="radio-pill">
+                    <input type="radio" id="sexo_masc" name="sexo" value="Masc." checked>
+                    <label for="sexo_masc">Masc.</label>
+                  </div>
+                  <div class="radio-pill">
+                    <input type="radio" id="sexo_fem" name="sexo" value="Fem.">
+                    <label for="sexo_fem">Fem.</label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group col-4">
+                <label class="form-label" for="estado_civil">Estado Civil</label>
+                <select id="estado_civil" class="form-select">
+                  <option value="Solteiro(a)">Solteiro(a)</option>
+                  <option value="Casado(a)">Casado(a)</option>
+                  <option value="Divorciado(a)">Divorciado(a)</option>
+                  <option value="Viúvo(a)">Viúvo(a)</option>
+                  <option value="União Estável">União Estável</option>
+                </select>
+              </div>
+
+              <div class="form-group col-8">
+                <label class="form-label" for="conjuge">Nome do Cônjuge (se casado)</label>
+                <input type="text" id="conjuge" class="form-control" placeholder="Nome completo do esposo(a)">
+              </div>
+
+              <!-- Endereço com Busca Automática de CEP -->
+              <div class="form-group col-3">
+                <label class="form-label" for="cep">CEP (Auto-Busca)</label>
+                <input type="text" id="cep" class="form-control" placeholder="00000-000">
+              </div>
+
+              <div class="form-group col-6">
+                <label class="form-label" for="endereco">Endereço (Rua, Av, Número, Compl.)</label>
+                <input type="text" id="endereco" class="form-control" placeholder="Rua, número, quadra, lote...">
+              </div>
+
+              <div class="form-group col-3">
+                <label class="form-label" for="bairro">Bairro</label>
+                <input type="text" id="bairro" class="form-control" placeholder="Setor / Bairro">
+              </div>
+
+              <div class="form-group col-12">
+                <label class="form-label" for="cidade">Cidade / UF</label>
+                <input type="text" id="cidade" class="form-control" value="Goiânia - GO">
+              </div>
+            </div>
+
+            <!-- Tabela Dinâmica de Filhos -->
+            <div style="margin-top: 24px; border-top: 1px dashed var(--border-color); padding-top: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div>
+                  <strong style="font-size: 0.95rem; color: var(--text-main);">Filhos</strong>
+                  <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Adicione os filhos se houver.</span>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnAddFilho">+ Adicionar Filho</button>
+              </div>
+
+              <table class="table-filhos">
+                <thead>
+                  <tr>
+                    <th>Nome do Filho(a)</th>
+                    <th style="width: 140px;">Nascimento</th>
+                    <th style="width: 100px;">Idade</th>
+                    <th style="width: 50px;">Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="filhosContainer">
+                  <!-- Linhas adicionadas dinamicamente via JS -->
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Contato e Formação Acadêmica -->
+          <section class="card-section">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon">📱</div>
+                <div>
+                  <h2 class="card-title">2. Contato & Atividade Profissional</h2>
+                  <p class="card-subtitle">Meios de comunicação e qualificação.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group col-6">
+                <label class="form-label" for="whatsapp">
+                  WhatsApp <span class="required">*</span>
+                </label>
+                <input type="tel" id="whatsapp" class="form-control" placeholder="(62) 90000-0000" required>
+              </div>
+
+              <div class="form-group col-6">
+                <label class="form-label" for="telefone">Telefone Fixo / Recado</label>
+                <input type="tel" id="telefone" class="form-control" placeholder="(62) 3000-0000">
+              </div>
+
+              <div class="form-group col-12">
+                <label class="form-label" for="email">E-mail</label>
+                <input type="email" id="email" class="form-control" placeholder="seuemail@exemplo.com">
+              </div>
+
+              <div class="form-group col-4">
+                <label class="form-label" for="escolaridade">Escolaridade</label>
+                <select id="escolaridade" class="form-select">
+                  <option value="">Selecione...</option>
+                  <option value="Ensino Fundamental">Ensino Fundamental</option>
+                  <option value="Ensino Médio">Ensino Médio</option>
+                  <option value="Superior Incompleto">Superior Incompleto</option>
+                  <option value="Superior Completo">Superior Completo</option>
+                  <option value="Pós-Graduação / Especialização">Pós-Graduação / Especialização</option>
+                  <option value="Mestrado">Mestrado</option>
+                  <option value="Doutorado">Doutorado</option>
+                </select>
+              </div>
+
+              <div class="form-group col-8">
+                <label class="form-label" for="formacao_academica">Formação Acadêmica (Curso/Área)</label>
+                <input type="text" id="formacao_academica" class="form-control" placeholder="Ex: Administração, Direito, Engenharia...">
+              </div>
+
+              <div class="form-group col-6">
+                <label class="form-label" for="profissao">Profissão / Ocupação</label>
+                <input type="text" id="profissao" class="form-control" placeholder="Ex: Contador, Professor, Empresário...">
+              </div>
+
+              <div class="form-group col-6">
+                <label class="form-label" for="empresa">Empresa que Trabalha</label>
+                <input type="text" id="empresa" class="form-control" placeholder="Nome da empresa ou autônomo">
+              </div>
+            </div>
+          </section>
+
+          <!-- Vida Eclesiástica e Ministerial -->
+          <section class="card-section">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon">⛪</div>
+                <div>
+                  <h2 class="card-title">3. Vida Cristã & Histórico Eclesiástico</h2>
+                  <p class="card-subtitle">Batismo nas águas, histórico de congregação e ministério.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group col-4">
+                <label class="form-label">Batizado nas Águas?</label>
+                <div class="radio-pill-group">
+                  <div class="radio-pill">
+                    <input type="radio" id="batizado_sim" name="batizado" value="Sim" checked>
+                    <label for="batizado_sim">Sim</label>
+                  </div>
+                  <div class="radio-pill">
+                    <input type="radio" id="batizado_nao" name="batizado" value="Não">
+                    <label for="batizado_nao">Não</label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group col-8">
+                <label class="form-label" for="data_batismo">Data do Batismo (se souber)</label>
+                <input type="text" id="data_batismo" class="form-control" placeholder="DD/MM/AAAA ou Ano aproximado">
+              </div>
+
+              <div class="form-group col-4">
+                <label class="form-label">Congregava antes em outra igreja?</label>
+                <div class="radio-pill-group">
+                  <div class="radio-pill">
+                    <input type="radio" id="congregava_sim" name="congregava_antes" value="Sim">
+                    <label for="congregava_sim">Sim</label>
+                  </div>
+                  <div class="radio-pill">
+                    <input type="radio" id="congregava_nao" name="congregava_antes" value="Não" checked>
+                    <label for="congregava_nao">Não</label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group col-8">
+                <label class="form-label" for="onde_congregava">Onde congregava? (Igreja / Cidade)</label>
+                <input type="text" id="onde_congregava" class="form-control" placeholder="Nome da igreja anterior">
+              </div>
+
+              <div class="form-group col-12">
+                <label class="form-label" for="area_ministerial">Área ministerial que já praticou antes</label>
+                <input type="text" id="area_ministerial" class="form-control" placeholder="Ex: Louvor, Mídia, Infantil, Diaconia, Ensino, Recepção, Intercessão...">
+              </div>
+
+              <div class="form-group col-12">
+                <label class="form-label" for="interesse_batismo_familia">Há alguém na família que tem interesse de se batizar ainda esse ano?</label>
+                <input type="text" id="interesse_batismo_familia" class="form-control" placeholder="Ex: Sim (esposa e filho de 14 anos) ou Não">
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- ----------------------------------------- -->
+        <!-- PASSO 3: CREDO & CONFISSÃO DE FÉ MEVAM GYN -->
+        <!-- ----------------------------------------- -->
+        <div class="wizard-step-content" id="step-3" style="display: none;">
+          <section class="card-section">
+            <div class="credo-box">
+              <div class="credo-header">
+                <img src="/static/assets/logo_round.jpg" alt="MEVAM GYN" style="width: 50px; height: 50px; border-radius: 50%; margin-bottom: 8px;">
+                <h2>CREDO MEVAM GYN / CONFISSÃO DE FÉ</h2>
+                <p>Declaração dos Princípios Doutrinários Fundamentais</p>
+              </div>
+
+              <!-- Credo Apostólico -->
+              <div class="credo-apostolico">
+                <strong>O CREDO:</strong><br/>
+                Creio em Deus Pai Todo-Poderoso, Criador dos céus e da terra;<br/>
+                E em Jesus Cristo, seu único Filho, nosso Senhor;<br/>
+                O qual foi concebido por obra do Espírito Santo; Nasceu da virgem, Maria;<br/>
+                Padeceu sob o poder de Pôncio Pilatos; Foi crucificado, morto e sepultado;<br/>
+                E ao terceiro dia, ressurgiu dos mortos;<br/>
+                Subiu ao céu e está assentado à destra de Deus Pai, Todo-Poderoso, de onde há de vir para julgar os vivos e os mortos;<br/>
+                Creio no Espírito Santo, Na Santa Igreja de Cristo, Na comunhão dos santos, Na remissão dos pecados, Na ressurreição do corpo E na vida eterna. <strong>Amém!</strong>
+              </div>
+
+              <!-- Controle de Expansão -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-weight: 700; font-size: 0.9rem; color: var(--primary);">Os 10 Artigos Doutrinários:</span>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnToggleAllArtigos">Expandir Todos os 10 Artigos</button>
+              </div>
+
+              <!-- Accordion com os 10 Artigos Oficiais -->
+              <div class="artigos-list">
+
+                <!-- Artigo 1 -->
+                <div class="artigo-card">
+                  <button type="button" class="artigo-trigger">
+                    <span><span class="artigo-numero">1</span> A Natureza de Deus e de Seu Cristo</span>
+                    <span class="artigo-toggle-icon">▼</span>
+                  </button>
+                  <div class="artigo-body" style="display: none;">
+                    Cremos no único Deus eterno, Criador e Senhor do Mundo, Deus Trino: Pai, Filho e Espírito Santo, que governa todas as coisas segundo a sua vontade. Deus chamou do mundo um povo para si, enviando-o novamente ao mundo como suas testemunhas, para estender o seu reino, edificar o corpo de Cristo, e para a glória de Seu nome. Cremos na divindade de Cristo, seu nascimento virginal, sua morte propiciatória ao verter seu sangue, sua ressurreição corpórea e sua ascensão à destra do Pai. Cremos que Jesus Cristo é o único Salvador e rejeitamos todo e qualquer tipo de sincretismo ou de diálogo inter religioso que coloque o Cristianismo em relação horizontal com as demais religiões e ideologias. Jesus Cristo, sendo ele próprio o único Deus-homem, que se ofereceu a si mesmo como único resgate pelos pecadores, é o único mediador entre Deus e os homens.
+                    <div class="artigo-versos">(Isaías 40:28; Mateus 28:19; Efésios 1:11; Atos 15:14; João 17:6,18; Efésios 4:12; 1 Coríntios 5:10; Romanos 12; 2 Coríntios 4:7; Gálatas 1:6-9; Romanos 11:5; 1 Timóteo 2:5-6; Atos 4:12; João 3:16-19; 2 Pedro 3:9; 2 Tessalonicenses 1:7-9; João 4:42; Mateus 11:28; Efésios 1:20,21; Filipenses 2:9-11)</div>
+                  </div>
+                </div>
+
+                <!-- Artigo 2 -->
+                <div class="artigo-card">
+                  <button type="button" class="artigo-trigger">
+                    <span><span class="artigo-numero">2</span> O Ministério do Espírito Santo</span>
+                    <span class="artigo-toggle-icon">▼</span>
+                  </button>
+                  <div class="artigo-body" style="display: none;">
+                    Cremos que o Espírito Santo é uma pessoa da Trindade e mais do que apenas um carisma ou poder sobrenatural. Cremos que o Espírito Santo foi derramado sobre a Igreja com poder em Pentecostes, batizando os crentes e liberando os dons do Espírito a eles. O Espírito habita com sua presença em nós para adoração espiritual, santificação pessoal, edificação da Igreja, e para confrontar o reino de Satanás através da evangelização do mundo. Isso é possível mediante as obras de Jesus (pregação do Reino, libertação dos cativos e cura dos enfermos). O Espírito Santo habita em todo os que creem em Jesus Cristo e Ele é nosso ajudador e guia. Acreditamos no enchimento ou capacitação do Espírito Santo, para o ministério hoje. Cremos no atual ministério do Espírito e no exercício de todos os dons do Espírito citados na Bíblia.
+                    <div class="artigo-versos">(1 Coríntios 2:4; João 15:26-27; 16:8-11; 1 Coríntios 12:3; João 3:6-8; 2 Coríntios 3:18; João 7:37-39; 1 Tessalonicenses 5:19; Atos 1:8; Salmos 85:4-7; 67:1-5; Gálatas 5:22,23; 1 Coríntios 12:4-31; Romanos 12:3-8)</div>
+                  </div>
+                </div>
+
+                <!-- Artigo 3 -->
+                <div class="artigo-card">
+                  <button type="button" class="artigo-trigger">
+                    <span><span class="artigo-numero">3</span> A Autoridade e o Poder da Bíblia</span>
+                    <span class="artigo-toggle-icon">▼</span>
+                  </button>
+                  <div class="artigo-body" style="display: none;">
+                    Afirmamos a inspiração divina, a veracidade e autoridade das Escrituras tanto do Antigo como do Novo Testamento, em sua totalidade, como única Palavra de Deus escrita, sem erro em tudo o que ela afirma, e a única regra infalível de fé e prática. Afirmamos o poder da Palavra de Deus para cumprir o seu propósito de salvação. A mensagem da Bíblia destina-se a toda a humanidade, pois a revelação de Deus em Cristo e na Escritura é imutável.
+                    <div class="artigo-versos">(2 Timóteo 3:16; 2 Pedro 1:21; João 10:35; Isaías 55:11; 1 Coríntios 1:21; Romanos 1:16; Mateus 5:17-18; Judas 3; Efésios 1:17-18; 3:10,18)</div>
+                  </div>
+                </div>
+
+                <!-- Artigo 4 -->
+                <div class="artigo-card">
+                  <button type="button" class="artigo-trigger">
+                    <span><span class="artigo-numero">4</span> A Natureza de Evangelismo e Missões</span>
+                    <span class="artigo-toggle-icon">▼</span>
+                  </button>
+                  <div class="artigo-body" style="display: none;">
+                    Evangelizar é difundir a mensagem de que Jesus Cristo morreu por nossos pecados e ressuscitou e que como Senhor e Rei, agora oferece o perdão dos pecados e o Espírito Santo aos que creem. Cremos que não devemos esconder o custo do discipulado: negar a si mesmos, tomar a cruz e identificar-se com uma comunidade local. Acreditamos que o objetivo final da vida é conhecer e glorificar a Deus e alcançar a vida eterna através de Jesus Cristo, nosso Senhor, tanto em nossas próprias famílias e depois alcançando uma humanidade sofredora que precisa aceitar tanto o amor como o sacrifício de Cristo. Os resultados da evangelização é a obediência a Cristo, o ingresso em sua Igreja e um serviço responsável no mundo.
+                    <div class="artigo-versos">(1 Coríntios 15:3-4; Atos 2:32-39; João 20:21; 1 Coríntios 1:23; 2 Coríntios 4:5; 11:20; Lucas 14:25-33; Marcos 8:34; Atos 2:40,47; Marcos 10:43-45)</div>
+                  </div>
+                </div>
+
+                <!-- Artigo 5 -->
+                <div class="artigo-card">
+                  <button type="button" class="artigo-trigger">
+                    <span><span class="artigo-numero">5</span> A Igreja: Instrumento do Reino e Socialmente Responsável</span>
+                    <span class="artigo-toggle-icon">▼</span>
+                  </button>
+                  <div class="artigo-body" style="display: none;">
+                    Nós acreditamos na Igreja única, santa, universal. Todos os que se arrependem de seus pecados e confessam Jesus como Senhor e Salvador são regenerados pelo Espírito Santo e formam o Corpo de Cristo vivo, do qual Ele é o cabeça e nós os membros. A Igreja deve ser ativa na proteção e promoção dos valores que fortalecem a família e assembleia dos santos. Afirmamos que Deus é o Criador e o Juiz de todos os homens. Portanto, devemos partilhar o seu interesse pela justiça e pela libertação dos homens de todo tipo de opressão. A fé sem obras é morta. O evangelho Todo, Para o Homem Todo, Para Todos os Homens.
+                    <div class="artigo-versos">(Atos 17:26,31; Gênesis 18:25; Isaías 1:17; Salmo 45:7; Gênesis 1:26,27; Tiago 5:9; Levítico 19:18; Lucas 6:27,35; Tiago 2:14-26; João 3:3,5; Mateus 5:20; 6:33; 2 Coríntios 3:18; Tiago 2:20)</div>
+                  </div>
+                </div>
+
+                <!-- Artigo 6 -->
+                <div class="artigo-card">
+                  <button type="button" class="artigo-trigger">
+                    <span><span class="artigo-numero">6</span> O Retorno de Cristo</span>
+                    <span class="artigo-toggle-icon">▼</span>
+                  </button>
+                  <div class="artigo-body" style="display: none;">
+                    Cremos que Jesus Cristo voltará pessoal e visivelmente, em poder e glória, para consumar a salvação e o juízo. Acreditamos que o período que vai desde a ascensão de Cristo até o seu retorno será preenchido com a missão do povo de Deus, que não pode parar esta obra antes do Fim. A nossa confiança cristã é de que Deus aperfeiçoará o seu reino, e aguardamos ansiosamente esse dia, e com Ele reinaremos para sempre!
+                    <div class="artigo-versos">(Marcos 14:62; Hebreus 9:28; Marcos 13:10; Atos 1:8-11; Mateus 28:20; Marcos 13:21-23; 1 João 2:18; 4:1-3; Lucas 12:32; Apocalipse 21:1-5; 2 Pedro 3:13; Mateus 28:18)</div>
+                  </div>
+                </div>
+
+                <!-- Artigo 7 -->
+                <div class="artigo-card">
+                  <button type="button" class="artigo-trigger">
+                    <span><span class="artigo-numero">7</span> Guerra Espiritual</span>
+                    <span class="artigo-toggle-icon">▼</span>
+                  </button>
+                  <div class="artigo-body" style="display: none;">
+                    Cremos que estamos num permanente conflito espiritual com os principados e potestades do mal, que querem destruir a igreja e frustrar sua tarefa de evangelização mundial. Sabemos da necessidade de nos revestirmos da armadura de Deus e combater esta batalha com as armas espirituais da Palavra e da oração. Precisamos vigiar com discernimento para proteger a proclamação do evangelho bíblico. A igreja deve estar no mundo; o mundo não deve estar na igreja.
+                    <div class="artigo-versos">(Efésios 6:12; 2 Coríntios 4:3-4; Efésios 6:11,13-18; 2 Coríntios 10:3-5; 1 João 2:18-26; 4:1-3; Gálatas 1:6-9; 2 Coríntios 2:17; 4:2; João 17:15)</div>
+                  </div>
+                </div>
+
+                <!-- Artigo 8 -->
+                <div class="artigo-card">
+                  <button type="button" class="artigo-trigger">
+                    <span><span class="artigo-numero">8</span> O Valor da Vida Humana</span>
+                    <span class="artigo-toggle-icon">▼</span>
+                  </button>
+                  <div class="artigo-body" style="display: none;">
+                    Acreditamos que todos seres humanos são criados por Deus à Sua imagem e semelhança. Portanto, toda pessoa, desde a concepção até a morte natural, sem distinção de raça, religião, cor, cultura, classe social, sexo ou idade possui uma dignidade intrínseca em razão da qual deve ser respeitada e servida, não explorada. Nós cristãos, somos chamados a defender, proteger e valorizar toda a vida humana, inclusive dentro do ventre da mãe. Nos posicionamos contra o aborto e o denominamos como homicídio.
+                    <div class="artigo-versos">(Salmo 139:13-14; Gênesis 2:24; Efésios 1:22-23; Romanos 13:1)</div>
+                  </div>
+                </div>
+
+                <!-- Artigo 9 -->
+                <div class="artigo-card">
+                  <button type="button" class="artigo-trigger">
+                    <span><span class="artigo-numero">9</span> A Sexualidade e a Imutabilidade do Casamento</span>
+                    <span class="artigo-toggle-icon">▼</span>
+                  </button>
+                  <div class="artigo-body" style="display: none;">
+                    Acreditamos que Deus criou os seres humanos, intencionalmente e imutavelmente nos gêneros masculino e feminino somente, cada um trazendo qualidades únicas e complementares à sexualidade e aos relacionamentos. A sexualidade é um presente de Deus a ser oferecido de volta a Ele, seja em casamento para procriação e deleite mútuo (entre um homem e uma mulher apenas) ou em celibato, por devoção total a Cristo. Acreditamos que a instituição do casamento é uma aliança sagrada projetada por Deus para modelar o amor de Cristo por Seu povo e servir ao bem público e privado como o alicerce básico da civilização humana. Deus projetou o casamento para ser um relacionamento próspero entre um homem e uma mulher e até que a morte os separe. Cremos que devemos defender a instituição do casamento e combater uma atitude leviana em relação ao divórcio.
+                    <div class="artigo-versos">(Romanos 12:1-2; Provérbios 18:22; Mateus 19:4-6; Colossenses 3:18-19; Hebreus 13:4; Efésios 5:22-26; 1 Coríntios 7:2-4; Gênesis 2:18; 1 Pedro 3:7; Mateus 19:4-6; Efésios 5:31)</div>
+                  </div>
+                </div>
+
+                <!-- Artigo 10 -->
+                <div class="artigo-card">
+                  <button type="button" class="artigo-trigger">
+                    <span><span class="artigo-numero">10</span> Exortação, Disciplina e Exclusão</span>
+                    <span class="artigo-toggle-icon">▼</span>
+                  </button>
+                  <div class="artigo-body" style="display: none;">
+                    Cremos que há uma dinâmica de exortação, disciplina e exclusão nas escrituras que nos emancipa de forma inegociável ao procedimento necessário na vida igreja. Respeitamos a individualidade de cada membro e temos a plena consciência dos múltiplos contextos existentes em nosso convívio. Por esse motivo cada caso será tratado como único e fundamentaremos a nossa avaliação em amor, misericórdia e zelo pelo todo. Dessa forma seguiremos a orientação dada pelo próprio JESUS no evangelho de Mateus (Mt 18:15-17). A autoridade para aplicação da dinâmica mencionada é delegada apenas aqueles que compõem o presbitério da igreja e estão sobre a avaliação do Pastor Sênior.
+                    <div class="artigo-versos">(Mateus 18:15-17; 1 Coríntios 5:1-7; 1 Timóteo 5:19-21; Deuteronômio 19:15; 2 Tessalonicenses 3:6,14-15; Gálatas 6:1; Romanos 16:17-18)</div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Termo de Aceite Checkbox Obrigatório -->
+              <div class="aceite-box">
+                <input type="checkbox" id="chkCredoAceito" class="aceite-checkbox">
+                <label for="chkCredoAceito" class="aceite-texto">
+                  <strong>Declaração de Concordância:</strong> Declaro que li, compreendi integralmente e concordo de livre e espontânea vontade com o <strong>CREDO MEVAM GYN / CONFISSÃO DE FÉ</strong>, assumindo o compromisso de submeter-me aos princípios doutrinários e pastorais aqui expostos.
+                </label>
+              </div>
+
+            </div>
+          </section>
+        </div>
+
+        <!-- ----------------------------------------- -->
+        <!-- PASSO 4: TERMO DE ACEITE & RÚBRICA DIGITAL -->
+        <!-- ----------------------------------------- -->
+        <div class="wizard-step-content" id="step-4" style="display: none;">
+          <section class="card-section">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="card-icon">✍️</div>
+                <div>
+                  <h2 class="card-title">Assinatura Formal & Rúbrica Digital</h2>
+                  <p class="card-subtitle">Confirmação de identidade e registro de assinatura digital tipo rúbrica.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group col-12">
+                <label class="form-label" for="nome_assinante">
+                  Nome Completo (Conforme Documento) <span class="required">*</span>
+                </label>
+                <input type="text" id="nome_assinante" class="form-control" placeholder="Escreva seu nome completo" required>
+                <small style="color: var(--text-muted);">Este nome constará no termo oficial assinado junto com a sua rúbrica.</small>
+              </div>
+            </div>
+
+            <!-- Quadro de Assinatura Tipo Rúbrica -->
+            <div class="signature-card" style="margin-top: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label class="form-label" style="margin: 0;">
+                  Desenhe sua Rúbrica / Assinatura abaixo: <span class="required">*</span>
+                </label>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">Use o dedo no celular ou mouse no PC</span>
+              </div>
+
+              <div class="signature-pad-wrapper">
+                <span class="signature-watermark" id="signatureWatermark">DESENHE SUA RÚBRICA AQUI</span>
+                <canvas id="signatureCanvas"></canvas>
+              </div>
+
+              <!-- Barra de Ferramentas da Assinatura -->
+              <div class="signature-toolbar">
+                <div class="signature-tools-left">
+                  <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Cor:</span>
+                  <button type="button" class="btn btn-secondary btn-sm active" id="btnPenBlue" style="color: #003399; font-weight: bold;">● Azul Caneta</button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnPenBlack" style="color: #111827; font-weight: bold;">● Preto</button>
+                </div>
+
+                <div style="display: flex; gap: 8px;">
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnUndoSignature">↩ Desfazer</button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnClearSignature">🗑️ Limpar</button>
+                </div>
+              </div>
+
+              <!-- Declaração Legal e Carimbo LGPD -->
+              <div style="margin-top: 16px; font-size: 0.78rem; color: #64748b; line-height: 1.5; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                🔒 <strong>Validade Digital:</strong> Este registro captura a imagem vetorial da sua rúbrica, data e hora com carimbo criptográfico SHA-256 e IP de conexão, em plena conformidade com a Lei Geral de Proteção de Dados (LGPD) e o regimento eclesiástico do MEVAM GYN.
+              </div>
+            </div>
+
+          </section>
+        </div>
+
+        <!-- ----------------------------------------- -->
+        <!-- RODAPÉ DE NAVEGAÇÃO DO WIZARD (STICKY)    -->
+        <!-- ----------------------------------------- -->
+        <div class="wizard-footer">
+          <button type="button" class="btn btn-secondary btn-lg" id="btnPrevStep" style="visibility: hidden;">
+            ← Voltar
+          </button>
+
+          <button type="button" class="btn btn-primary btn-lg" id="btnNextStep">
+            Próximo Passo →
+          </button>
+
+          <button type="button" class="btn btn-accent btn-lg" id="btnFinalizarCadastro" style="display: none;">
+            ✓ Finalizar & Registrar Aceite
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- VISÃO 2: PAINEL DA SECRETARIA (ERP / SAAS) -->
+    <!-- ========================================== -->
+    <div id="viewErp" style="display: none;">
+
+      <!-- Métricas / KPIs -->
+      <div class="erp-stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon blue">👥</div>
+          <div>
+            <div class="stat-value" id="statTotalMembros">0</div>
+            <div class="stat-label">Total de Membros</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon green">💧</div>
+          <div>
+            <div class="stat-value" id="statTotalBatizados">0</div>
+            <div class="stat-label">Batizados nas Águas</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon amber">✍️</div>
+          <div>
+            <div class="stat-value" id="statTotalAssinados">0</div>
+            <div class="stat-label">Com Rúbrica & Credo</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon purple">🎯</div>
+          <div>
+            <div class="stat-value" id="statInteresseBatismo">0</div>
+            <div class="stat-label">Interesse em Batismo</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Filtros e Ações -->
+      <section class="card-section" style="padding: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div style="display: flex; gap: 10px; flex: 1; min-width: 280px;">
+            <input type="text" id="erpSearchInput" class="form-control" placeholder="🔍 Buscar por nome, e-mail, telefone, bairro...">
+            <select id="erpFilterStatus" class="form-select" style="max-width: 180px;">
+              <option value="Todos">Todos os Status</option>
+              <option value="Batizados">Apenas Batizados</option>
+              <option value="NaoBatizados">Não Batizados</option>
+              <option value="ComAssinatura">Com Rúbrica Registrada</option>
+            </select>
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnErpAtualizar">🔄 Atualizar</button>
+            <button type="button" class="btn btn-primary btn-sm" id="btnErpExportarCsv">📊 Exportar Planilha (CSV)</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tabela de Membros -->
+      <div class="table-responsive">
+        <table class="erp-table">
+          <thead>
+            <tr>
+              <th style="width: 70px;">ID</th>
+              <th>Nome do Membro</th>
+              <th>Contato</th>
+              <th>Localidade</th>
+              <th>Batizado</th>
+              <th>Confissão de Fé</th>
+              <th style="width: 160px;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="erpTableBody">
+            <tr>
+              <td colspan="7" style="text-align: center; padding: 30px; color: #94a3b8;">
+                Carregando dados dos membros...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- MODAL: SUCESSO DE REGISTRO E EMISSÃO PDF   -->
+  <!-- ========================================== -->
+  <div class="modal-overlay" id="modalSucesso">
+    <div class="modal-content" style="text-align: center; padding: 32px 24px;">
+      <div style="width: 68px; height: 68px; background: #dcfce7; color: #16a34a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; margin: 0 auto 16px;">
+        ✓
+      </div>
+      <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; color: #0f172a; margin-bottom: 8px;">
+        Registro Realizado com Sucesso!
+      </h2>
+      <p style="font-size: 0.95rem; color: #475569; margin-bottom: 4px;">
+        Bem-vindo à família <strong>MEVAM GYN</strong>, <span id="sucessoNome"></span>!
+      </p>
+      <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 24px;">
+        Protocolo de Filiação: <strong id="sucessoProtocolo">#---</strong> • Confissão de Fé assinada digitalmente.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button type="button" class="btn btn-accent btn-lg" id="btnDownloadPdfSucesso">
+          📄 Baixar Ficha Oficial & Credo (PDF Assinado)
+        </button>
+        <button type="button" class="btn btn-secondary" id="btnImprimirSucesso">
+          🖨️ Visualizar para Impressão
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="location.reload()">
+          + Realizar Novo Cadastro
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: DETALHES COMPLETOS DO MEMBRO (ERP)  -->
+  <!-- ========================================== -->
+  <div class="modal-overlay" id="modalDetalhesMembro">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="margin: 0; font-size: 1.15rem; font-family: 'Outfit', sans-serif;">Dossiê do Membro</h3>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('modalDetalhesMembro').style.display='none'">✕</button>
+      </div>
+      <div class="modal-body" id="modalDetalhesCorpo">
+        <!-- Preenchido via admin.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts da Aplicação -->
+  <script src="/static/js/signature.js"></script>
+  <script src="/static/js/ocr_engine.js"></script>
+  <script src="/static/js/admin.js"></script>
+  <script src="/static/js/app.js"></script>
+
+</body>
+</html>

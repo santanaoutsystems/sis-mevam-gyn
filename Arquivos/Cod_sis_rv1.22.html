@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual SIS MEVAM-GYN v1.22</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            color: #333333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 30px;
+            font-size: 18px;
+        }
+        .container {
+            max-width: 850px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .logo-container img {
+            max-width: 130px;
+            height: auto;
+            border-radius: 6px;
+        }
+        h1 {
+            color: #0d6efd;
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #6c757d;
+            font-size: 18px;
+            margin-bottom: 35px;
+            font-weight: 600;
+        }
+        h2 {
+            color: #198754;
+            border-bottom: 2px solid #198754;
+            padding-bottom: 6px;
+            margin-top: 35px;
+            margin-bottom: 15px;
+            font-size: 22px;
+            page-break-after: avoid;
+        }
+        p, li {
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+        ul {
+            margin-bottom: 25px;
+            padding-left: 25px;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .security-box, .admin-box {
+            padding: 18px;
+            margin: 25px 0;
+            border-radius: 6px;
+            page-break-inside: avoid;
+        }
+        .security-box {
+            background-color: #e2f0d9;
+            border-left: 6px solid #198754;
+        }
+        .admin-box {
+            background-color: #f8d7da;
+            border-left: 6px solid #dc3545;
+        }
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            color: #6c757d;
+            font-size: 16px;
+            border-top: 1px solid #dee2e6;
+            padding-top: 20px;
+            page-break-inside: avoid;
+        }
+
+        /* CONFIGURAÇÕES DE IMPRESSÃO EM PAPEL A4 */
+        @media print {
+            body {
+                background-color: #ffffff;
+                padding: 0;
+                font-size: 16px;
+                color: #000000;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+                max-width: 100%;
+                margin: 0;
+            }
+            h2 {
+                margin-top: 30px;
+            }
+            .security-box, .admin-box, footer {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Logotipo Oficial no Cabeçalho -->
+    <div class="logo-container">
+        <img src="Mevamgyn_logo.jpg" alt="Logotipo MEVAM GYN">
+    </div>
+
+    <h1>SIS MEVAM-GYN</h1>
+    <div class="subtitle">Manual Oficial de Operações - Versão 1.22<br>Gestão de Eventos, Auditoria, Financeiro e LGPD</div>
+
+    <p>Bem-vindo ao <strong>SIS MEVAM-GYN</strong>. Este manual orienta a equipe de liderança e secretaria sobre o fluxo correto de utilização das ferramentas de gestão da igreja.</p>
+
+    <h2>1. ACESSO E NAVEGAÇÃO</h2>
+    <p>O sistema possui um painel integrado e seguro para acesso em computadores, tablets e telemóveis.</p>
+    <ul>
+        <li><strong>LOGIN OBRIGATÓRIO:</strong> Selecione o seu nome na lista e insira a sua senha de acesso individual. (O Administrador Master possui credenciais dedicadas com senha mestre). Todas as ações ficam registadas em seu nome por questões de segurança e LGPD.</li>
+        <li><strong>MENU PRINCIPAL:</strong> Utilize o menu suspenso para transitar entre a Agenda, Inscrições, Financeiro, Cadastros e Auditoria.</li>
+    </ul>
+
+    <h2>2. CADASTRAR A EQUIPE E OS DEPARTAMENTOS</h2>
+    <p>Aceda a <em>"Cadastros (Equipe/Deptos)"</em> no menu principal.</p>
+    <ul>
+        <li><strong>DEPARTAMENTOS:</strong> Registe os grupos oficiais (Ex: Jovens, Casais, Discipulado) e os respetivos líderes/responsáveis.</li>
+        <li><strong>ADMINISTRADORES:</strong> Cadastre os líderes com Nome, Telefone, E-mail (para receberem os alertas automáticos) e uma Senha individual.</li>
+        <li><strong>REGRA DE SEGURANÇA:</strong> A senha criada deve ter obrigatoriamente um mínimo de 4 dígitos.</li>
+    </ul>
+
+    <h2>3. GESTÃO DE EVENTOS</h2>
+    <p>Como agendar, visualizar e corrigir eventos com segurança.</p>
+    <ul>
+        <li><strong>NOVO EVENTO:</strong> No menu, vá a <em>"+ Criar Novo Evento"</em>. Defina data, hora, departamento, valor base e limite de vagas (digite <span class="highlight">0</span> para vagas ilimitadas / livre acesso). O sistema notifica toda a equipe por e-mail automaticamente.</li>
+        <li><strong>EDITAR / EXCLUIR:</strong> Aceda a <em>"✏️ Editar / Excluir Evento"</em>. Qualquer alteração ou cancelamento exige obrigatoriamente o preenchimento de uma <strong>justificativa</strong> para fins de auditoria, registrando o nome do responsável e o carimbo de data/hora.</li>
+    </ul>
+
+    <h2>4. INSCRIÇÕES E AUDITORIA OBRIGATÓRIA</h2>
+    <p>Controle rigoroso de participantes e conformidade com a LGPD (Aceder a <em>"👥 Inscrições e Auditoria"</em>).</p>
+    <ul>
+        <li><strong>NOVA INSCRIÇÃO:</strong> Preencha o nome, telefone, selecione o tipo de ingresso (Inteira, Meia ou Cortesia/Isento) e a forma de pagamento (Pix, Cartão, Dinheiro ou A Receber). O sistema calcula o valor final automaticamente.</li>
+        <li><strong>CONSENTIMENTO LGPD:</strong> É obrigatório marcar a caixa de confirmação de consentimento do titular para o tratamento dos dados estritamente para fins de organização do evento.</li>
+        <li><strong>EDITAR / EXCLUIR E AUDITORIA:</strong> Na aba de edição, pode corrigir dados ou cancelar inscrições mediante justificativa obrigatória.</li>
+    </ul>
+
+    <h2>5. DASHBOARD FINANCEIRO</h2>
+    <p>O centro de inteligência financeira do evento (Aceder a <em>"📊 Dashboard Financeiro"</em>).</p>
+    <ul>
+        <li><strong>RECEITAS:</strong> O sistema separa automaticamente o que entrou em Pix, Cartão ou Dinheiro (confirmados) e exibe o montante dos inadimplentes (A Receber).</li>
+        <li><strong>DESPESAS:</strong> Utilize o botão <em>"+ Lançar Nova Despesa"</em> para registar custos operacionais do evento.</li>
+        <li><strong>RESULTADO FINAL:</strong> O painel calcula matematicamente o saldo líquido (Receita Total - Despesas) em tempo real e exibe gráficos analíticos de público.</li>
+    </ul>
+
+    <h2>6. RELATÓRIOS E IMPRESSÃO EM PDF</h2>
+    <p>Aceda a <em>"🖨️ Relatórios e PDF"</em>.</p>
+    <ul>
+        <li>Filtre os dados para visualizar listas completas de participantes, inadimplentes ou extratos financeiros consolidados.</li>
+        <li><strong>COMO SALVAR EM PDF:</strong> Pressione <span class="highlight">Ctrl + P</span> (ou partilhe/imprima no telemóvel) diretamente no navegador e selecione <em>"Guardar como PDF"</em>. O layout oculta menus automaticamente e insere o logotipo oficial do MEVAM GYN no topo.</li>
+    </ul>
+
+    <div class="admin-box">
+        <h3>🔍 7. FERRAMENTA DE AUDITORIA DO SISTEMA (USO EXCLUSIVO)</h3>
+        <p>Recurso restrito unicamente ao <strong>Desenvolvedor (Ricardo César Santana / Admin Geral)</strong>. Esta ferramenta armazena e exibe o registo completo de todas as ações, logins e movimentações efetuadas por qualquer utilizador no banco de dados, garantindo governança técnica absoluta e conformidade total com a LGPD.</p>
+    </div>
+
+    <div class="security-box">
+        <h3>🛡️ SEGURANÇA E PRIVACIDADE</h3>
+        <p>Os dados da igreja são salvos em nuvem segura (Supabase / PostgreSQL) com criptografia HTTPS/SSL, impedindo vazamentos e garantindo a integridade institucional.</p>
+    </div>
+
+    <footer>
+        SIS MEVAM-GYN (Goiânia) • Documento Oficial e Atualizado (v1.22)
+    </footer>
+</div>
+
+</body>
+</html>

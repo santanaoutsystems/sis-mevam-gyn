@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Oficial - SIS MEVAM-GYN</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            color: #333333;
+            line-height: 1.8;
+            margin: 0;
+            padding: 20px;
+            font-size: 18px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 50px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .logo-container img {
+            max-width: 140px;
+            height: auto;
+            border-radius: 8px;
+        }
+        h1 {
+            color: #0d6efd;
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #6c757d;
+            font-size: 20px;
+            margin-bottom: 40px;
+        }
+        h2 {
+            color: #198754;
+            border-bottom: 2px solid #198754;
+            padding-bottom: 8px;
+            margin-top: 50px;
+            margin-bottom: 20px;
+            font-size: 24px;
+            page-break-after: avoid;
+        }
+        h3 {
+            color: #0d6efd;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 20px;
+            page-break-after: avoid;
+        }
+        p, li {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        ul {
+            margin-bottom: 30px;
+        }
+        li {
+            margin-bottom: 12px;
+        }
+        hr {
+            margin: 40px 0;
+            border: 0;
+            border-top: 1px solid #dee2e6;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .security-box, .admin-box {
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 6px;
+            page-break-inside: avoid;
+        }
+        .security-box {
+            background-color: #e2f0d9;
+            border-left: 6px solid #198754;
+        }
+        .admin-box {
+            background-color: #f8d7da;
+            border-left: 6px solid #dc3545;
+        }
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            color: #6c757d;
+            font-size: 16px;
+            border-top: 1px solid #dee2e6;
+            padding-top: 25px;
+            page-break-inside: avoid;
+        }
+
+        /* CONFIGURAÇÕES ESPECÍFICAS PARA IMPRESSÃO EM PAPEL A4 */
+        @media print {
+            body {
+                background-color: #ffffff;
+                padding: 0;
+                font-size: 16px;
+                color: #000000;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+                max-width: 100%;
+                margin: 0;
+            }
+            h2 {
+                margin-top: 40px;
+                page-break-after: avoid;
+            }
+            .security-box, .admin-box, footer {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Logotipo Oficial no Cabeçalho -->
+    <div class="logo-container">
+        <img src="Mevamgyn_logo.jpg" alt="Logotipo MEVAM GYN">
+    </div>
+
+    <h1>📖 Manual do Sistema SIS MEVAM-GYN</h1>
+    <div class="subtitle">Guia Oficial de Utilização e Normas de Segurança (LGPD)</div>
+
+    <p>Bem-vindo ao <strong>SIS MEVAM-GYN</strong>, a plataforma oficial do Ministério MEVAM GYN para a gestão integrada de eventos, inscrições, controle financeiro e conformidade com a LGPD. Este manual apresenta o passo a passo para a utilização correta de todas as ferramentas disponíveis no painel.</p>
+
+    <hr>
+
+    <h2>1. 🔐 Acesso e Autenticação</h2>
+    <p>O acesso ao sistema é restrito e protegido por credenciais individuais. Cada membro da liderança possui seu próprio login e senha cadastrados para garantir a rastreabilidade das ações.</p>
+    <ul>
+        <li><strong>Como acessar:</strong> Selecione o seu nome na lista de administradores na tela inicial e digite a sua senha de acesso.</li>
+        <li><strong>Acesso Master:</strong> O Administrador Master (<em>Ricardo César Santana</em>) utiliza credenciais dedicadas para gerir permissões avançadas.</li>
+    </ul>
+
+    <hr>
+
+    <h2>2. ⚙️ Cadastros Iniciais (Equipes e Departamentos)</h2>
+    <p>Antes de agendar eventos, a secretaria deve configurar a estrutura de liderança:</p>
+    <ul>
+        <li><strong>Cadastrar Administradores:</strong> Insira o nome completo, telefone, e-mail e defina uma senha de acesso individual (mínimo de 4 dígitos).</li>
+        <li><strong>Cadastrar Departamentos:</strong> Defina os ministérios da igreja (ex: <em>Ministério de Mulheres</em>, <em>Juventude</em>) indicando o respetivo líder ou responsável.</li>
+    </ul>
+
+    <hr>
+
+    <h2>3. 📋 Agenda de Eventos e Calendário</h2>
+    <p>O módulo de agenda permite visualizar os compromissos agendados de forma organizada:</p>
+    <ul>
+        <li><strong>Visão Detalhada ou Calendário:</strong> Alterne entre a lista detalhada e a visão de calendário (mensal ou anual) para identificar rapidamente dias ocupados e dias livres.</li>
+        <li><strong>Regra de Conflito Inteligente:</strong> O sistema permite que o <span class="highlight">mesmo departamento</span> agende múltiplas turmas ou eventos paralelos no mesmo dia e horário (ex: várias turmas de discipulado). No entanto, ministérios diferentes são protegidos contra choques de horário no mesmo período.</li>
+        <li><strong>Detalhes do Evento:</strong> Cada card exibe o título, data, horário, limite de vagas, valor base e o formato formatado do responsável (ex: <em>Ministério / Líder</em>).</li>
+    </ul>
+
+    <hr>
+
+    <h2>4. ➕ Criação e ✏️ Edição de Eventos</h2>
+    <p>O agendamento de cultos, seminários e conferências conta com rigorosos mecanismos de controle:</p>
+    <ul>
+        <li><strong>Limite de Vagas "0":</strong> Ao criar um evento de livre acesso sem restrição de capacidade, digite <span class="highlight">0</span> no campo de vagas. O sistema identificará automaticamente como acesso livre.</li>
+        <li><strong>Limpeza Automática:</strong> Após clicar em "Gravar", todos os campos do formulário são limpos instantaneamente, evitando cadastros duplicados acidentais.</li>
+        <li><strong>Trilha de Auditoria Obrigatória:</strong> Qualquer alteração ou exclusão de eventos exige preenchimento obrigatório de uma <em>justificativa</em>. O sistema carimba nominalmente quem criou ou alterou o registo, acompanhado da data e hora exatas.</li>
+        <li><strong>Alertas Automáticos:</strong> Um aviso por e-mail é disparado para a secretaria sempre que um novo evento é agendado.</li>
+    </ul>
+
+    <hr>
+
+    <h2>5. 👥 Inscrições e Conformidade LGPD</h2>
+    <p>A captação de dados de participantes cumpre estritamente a Lei Geral de Proteção de Dados (LGPD):</p>
+    <ul>
+        <li><strong>Consentimento Explícito:</strong> O formulário de inscrição possui uma caixa de seleção obrigatória onde o operador declara que o participante (ou responsável) concordou com o tratamento de dados estritamente para a organização do evento.</li>
+        <li><strong>Tipos de Ingressos:</strong> Suporte a valores de Inteira, Meia (5-11 anos) e Cortesia/Isento.</li>
+        <li><strong>Controle de Pagamento:</strong> Registo de formas de pagamento (Pix, Cartão de Crédito/Débito, Dinheiro) e status (Confirmado ou Pendente/A Receber).</li>
+    </ul>
+
+    <hr>
+
+    <h2>6. 📊 Dashboard Financeiro e Despesas</h2>
+    <p>O painel financeiro fornece análises em tempo real para cada evento:</p>
+    <ul>
+        <li><strong>Resultado Líquido:</strong> O sistema cruza automaticamente a receita total confirmada com o total de custos lançados, exibindo o saldo final e valores pendentes (inadimplentes).</li>
+        <li><strong>Lançamento de Custos:</strong> Ferramenta integrada para registar despesas operacionais do evento (ex: decoração, lanche, equipamentos).</li>
+        <li><strong>Gráficos Analíticos:</strong> Visualização da distribuição de receitas por meio de pagamento e estatísticas de público.</li>
+    </ul>
+
+    <hr>
+
+    <h2>7. 🖨️ Central de Relatórios e Exportação em PDF</h2>
+    <p>Todos os relatórios do sistema possuem formatação profissional com cores intercaladas (zebradas) para alta legibilidade em qualquer dispositivo:</p>
+    <ul>
+        <li><strong>Tipos de Relatórios:</strong> Listagem completa de participantes, inadimplentes, extrato financeiro consolidado e relatório de eventos por período.</li>
+        <li><strong>Como salvar em PDF:</strong> Basta clicar no botão de visualização, pressionar <span class="highlight">Ctrl + P</span> (ou a opção de partilha/impressão no telemóvel) e selecionar a opção <em>"Guardar como PDF"</em>. O logotipo oficial do MEVAM GYN será impresso no topo.</li>
+    </ul>
+
+    <hr>
+
+    <div class="admin-box">
+        <h3>🔍 8. Ferramenta de Auditoria do Sistema (Uso Exclusivo)</h3>
+        <p>Recurso de segurança avançado restrito unicamente ao <strong>desenvolvedor / administrador master</strong>. Esta ferramenta armazena e exibe o registo bruto de todas as ações, acessos, logins e movimentações realizadas no banco de dados por qualquer usuário do sistema, garantindo governança técnica absoluta e pronta geração de relatórios de segurança para auditoria.</p>
+    </div>
+
+    <div class="security-box">
+        <h3>🛡️ Privacidade e Segurança de Dados (LGPD)</h3>
+        <p>Os dados da igreja e dos membros são armazenados com criptografia de ponta em nuvem segura (Supabase / PostgreSQL). Nenhum dado pessoal é exposto indevidamente e todas as operações sensíveis exigem autenticação prévia.</p>
+    </div>
+
+    <footer>
+        SIS MEVAM-GYN • Ministério MEVAM GYN • Todos os direitos reservados.
+    </footer>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Ficha Oficial e Confissão de Fé - MEVAM GYN</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
+
+    @page {
+      size: A4;
+      margin: 1.5cm;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      margin: 0;
+      padding: 0;
+      font-size: 11pt;
+      line-height: 1.5;
+    }
+
+    .page {
+      page-break-after: always;
+      position: relative;
+      min-height: 26cm;
+    }
+
+    .header-doc {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #0f274a;
+      padding-bottom: 12px;
+      margin-bottom: 18px;
+    }
+
+    .header-doc img {
+      max-height: 60px;
+    }
+
+    .header-title {
+      text-align: right;
+    }
+
+    .header-title h1 {
+      margin: 0;
+      font-size: 16pt;
+      color: #0f274a;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .header-title p {
+      margin: 2px 0 0;
+      font-size: 9pt;
+      color: #64748b;
+    }
+
+    .title-banner {
+      text-align: center;
+      margin: 15px 0;
+    }
+
+    .title-banner h2 {
+      font-size: 16pt;
+      margin: 0;
+      color: #0f274a;
+      letter-spacing: 0.04em;
+    }
+
+    .table-info {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 14px;
+    }
+
+    .table-info td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 10pt;
+    }
+
+    .table-info td.label {
+      font-weight: 700;
+      color: #1e3a8a;
+      width: 25%;
+    }
+
+    .section-title {
+      background: #f1f5f9;
+      padding: 6px 10px;
+      font-weight: 700;
+      font-size: 11pt;
+      color: #0f274a;
+      border-left: 4px solid #1e3a8a;
+      margin: 16px 0 8px;
+      text-transform: uppercase;
+    }
+
+    .credo-text {
+      font-size: 9.5pt;
+      line-height: 1.6;
+      text-align: justify;
+    }
+
+    .artigo-bloco {
+      margin-bottom: 8px;
+      font-size: 9pt;
+      text-align: justify;
+      line-height: 1.45;
+    }
+
+    .artigo-bloco strong {
+      color: #0f274a;
+    }
+
+    .artigo-bloco span.versos {
+      color: #2563eb;
+      font-size: 8pt;
+    }
+
+    .signature-area {
+      border: 1.5px solid #0f274a;
+      background: #f8fafc;
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .signature-img-box {
+      text-align: center;
+      width: 45%;
+      border-left: 1px dashed #cbd5e1;
+      padding-left: 15px;
+    }
+
+    .signature-img-box img {
+      max-height: 70px;
+      max-width: 100%;
+    }
+
+    .footer-doc {
+      margin-top: 25px;
+      text-align: center;
+      font-size: 8pt;
+      color: #64748b;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 8px;
+    }
+
+    @media print {
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="no-print" style="background: #0f274a; color: white; padding: 12px; text-align: center; font-size: 14px;">
+    <span>Documento Oficial formatado para Impressão e Salvamento em PDF.</span>
+    <button onclick="window.print()" style="margin-left: 15px; padding: 6px 14px; background: #f59e0b; border: none; font-weight: bold; border-radius: 4px; cursor: pointer;">
+      🖨️ Imprimir / Salvar em PDF
+    </button>
+  </div>
+
+  <div style="max-width: 21cm; margin: 0 auto; padding: 1.5cm;">
+
+    <!-- ================= PÁGINA 1: FICHA DE MEMBROS ================= -->
+    <div class="page">
+      <div class="header-doc">
+        <img src="/static/assets/logo_wide.jpg" alt="MEVAM GYN" onerror="this.src='/static/assets/logo_round.jpg'">
+        <div class="header-title">
+          <h1>MEVAM GYN</h1>
+          <p>Alameda Juazeiro do norte, 475 – Chácara 79 / Pq. Amazônia - Goiânia - GO</p>
+        </div>
+      </div>
+
+      <div class="title-banner">
+        <h2>FICHA DE MEMBROS</h2>
+        <div style="font-size: 10pt; color: #64748b; margin-top: 4px;">Data: {{ membro.data_registro }} &nbsp;|&nbsp; Registro: #{{ membro.id }}</div>
+      </div>
+
+      <div class="section-title">1. Dados Pessoais e Residenciais</div>
+      <table class="table-info">
+        <tr>
+          <td class="label">Nome completo:</td>
+          <td colspan="3"><strong>{{ membro.nome_completo }}</strong></td>
+        </tr>
+        <tr>
+          <td class="label">Endereço:</td>
+          <td colspan="3">{{ membro.endereco }}</td>
+        </tr>
+        <tr>
+          <td class="label">Bairro:</td>
+          <td>{{ membro.bairro }}</td>
+          <td class="label">Cidade / CEP:</td>
+          <td>{{ membro.cidade }} - CEP: {{ membro.cep }}</td>
+        </tr>
+        <tr>
+          <td class="label">Data de nascimento:</td>
+          <td>{{ membro.data_nascimento }}</td>
+          <td class="label">Naturalidade:</td>
+          <td>{{ membro.naturalidade }}</td>
+        </tr>
+        <tr>
+          <td class="label">Sexo:</td>
+          <td>{{ membro.sexo }}</td>
+          <td class="label">Estado civil:</td>
+          <td>{{ membro.estado_civil }}</td>
+        </tr>
+        <tr>
+          <td class="label">Cônjuge:</td>
+          <td colspan="3">{{ membro.conjuge or 'Não informado' }}</td>
+        </tr>
+      </table>
+
+      <div class="section-title">Filhos</div>
+      <table class="table-info" style="border: 1px solid #e2e8f0;">
+        <tr style="background: #f8fafc; font-weight: bold;">
+          <td>Nome</td>
+          <td style="width: 140px;">Nascimento</td>
+          <td style="width: 100px;">Idade</td>
+        </tr>
+        {% if membro.filhos and membro.filhos|length > 0 %}
+          {% for f in membro.filhos %}
+            <tr>
+              <td>{{ f.nome }}</td>
+              <td>{{ f.nascimento }}</td>
+              <td>{{ f.idade }}</td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="3" style="color: #94a3b8; text-align: center;">Nenhum filho registrado</td>
+          </tr>
+        {% endif %}
+      </table>
+
+      <div class="section-title">2. Contato e Qualificação</div>
+      <table class="table-info">
+        <tr>
+          <td class="label">E-mail:</td>
+          <td>{{ membro.email }}</td>
+          <td class="label">WhatsApp:</td>
+          <td><strong>{{ membro.whatsapp }}</strong></td>
+        </tr>
+        <tr>
+          <td class="label">Telefone:</td>
+          <td>{{ membro.telefone }}</td>
+          <td class="label">Escolaridade:</td>
+          <td>{{ membro.escolaridade }}</td>
+        </tr>
+        <tr>
+          <td class="label">Formação acadêmica:</td>
+          <td>{{ membro.formacao_academica }}</td>
+          <td class="label">Profissão:</td>
+          <td>{{ membro.profissao }}</td>
+        </tr>
+        <tr>
+          <td class="label">Empresa que trabalha:</td>
+          <td colspan="3">{{ membro.empresa }}</td>
+        </tr>
+      </table>
+
+      <div class="section-title">3. Vida Cristã e Ministerial</div>
+      <table class="table-info">
+        <tr>
+          <td class="label">Batizado:</td>
+          <td>{{ membro.batizado }}</td>
+          <td class="label">Data do batismo:</td>
+          <td>{{ membro.data_batismo or 'Não informada' }}</td>
+        </tr>
+        <tr>
+          <td class="label">Congregava antes?</td>
+          <td>{{ membro.congregava_antes }}</td>
+          <td class="label">Onde?</td>
+          <td>{{ membro.onde_congregava or 'Não informado' }}</td>
+        </tr>
+        <tr>
+          <td class="label">Área ministerial:</td>
+          <td colspan="3">{{ membro.area_ministerial or 'Nenhuma informada' }}</td>
+        </tr>
+        <tr>
+          <td class="label">Interesse batismo família:</td>
+          <td colspan="3">{{ membro.interesse_batismo_familia or 'Não informado' }}</td>
+        </tr>
+      </table>
+
+      <div class="footer-doc">
+        MEVAM GYN - Alameda Juazeiro do norte, 475 – Chácara 79 / Pq. Amazônia - Goiânia - Goiás
+      </div>
+    </div>
+
+    <!-- ================= PÁGINA 2: CREDO & ASSINATURA ================= -->
+    <div class="page">
+      <div class="header-doc">
+        <img src="/static/assets/logo_wide.jpg" alt="MEVAM GYN" onerror="this.src='/static/assets/logo_round.jpg'">
+        <div class="header-title">
+          <h1>CREDO MEVAM GYN</h1>
+          <p>CONFISSÃO DE FÉ E TERMO DE ADESÃO FORMAL</p>
+        </div>
+      </div>
+
+      <div class="credo-text" style="font-style: italic; background: #f8fafc; padding: 12px; border-left: 3px solid #f59e0b; margin-bottom: 12px;">
+        "Creio em Deus Pai Todo-Poderoso, Criador dos céus e da terra; E em Jesus Cristo, seu único Filho, nosso Senhor; O qual foi concebido por obra do Espírito Santo; Nasceu da virgem, Maria; Padeceu sob o poder de Pôncio Pilatos; Foi crucificado, morto e sepultado; E ao terceiro dia, ressurgiu dos mortos; Subiu ao céu e está assentado à destra de Deus Pai, Todo-Poderoso, de onde há de vir para julgar os vivos e os mortos; Creio no Espírito Santo, Na Santa Igreja de Cristo, Na comunhão dos santos, Na remissão dos pecados, Na ressurreição do corpo E na vida eterna. Amém!"
+      </div>
+
+      <!-- 10 Artigos -->
+      <div class="artigo-bloco">
+        <strong>1 - A Natureza de Deus e de Seu Cristo:</strong> Cremos no único Deus eterno, Criador e Senhor do Mundo, Deus Trino: Pai, Filho e Espírito Santo. Cremos na divindade de Cristo, seu nascimento virginal, sua morte propiciatória e ressurreição corpórea. Jesus Cristo é o único Salvador e único mediador entre Deus e os homens. <span class="versos">(Is 40:28; Mt 28:19; Jo 17:6,18; 1Tm 2:5-6; At 4:12)</span>
+      </div>
+      <div class="artigo-bloco">
+        <strong>2 - O Ministério do Espírito Santo:</strong> Cremos que o Espírito Santo é uma pessoa da Trindade derramado em Pentecostes sobre a Igreja. O Espírito habita em nós para santificação, adoração, edificação e ministério com todos os dons bíblicos. <span class="versos">(1Co 12:4-31; Jo 16:8-11; At 1:8)</span>
+      </div>
+      <div class="artigo-bloco">
+        <strong>3 - A Autoridade e o Poder da Bíblia:</strong> Afirmamos a inspiração divina e autoridade das Escrituras (Antigo e Novo Testamento) como única Palavra de Deus escrita e regra de fé e prática. <span class="versos">(2Tm 3:16; 2Pe 1:21)</span>
+      </div>
+      <div class="artigo-bloco">
+        <strong>4 - A Natureza de Evangelismo e Missões:</strong> Difundir o Evangelho de Cristo assumindo o custo do discipulado: negar a si mesmo, tomar a cruz e congregar na igreja local. <span class="versos">(1Co 15:3-4; Lc 14:25-33)</span>
+      </div>
+      <div class="artigo-bloco">
+        <strong>5 - A Igreja: Instrumento do Reino e Socialmente Responsável:</strong> Igreja universal, ativa na proteção da família e libertação de toda opressão. O Evangelho Todo, Para o Homem Todo, Para Todos os Homens. <span class="versos">(Tg 2:14-26; At 17:26)</span>
+      </div>
+      <div class="artigo-bloco">
+        <strong>6 - O Retorno de Cristo:</strong> Jesus voltará pessoal e visivelmente em poder e glória para consumar a salvação e o juízo. <span class="versos">(Hb 9:28; At 1:8-11; Ap 21:1-5)</span>
+      </div>
+      <div class="artigo-bloco">
+        <strong>7 - Guerra Espiritual:</strong> Combate permanente com armas espirituais da Palavra e oração. A igreja deve estar no mundo; o mundo não deve estar na igreja. <span class="versos">(Ef 6:12; 2Co 10:3-5)</span>
+      </div>
+      <div class="artigo-bloco">
+        <strong>8 - O Valor da Vida Humana:</strong> Criados à imagem de Deus, com dignidade desde a concepção até a morte natural. Posicionamento irrestrito contra o aborto. <span class="versos">(Sl 139:13-14; Gn 2:24)</span>
+      </div>
+      <div class="artigo-bloco">
+        <strong>9 - A Sexualidade e a Imutabilidade do Casamento:</strong> Criação divina nos gêneros masculino e feminino. O casamento é uma aliança sagrada entre um homem e uma mulher até que a morte os separe. <span class="versos">(Mt 19:4-6; Ef 5:22-26)</span>
+      </div>
+      <div class="artigo-bloco">
+        <strong>10 - Exortação, Disciplina e Exclusão:</strong> Dinâmica bíblica de restauração fundamentada em amor e misericórdia segundo Mateus 18:15-17 sob autoridade do presbitério e Pastor Sênior.
+      </div>
+
+      <!-- Assinatura e Rúbrica -->
+      <div class="signature-area">
+        <div style="width: 50%;">
+          <div style="font-size: 8.5pt; text-transform: uppercase; color: #64748b; font-weight: bold;">NOME COMPLETO:</div>
+          <div style="font-size: 11pt; font-weight: bold; color: #0f274a; margin: 4px 0 10px;">{{ membro.nome_assinante or membro.nome_completo }}</div>
+
+          <div style="font-size: 8pt; color: #64748b;">
+            <strong>Data/Hora Aceite:</strong> {{ membro.data_assinatura or membro.data_registro }}<br/>
+            <strong>Autenticação LGPD:</strong> {{ membro.hash_autenticidade }}
+          </div>
+        </div>
+
+        <div class="signature-img-box">
+          <div style="font-size: 8.5pt; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 4px;">ASSINATURA / RÚBRICA:</div>
+          {% if membro.assinatura_rubrica %}
+            <img src="{{ membro.assinatura_rubrica }}" alt="Rúbrica">
+          {% else %}
+            <div style="height: 50px; line-height: 50px; color: #94a3b8; font-style: italic;">[Assinatura Física Requerida]</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="footer-doc">
+        MEVAM GYN - Alameda Juazeiro do norte, 475 – Chácara 79 / Pq. Amazônia - Goiânia - Goiás<br/>
+        Documento assinado digitalmente e registrado no SIS MEVAM-GYN em conformidade com as diretrizes eclesiásticas.
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>
