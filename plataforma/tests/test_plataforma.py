@@ -418,3 +418,15 @@ def test_botao_de_tema_em_todas_as_telas():
         assert "/static/js/tema.js" in html, url
     css = novo_cliente().get("/static/css/app.css").text
     assert 'html[data-tema="escuro"]' in css and "prefers-color-scheme: dark" in css
+
+
+def test_producao_recusa_sqlite():
+    """Em produção o app não sobe com SQLite: o disco do Render gratuito é apagado a cada deploy ou reinício."""
+    import subprocess, sys
+    base = {"PATH": "", "AMBIENTE": "producao", "SECRET_KEY": "x" * 48}
+    r = subprocess.run([sys.executable, "-c", "import app.config"], capture_output=True, text=True,
+                       env={**base, "DATABASE_URL": "sqlite:///./igreja.db"})
+    assert r.returncode != 0 and "Supabase" in r.stderr
+    ok = subprocess.run([sys.executable, "-c", "import app.config"], capture_output=True, text=True,
+                        env={**base, "DATABASE_URL": "postgresql://u:s@h:5432/postgres"})
+    assert ok.returncode == 0, ok.stderr

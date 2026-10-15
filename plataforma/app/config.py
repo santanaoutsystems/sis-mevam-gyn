@@ -28,6 +28,13 @@ if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = "postgresql+psycopg://" + DATABASE_URL[len("postgres://"):]
 elif DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = "postgresql+psycopg://" + DATABASE_URL[len("postgresql://"):]
+# Em homologação/produção o banco precisa ser o Postgres do Supabase. SQLite no Render gratuito fica num
+# disco temporário que é apagado a cada publicação ou reinício (foi assim que o app antigo perdeu fichas).
+if EM_PRODUCAO and not DATABASE_URL.startswith("postgresql+psycopg://"):
+    raise ConfiguracaoInvalida(
+        "Em homologação/produção, DATABASE_URL deve apontar para o Postgres do Supabase. "
+        "Arquivo SQLite no servidor é apagado a cada publicação ou reinício."
+    )
 
 SECRET_KEY = os.getenv("SECRET_KEY", "")
 if not SECRET_KEY:
