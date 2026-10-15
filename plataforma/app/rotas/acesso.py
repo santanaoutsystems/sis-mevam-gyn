@@ -200,11 +200,12 @@ async def inicio(request: Request):
             numeros["usuarios"] = c.execute(select(func.count()).select_from(db.usuarios)).scalar()
         minha_ficha = None
         if u["membro_id"]:
-            minha_ficha = c.execute(select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.status)
+            minha_ficha = c.execute(select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.status, db.membros.c.cpf)
                                     .where(db.membros.c.id == u["membro_id"])).mappings().first()
     eventos_fmt = [{**e, "quando": datas.parse_data_hora_local(e["data_inicio"])} for e in proximos]
     return render(request, "inicio.html", {"proximos": eventos_fmt, "numeros": numeros, "minha_ficha": minha_ficha,
-                                           "meus_setores": meus_setores})
+                                           "meus_setores": meus_setores,
+                                           "falta_cpf": not (u.get("cpf") or (minha_ficha or {}).get("cpf"))})
 
 
 @seguranca.exigir()

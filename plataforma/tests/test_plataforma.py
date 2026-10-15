@@ -21,9 +21,20 @@ FICHA_OK = {
 }
 
 
+def gerar_cpf(base: int) -> str:
+    d = [int(x) for x in f"{base:09d}"]
+    for n in (9, 10):
+        d.append(sum(d[i] * (n + 1 - i) for i in range(n)) * 10 % 11 % 10)
+    return "".join(map(str, d))
+
+
+_seq_cpf = iter(range(123456700, 999999999))
+
+
 def enviar_ficha(cliente, **mudancas):
     pagina = cliente.get("/ficha")
-    return cliente.post("/ficha", data={**FICHA_OK, **mudancas, "csrf": csrf_de(pagina.text)}, follow_redirects=False)
+    dados = {**FICHA_OK, "cpf": gerar_cpf(next(_seq_cpf)), **mudancas, "csrf": csrf_de(pagina.text)}
+    return cliente.post("/ficha", data=dados, follow_redirects=False)
 
 
 def membro_id_mais_recente():
@@ -703,3 +714,59 @@ def test_botao_voltar_e_cadastro_seguinte_limpo():
     assert "Preencher outra ficha" in sec.get("/ficha/recebida").text
     with db.engine().connect() as c:
         assert c.execute(select(db.usuarios.c.membro_id).where(db.usuarios.c.id == sec.usuario["id"])).scalar() is None
+
+
+# ---------------------------------------------------------------------------
+# CPF
+# ---------------------------------------------------------------------------
+def test_validacao_do_cpf():
+    from app import ficha
+    assert ficha.cpf_valido("529.982.247-25") and ficha.cpf_valido("52998224725")
+    assert not ficha.cpf_valido("529.982.247-24") and not ficha.cpf_valido("111.111.111-11")
+    assert not ficha.cpf_valido("1234") and ficha.fmt_cpf("52998224725") == "529.982.247-25"
+
+
+def test_ficha_nova_exige_cpf_valido_e_unico():
+    r = enviar_ficha(novo_cliente(), cpf="")
+    assert r.status_code == 400 and "CPF é obrigatório" in r.text
+    r = enviar_ficha(novo_cliente(), cpf="529.982.247-24")
+    assert r.status_code == 400 and "CPF inválido" in r.text
+    assert enviar_ficha(novo_cliente(), cpf="529.982.247-25").status_code == 303
+    with db.engine().connect() as c:
+        assert c.execute(select(db.membros.c.cpf)).scalar() == "52998224725"
+    r = enviar_ficha(novo_cliente(), cpf="52998224725", email="outra@exemplo.com")
+    assert r.status_code == 400 and "já está em outro cadastro" in r.text
+    sec = logado("secretaria")
+    mid = membro_id_mais_recente()
+    assert "529.982.247-25" in sec.get(f"/membros/{mid}").text
+    assert "Souza" in sec.get("/membros?q=529.982").text
+
+
+def test_quem_ja_tem_cadastro_informa_o_proprio_cpf():
+    enviar_ficha(novo_cliente(), cpf="")  # recusada: não cria ficha
+    with db.engine().begin() as c:  # ficha antiga, de antes do CPF
+        mid = c.execute(insert(db.membros).values(nome_completo="Joao Antigo", status="Ativo")).inserted_primary_key[0]
+    membro = logado("membro", membro_id=mid)
+    assert "Informe seu CPF" in membro.get("/inicio").text
+    r = post(membro, "/meu-cpf", {"cpf": "111.111.111-11"}, pagina="/meu-cpf")
+    assert r.status_code == 400 and "CPF inválido" in r.text
+    r = post(membro, "/meu-cpf", {"cpf": "529.982.247-25"}, pagina="/meu-cpf")
+    assert r.status_code == 303
+    with db.engine().connect() as c:
+        assert c.execute(select(db.membros.c.cpf).where(db.membros.c.id == mid)).scalar() == "52998224725"
+    assert "Informe seu CPF" not in membro.get("/inicio").text
+    assert "Para corrigir, fale com a Secretaria" in membro.get("/meu-cpf").text
+    # Equipe sem ficha também informa; CPF de outra pessoa é recusado
+    sec = logado("secretaria", email="sec2@exemplo.com")
+    r = post(sec, "/meu-cpf", {"cpf": "52998224725"}, pagina="/meu-cpf")
+    assert r.status_code == 400 and "já está em outro cadastro" in r.text
+    assert post(sec, "/meu-cpf", {"cpf": gerar_cpf(987654321)}, pagina="/meu-cpf").status_code == 303
+
+
+def test_anonimizar_apaga_o_cpf():
+    enviar_ficha(novo_cliente(), cpf="529.982.247-25")
+    mid = membro_id_mais_recente()
+    adm = logado("admin")
+    post(adm, f"/membros/{mid}/anonimizar", {"motivo": "Pedido do titular por escrito"}, pagina=f"/membros/{mid}")
+    with db.engine().connect() as c:
+        assert c.execute(select(db.membros.c.cpf).where(db.membros.c.id == mid)).scalar() is None

@@ -5,6 +5,14 @@
 <h1>Paz, {{ usuario.nome.split(' ')[0] }}!</h1>
 <p class="suave" style="margin-top:0">Você está como <span class="selo {{ usuario.perfil }}">{{ PERFIS_ROTULO[usuario.perfil] }}</span></p>
 
+{% if falta_cpf %}
+<div class="cartao aviso-cpf nao-imprimir">
+  <h2 style="margin-top:0">📇 Informe seu CPF</h2>
+  <p>Agora o CPF identifica cada pessoa no sistema. Leva menos de um minuto.</p>
+  <a class="botao" href="/meu-cpf">Informar meu CPF</a>
+</div>
+{% endif %}
+
 {% if pode('secretaria', 'admin') %}
 <div class="grade c2 c4" style="margin:1rem 0">
   <a class="numero" href="/membros?status=Aguardando+Análise"><b>{{ numeros.aguardando }}</b>Fichas aguardando análise</a>

@@ -99,6 +99,7 @@ usuarios = Table(
     Column("ativo", Boolean, nullable=False, default=True),
     Column("trocar_senha", Boolean, nullable=False, default=False),
     Column("membro_id", Integer, ForeignKey("membros.id", ondelete="SET NULL")),
+    Column("cpf", String(11), unique=True),  # só dígitos; identifica quem não tem ficha (equipe)
     Column("tentativas_falhas", Integer, nullable=False, default=0),
     Column("bloqueado_ate", DateTime(timezone=True)),
     Column("ultimo_login", DateTime(timezone=True)),
@@ -112,6 +113,7 @@ membros = Table(
     Column("data_registro", Date),
     # 1. Dados pessoais
     Column("nome_completo", String, nullable=False),
+    Column("cpf", String(11), unique=True),  # só dígitos; identificação única de cada membro
     Column("endereco", String), Column("bairro", String), Column("cidade", String), Column("cep", String),
     Column("data_nascimento", Date), Column("naturalidade", String), Column("sexo", String),
     Column("estado_civil", String), Column("conjuge", String),
@@ -275,7 +277,8 @@ def criar_tabelas_dev() -> None:
 def aplicar_migracoes_aditivas() -> None:
     """Aplica no Postgres as migrações aditivas e idempotentes que não exigem passo manual.
 
-    Hoje: 003 (Coordenação), 004 (id de setor como texto) e 005 (colunas que faltam na Agenda legada).
+    Hoje: 003 (Coordenação), 004 (id de setor como texto) e 005 (colunas que faltam na Agenda legada)
+    e 006 (CPF em membros e usuários).
     Só cria/alarga; nunca remove dados. Se falhar, o app sobe mesmo assim e registra o erro.
     """
     import logging
@@ -284,7 +287,7 @@ def aplicar_migracoes_aditivas() -> None:
     if eng.dialect.name != "postgresql":
         return
     pasta = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes")
-    for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql"):
+    for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()

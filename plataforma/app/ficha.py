@@ -78,6 +78,26 @@ def fmt_cep(v: str) -> str:
     return f"{d[:5]}-{d[5:]}" if len(d) == 8 else (v or "").strip()
 
 
+def cpf_valido(v: str) -> bool:
+    """Confere os dois dígitos verificadores do CPF."""
+    d = so_digitos(v)
+    if len(d) != 11 or d == d[0] * 11:
+        return False
+    for n in (9, 10):
+        soma = sum(int(d[i]) * (n + 1 - i) for i in range(n))
+        if (soma * 10) % 11 % 10 != int(d[n]):
+            return False
+    return True
+
+
+def fmt_cpf(v) -> str:
+    d = so_digitos(v or "")
+    return f"{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:]}" if len(d) == 11 else (v or "")
+
+
+ERRO_CPF = "CPF inválido. Confira os 11 números."
+
+
 def nome_proprio(v: str) -> str:
     minusculas = {"da", "de", "do", "das", "dos", "e"}
     partes = re.sub(r"\s+", " ", (v or "").strip()).split(" ")
@@ -85,7 +105,7 @@ def nome_proprio(v: str) -> str:
                     for i, p in enumerate(partes) if p)
 
 
-def validar(form, exigir_foto: bool = True, exigir_lgpd: bool = True) -> tuple[dict, dict]:
+def validar(form, exigir_foto: bool = True, exigir_lgpd: bool = True, exigir_cpf: bool = True) -> tuple[dict, dict]:
     """Recebe o formulário e devolve (dados normalizados, erros por campo)."""
     dados: dict = {}
     erros: dict = {}
@@ -102,6 +122,14 @@ def validar(form, exigir_foto: bool = True, exigir_lgpd: bool = True) -> tuple[d
         erros["nome_completo"] = "Informe nome e sobrenome."
     if dados["conjuge"]:
         dados["conjuge"] = nome_proprio(dados["conjuge"])
+
+    cpf = so_digitos(form.get("cpf") or "")
+    if not cpf:
+        if exigir_cpf:
+            erros["cpf"] = "CPF é obrigatório."
+    elif not cpf_valido(cpf):
+        erros["cpf"] = ERRO_CPF
+    dados["cpf"] = cpf or None
 
     nasc = datas.parse_data(form.get("data_nascimento"))
     if not nasc:

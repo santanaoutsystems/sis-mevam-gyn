@@ -6,6 +6,7 @@
  *   data-mascara="telefone" -> (62) 9 9999-9999 (obrigatório: DDD + 9 dígitos)
  *   data-mascara="cep"      -> 00000-000 e busca o endereço (ViaCEP)
  *   data-mascara="moeda"    -> 1.234,56
+ *   data-mascara="cpf"      -> 000.000.000-00 (confere os dígitos verificadores)
  */
 (function () {
   "use strict";
@@ -37,6 +38,13 @@
       const d = soDigitos(v).slice(0, 8);
       return d.length <= 5 ? d : d.slice(0, 5) + "-" + d.slice(5);
     },
+    cpf(v) {
+      const d = soDigitos(v).slice(0, 11);
+      if (d.length <= 3) return d;
+      if (d.length <= 6) return d.slice(0, 3) + "." + d.slice(3);
+      if (d.length <= 9) return d.slice(0, 3) + "." + d.slice(3, 6) + "." + d.slice(6);
+      return d.slice(0, 3) + "." + d.slice(3, 6) + "." + d.slice(6, 9) + "-" + d.slice(9);
+    },
     moeda(v) {
       const d = soDigitos(v).replace(/^0+/, "");
       if (!d) return "";
@@ -46,9 +54,20 @@
     },
   };
 
-  const teclados = { data: "numeric", hora: "numeric", telefone: "tel", cep: "numeric", moeda: "decimal" };
-  const tamanhos = { data: 10, hora: 5, telefone: 16, cep: 9 };
-  const exemplos = { data: "dd/mm/aaaa", hora: "HH:MM", telefone: "(62) 9 9999-9999", cep: "00000-000", moeda: "0,00" };
+  const teclados = { data: "numeric", hora: "numeric", telefone: "tel", cep: "numeric", moeda: "decimal", cpf: "numeric" };
+  const tamanhos = { data: 10, hora: 5, telefone: 16, cep: 9, cpf: 14 };
+  const exemplos = { data: "dd/mm/aaaa", hora: "HH:MM", telefone: "(62) 9 9999-9999", cep: "00000-000", moeda: "0,00", cpf: "000.000.000-00" };
+
+  function cpfValido(texto) {
+    const d = soDigitos(texto);
+    if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+    for (const n of [9, 10]) {
+      let soma = 0;
+      for (let i = 0; i < n; i++) soma += +d[i] * (n + 1 - i);
+      if ((soma * 10) % 11 % 10 !== +d[n]) return false;
+    }
+    return true;
+  }
 
   function dataValida(texto) {
     const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(texto);
@@ -85,6 +104,9 @@
         el.setCustomValidity("Data inválida");
       }
       if (tipo === "cep" && soDigitos(el.value).length === 8) buscarCep(el);
+      if (tipo === "cpf" && el.value.length === 14 && !cpfValido(el.value)) {
+        el.setCustomValidity("CPF inválido. Confira os 11 números.");
+      }
       if (tipo === "telefone" && el.value && soDigitos(el.value).length !== 11) {
         el.setCustomValidity("Use o padrão (62) 9 9999-9999: DDD + 9 dígitos.");
       }
@@ -96,6 +118,10 @@
       }
       if (tipo === "data" && el.value && !dataValida(el.value)) {
         el.setCustomValidity("Data inválida. Use dd/mm/aaaa.");
+        el.reportValidity();
+      }
+      if (tipo === "cpf" && el.value && !cpfValido(el.value)) {
+        el.setCustomValidity("CPF inválido. Confira os 11 números.");
         el.reportValidity();
       }
     });

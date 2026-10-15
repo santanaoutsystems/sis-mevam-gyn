@@ -79,6 +79,7 @@
 <div class="cartao">
   <h2>1. Dados pessoais</h2>
   <div class="grade c2 pequeno">
+    <div><b>CPF:</b> {% if m.cpf %}{{ m.cpf|cpf }}{% elif propria %}<a href="/meu-cpf">Informar meu CPF</a>{% else %}<span class="suave">Não informado</span>{% endif %}</div>
     <div><b>Nascimento:</b> {{ m.data_nascimento|data_br or '-' }}</div>
     <div><b>Naturalidade:</b> {{ m.naturalidade or '-' }}</div>
     <div><b>Sexo:</b> {{ m.sexo or '-' }}</div>

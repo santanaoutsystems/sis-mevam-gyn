@@ -76,6 +76,26 @@ def _pode_ver(usuario: dict, membro_id: int) -> bool:
     return usuario["perfil"] in ADMIN_SECRETARIA or usuario.get("membro_id") == membro_id
 
 
+def _cpf_em_uso(c, cpf: str | None, membro_id=None, usuario_id=None) -> bool:
+    """CPF já pertence a outra ficha ou a outro login (que não seja da mesma pessoa)?"""
+    if not cpf:
+        return False
+    q = select(db.membros.c.id).where(db.membros.c.cpf == cpf)
+    if membro_id is not None:
+        q = q.where(db.membros.c.id != membro_id)
+    if c.execute(q).first():
+        return True
+    q = select(db.usuarios.c.id).where(db.usuarios.c.cpf == cpf)
+    if usuario_id is not None:
+        q = q.where(db.usuarios.c.id != usuario_id)
+    if membro_id is not None:
+        q = q.where(or_(db.usuarios.c.membro_id.is_(None), db.usuarios.c.membro_id != membro_id))
+    return c.execute(q).first() is not None
+
+
+ERRO_CPF_REPETIDO = "Este CPF já está em outro cadastro. Se for o seu, fale com a Secretaria."
+
+
 def _contexto_form(extra: dict | None = None) -> dict:
     ctx = {"ESTADOS_CIVIS": ficha.ESTADOS_CIVIS, "ESCOLARIDADES": ficha.ESCOLARIDADES,
            "SEXOS": ficha.SEXOS, "SIM_NAO": ficha.SIM_NAO, "valores": {}, "erros": {}}
@@ -87,6 +107,7 @@ def _valores_de(m: dict) -> dict:
     v = dict(m)
     v["data_nascimento"] = datas.fmt_data(m.get("data_nascimento"))
     v["data_batismo"] = datas.fmt_data(m.get("data_batismo"))
+    v["cpf"] = ficha.fmt_cpf(m.get("cpf"))
     v["filhos_json"] = json.dumps(m.get("filhos") or [], ensure_ascii=False)
     return v
 
@@ -104,6 +125,10 @@ async def ficha_publica(request: Request):
         return ir("/ficha")
 
     dados, erros = ficha.validar(form)
+    if not erros.get("cpf"):
+        with db.engine().connect() as c:
+            if _cpf_em_uso(c, dados["cpf"]):
+                erros["cpf"] = ERRO_CPF_REPETIDO
     if erros:
         valores = dict(form)
         return render(request, "membros/ficha.html",
@@ -127,7 +152,7 @@ async def ficha_publica(request: Request):
         )).inserted_primary_key[0]
         # Liga a ficha ao login só quando é a própria pessoa (mesmo e-mail); a Secretaria pode cadastrar várias fichas seguidas
         if usuario and not usuario["membro_id"] and (dados.get("email") or "").lower() == (usuario.get("email") or "").lower():
-            c.execute(update(db.usuarios).where(db.usuarios.c.id == usuario["id"]).values(membro_id=novo_id))
+            c.execute(update(db.usuarios).where(db.usuarios.c.id == usuario["id"]).values(membro_id=novo_id, cpf=dados["cpf"]))
         auditar(request, "CADASTRO_MEMBRO", f"Membro #{novo_id}", "Pré-cadastro enviado para análise", conexao=c)
 
     request.session["protocolo"] = novo_id
@@ -158,6 +183,32 @@ async def minha_ficha(request: Request):
     return render(request, "membros/detalhe.html", {"m": m, "setores": setores, "propria": True})
 
 
+@seguranca.exigir()
+async def meu_cpf(request: Request):
+    """Quem já tem cadastro (membro ou equipe) informa o próprio CPF. Correções depois: só pela Secretaria."""
+    u = seguranca.usuario_atual(request)
+    with db.engine().connect() as c:
+        m = _carregar(c, u["membro_id"]) if u["membro_id"] else None
+    atual = u.get("cpf") or (m or {}).get("cpf")
+    if request.method == "GET" or atual:
+        return render(request, "membros/meu_cpf.html", {"atual": atual, "valores": {}, "erros": {}})
+    form = await request.form()
+    cpf = ficha.so_digitos(form.get("cpf") or "")
+    erro = None if ficha.cpf_valido(cpf) else ficha.ERRO_CPF
+    with db.engine().begin() as c:
+        if not erro and _cpf_em_uso(c, cpf, membro_id=u["membro_id"], usuario_id=u["id"]):
+            erro = ERRO_CPF_REPETIDO
+        if erro:
+            return render(request, "membros/meu_cpf.html",
+                          {"atual": None, "valores": {"cpf": form.get("cpf") or ""}, "erros": {"cpf": erro}}, 400)
+        c.execute(update(db.usuarios).where(db.usuarios.c.id == u["id"]).values(cpf=cpf))
+        if m and not m.get("cpf"):
+            c.execute(update(db.membros).where(db.membros.c.id == m["id"]).values(cpf=cpf, atualizado_em=datas.agora_utc()))
+        auditar(request, "CPF_INFORMADO", f"Usuário #{u['id']}" + (f" / Membro #{m['id']}" if m else ""), conexao=c)
+    flash(request, "CPF registrado. Obrigado!")
+    return ir("/inicio")
+
+
 # ---------------------------------------------------------------------------
 # Secretaria / Administração
 # ---------------------------------------------------------------------------
@@ -174,7 +225,8 @@ async def lista(request: Request):
         q = q.where(or_(func.lower(db.membros.c.nome_completo).like(termo),
                         func.lower(db.membros.c.email).like(termo),
                         db.membros.c.whatsapp.like(f"%{ficha.so_digitos(busca) or busca}%"),
-                        func.lower(db.membros.c.bairro).like(termo)))
+                        func.lower(db.membros.c.bairro).like(termo),
+                        *([db.membros.c.cpf.like(f"%{ficha.so_digitos(busca)}%")] if ficha.so_digitos(busca) else [])))
     if status:
         q = q.where(db.membros.c.status == status)
     if setor:
@@ -219,7 +271,11 @@ async def editar(request: Request):
         return render(request, "membros/ficha.html", _contexto_form({"modo": "editar", "m": m, "valores": _valores_de(m)}))
 
     form = await request.form()
-    dados, erros = ficha.validar(form, exigir_foto=False, exigir_lgpd=False)
+    dados, erros = ficha.validar(form, exigir_foto=False, exigir_lgpd=False, exigir_cpf=False)
+    if not erros.get("cpf"):
+        with db.engine().connect() as c:
+            if _cpf_em_uso(c, dados["cpf"], membro_id=mid):
+                erros["cpf"] = ERRO_CPF_REPETIDO
     if not dados["foto_3x4"]:
         dados.pop("foto_3x4")  # sem nova foto: mantém a atual
     if erros:
@@ -228,6 +284,8 @@ async def editar(request: Request):
     alterados = [k for k, v in dados.items() if m.get(k) != v and k != "foto_3x4"]
     with db.engine().begin() as c:
         c.execute(update(db.membros).where(db.membros.c.id == mid).values(**dados, atualizado_em=datas.agora_utc()))
+        if "cpf" in alterados:  # o login da mesma pessoa acompanha o CPF da ficha
+            c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == mid).values(cpf=dados["cpf"]))
         auditar(request, "EDICAO_FICHA", f"Membro #{mid}", "Campos: " + ", ".join(alterados), conexao=c)
     flash(request, "Ficha atualizada.")
     return ir(f"/membros/{mid}")
@@ -322,13 +380,13 @@ async def anonimizar(request: Request):
                                 "email", "telefone", "whatsapp", "formacao_academica", "profissao", "empresa",
                                 "data_batismo", "onde_congregava", "interesse_batismo_familia",
                                 "assinatura_rubrica", "foto_3x4", "ocr_documento_nome", "lgpd_ip_origem",
-                                "nome_assinante", "observacoes")}
+                                "nome_assinante", "observacoes", "cpf")}
     with db.engine().begin() as c:
         c.execute(update(db.membros).where(db.membros.c.id == mid).values(
             **vazios, nome_completo=f"Titular Anonimizado #{mid}", filhos=[],
             status="Anonimizado (LGPD)", status_lgpd="Anonimizado", atualizado_em=datas.agora_utc()))
         c.execute(delete(db.membro_setores).where(db.membro_setores.c.membro_id == mid))
-        c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == mid).values(membro_id=None))
+        c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == mid).values(membro_id=None, cpf=None))
         auditar(request, "ANONIMIZACAO_LGPD", f"Membro #{mid}", motivo, conexao=c)
     flash(request, "Dados pessoais anonimizados conforme a LGPD.")
     return ir("/membros")
@@ -452,6 +510,7 @@ rotas = [
     Route("/ficha", ficha_publica, methods=["GET", "POST"]),
     Route("/ficha/recebida", ficha_recebida),
     Route("/minha-ficha", minha_ficha),
+    Route("/meu-cpf", meu_cpf, methods=["GET", "POST"]),
     Route("/membros", lista),
     Route("/membros/exportar.csv", exportar_csv),
     Route("/membros/{id:int}", detalhe),

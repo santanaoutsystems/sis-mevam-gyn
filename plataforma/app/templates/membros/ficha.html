@@ -47,9 +47,10 @@
 
     {{ ui.campo('nome_completo', 'Nome completo', obrig=True, voz=True, attrs='autocomplete="name"') }}
     <div class="grade c2">
+      {{ ui.campo('cpf', 'CPF', obrig=(modo != 'editar'), mascara='cpf') }}
       {{ ui.campo('data_nascimento', 'Data de nascimento', obrig=True, mascara='data', voz=True) }}
-      {{ ui.campo('naturalidade', 'Naturalidade', obrig=True, voz=True, dica='Ex: Goiânia - GO') }}
     </div>
+    {{ ui.campo('naturalidade', 'Naturalidade', obrig=True, voz=True, dica='Ex: Goiânia - GO') }}
     {{ ui.radios('sexo', 'Sexo', SEXOS, obrig=True) }}
     <div class="grade c2">
       {{ ui.selecao('estado_civil', 'Estado civil', ESTADOS_CIVIS, obrig=True) }}
