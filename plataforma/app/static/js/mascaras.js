@@ -5,6 +5,7 @@
  *   data-mascara="hora"     -> HH:MM
  *   data-mascara="telefone" -> (62) 9 9999-9999 (obrigatório: DDD + 9 dígitos)
  *   data-mascara="cep"      -> 00000-000 e busca o endereço (ViaCEP)
+ *   data-mascara="cpf"      -> 000.000.000-00 (confere os dígitos verificadores)
  *   data-mascara="moeda"    -> 1.234,56
  */
 (function () {
@@ -37,6 +38,13 @@
       const d = soDigitos(v).slice(0, 8);
       return d.length <= 5 ? d : d.slice(0, 5) + "-" + d.slice(5);
     },
+    cpf(v) {
+      const d = soDigitos(v).slice(0, 11);
+      if (d.length <= 3) return d;
+      if (d.length <= 6) return d.slice(0, 3) + "." + d.slice(3);
+      if (d.length <= 9) return d.slice(0, 3) + "." + d.slice(3, 6) + "." + d.slice(6);
+      return d.slice(0, 3) + "." + d.slice(3, 6) + "." + d.slice(6, 9) + "-" + d.slice(9);
+    },
     moeda(v) {
       const d = soDigitos(v).replace(/^0+/, "");
       if (!d) return "";
@@ -46,9 +54,21 @@
     },
   };
 
-  const teclados = { data: "numeric", hora: "numeric", telefone: "tel", cep: "numeric", moeda: "decimal" };
-  const tamanhos = { data: 10, hora: 5, telefone: 16, cep: 9 };
-  const exemplos = { data: "dd/mm/aaaa", hora: "HH:MM", telefone: "(62) 9 9999-9999", cep: "00000-000", moeda: "0,00" };
+  const teclados = { data: "numeric", hora: "numeric", telefone: "tel", cep: "numeric", cpf: "numeric", moeda: "decimal" };
+  const tamanhos = { data: 10, hora: 5, telefone: 16, cep: 9, cpf: 14 };
+  const exemplos = { data: "dd/mm/aaaa", hora: "HH:MM", telefone: "(62) 9 9999-9999", cep: "00000-000", cpf: "000.000.000-00", moeda: "0,00" };
+
+  function cpfValido(texto) {
+    const d = soDigitos(texto);
+    if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+    for (const tam of [9, 10]) {
+      let soma = 0;
+      for (let i = 0; i < tam; i++) soma += +d[i] * (tam + 1 - i);
+      if ((soma * 10 % 11) % 10 !== +d[tam]) return false;
+    }
+    return true;
+  }
+  const ERRO_CPF = "CPF inválido. Confira os 11 dígitos.";
 
   function dataValida(texto) {
     const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(texto);
@@ -64,7 +84,7 @@
       .format(new Date());
     return partes; // dd/mm/aaaa
   }
-  window.MevamDatas = { hojeGyn, dataValida };
+  window.MevamDatas = { hojeGyn, dataValida, cpfValido };
 
   function aplicar(el) {
     const tipo = el.dataset.mascara;
@@ -88,6 +108,7 @@
       if (tipo === "telefone" && el.value && soDigitos(el.value).length !== 11) {
         el.setCustomValidity("Use o padrão (62) 9 9999-9999: DDD + 9 dígitos.");
       }
+      if (tipo === "cpf" && el.value && !cpfValido(el.value)) el.setCustomValidity(ERRO_CPF);
     });
     el.addEventListener("blur", () => {
       if (tipo === "telefone" && el.value && soDigitos(el.value).length !== 11) {
@@ -96,6 +117,10 @@
       }
       if (tipo === "data" && el.value && !dataValida(el.value)) {
         el.setCustomValidity("Data inválida. Use dd/mm/aaaa.");
+        el.reportValidity();
+      }
+      if (tipo === "cpf" && el.value && !cpfValido(el.value)) {
+        el.setCustomValidity(ERRO_CPF);
         el.reportValidity();
       }
     });

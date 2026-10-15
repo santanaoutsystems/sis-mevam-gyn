@@ -9,7 +9,7 @@ from conftest import SENHA, criar, csrf_de, entrar, logado, novo_cliente, post
 FOTO = "data:image/jpeg;base64," + "A" * 200
 
 FICHA_OK = {
-    "nome_completo": "maria da silva souza", "data_nascimento": "15/03/1985", "naturalidade": "Goiânia - GO",
+    "nome_completo": "maria da silva souza", "cpf": "52998224725", "data_nascimento": "15/03/1985", "naturalidade": "Goiânia - GO",
     "sexo": "Feminino", "estado_civil": "Casado(a)", "conjuge": "joão souza", "cep": "74000000",
     "endereco": "Rua 1, Qd 2 Lt 3", "bairro": "Setor Bueno", "cidade": "Goiânia - GO",
     "whatsapp": "62999998888", "telefone": "", "email": "Maria@Exemplo.com", "escolaridade": "Ensino Médio",
@@ -174,6 +174,7 @@ def test_ficha_publica_grava_normalizado_e_aguarda_analise():
     assert m["status"] == "Aguardando Análise"
     assert m["lgpd_consentimento"] is True and m["lgpd_versao_termo"]
     assert m["filhos"] == [{"nome": "Ana Souza", "data_nascimento": "01/02/2015"}]
+    assert m["cpf"] == "529.982.247-25"
 
 
 def test_ficha_valida_campos_obrigatorios_foto_e_lgpd():
@@ -275,7 +276,7 @@ def test_anonimizacao_lgpd():
     with db.engine().connect() as c:
         m = c.execute(select(db.membros).where(db.membros.c.id == mid)).mappings().one()
         log = c.execute(select(db.auditoria).where(db.auditoria.c.acao == "ANONIMIZACAO_LGPD")).mappings().one()
-    assert m["email"] is None and m["foto_3x4"] is None and m["whatsapp"] is None
+    assert m["email"] is None and m["foto_3x4"] is None and m["whatsapp"] is None and m["cpf"] is None
     assert m["nome_completo"] == f"Titular Anonimizado #{mid}"
     assert "Pedido expresso" in log["detalhes"]
 
@@ -295,6 +296,79 @@ def test_exportacao_csv_somente_admin():
     assert logado("secretaria").get("/membros/exportar.csv").status_code == 403
     r = logado("admin").get("/membros/exportar.csv")
     assert r.status_code == 200 and "Maria da Silva Souza" in r.text and "15/03/1985" in r.text
+    assert "529.982.247-25" in r.text
+
+
+# ---------------------------------------------------------------------------
+# CPF (identificação única)
+# ---------------------------------------------------------------------------
+def test_cpf_digitos_verificadores():
+    from app import ficha
+    assert ficha.cpf_valido("529.982.247-25") and ficha.cpf_valido("11144477735")
+    assert not ficha.cpf_valido("529.982.247-26")
+    assert not ficha.cpf_valido("111.111.111-11")
+    assert not ficha.cpf_valido("1234")
+    assert ficha.fmt_cpf("11144477735") == "111.444.777-35"
+
+
+def test_ficha_nova_exige_cpf_valido_e_unico():
+    assert "CPF é obrigatório" in enviar_ficha(novo_cliente(), cpf="").text
+    assert "CPF inválido" in enviar_ficha(novo_cliente(), cpf="52998224726").text
+    assert membro_id_mais_recente() is None
+    assert enviar_ficha(novo_cliente()).status_code == 303
+    r = enviar_ficha(novo_cliente(), cpf="529.982.247-25", email="outra@exemplo.com")
+    assert r.status_code == 400 and "já está em outro cadastro" in r.text
+
+
+def test_secretaria_busca_e_edita_cpf_de_ficha_antiga():
+    enviar_ficha(novo_cliente())
+    mid = membro_id_mais_recente()
+    sec = logado("secretaria")
+    assert "Maria da Silva Souza" in sec.get("/membros?q=52998224725").text
+    assert "Maria da Silva Souza" in sec.get("/membros?q=529.982").text
+    # Ficha antiga (sem CPF) continua editável sem CPF
+    with db.engine().begin() as c:
+        c.execute(db.membros.update().where(db.membros.c.id == mid).values(cpf=None))
+    dados = {**FICHA_OK, "cpf": ""}
+    dados.pop("foto_3x4")
+    r = post(sec, f"/membros/{mid}/editar", dados, pagina=f"/membros/{mid}/editar")
+    assert r.status_code == 303
+    r = post(sec, f"/membros/{mid}/editar", {**dados, "cpf": "111.444.777-35"}, pagina=f"/membros/{mid}/editar")
+    assert r.status_code == 303
+    with db.engine().connect() as c:
+        assert c.execute(select(db.membros.c.cpf).where(db.membros.c.id == mid)).scalar() == "111.444.777-35"
+
+
+def test_membro_cadastrado_informa_o_proprio_cpf():
+    with db.engine().begin() as c:
+        mid = c.execute(insert(db.membros).values(nome_completo="Joana Antiga", status="Ativo")).inserted_primary_key[0]
+    dono = logado("membro", email="joana@exemplo.com", membro_id=mid)
+    assert "Informar meu CPF" in dono.get("/inicio").text
+    r = post(dono, "/meu-cpf", {"cpf": "123"}, pagina="/meu-cpf")
+    assert r.status_code == 400 and "CPF inválido" in r.text
+    r = post(dono, "/meu-cpf", {"cpf": "11144477735"}, pagina="/meu-cpf")
+    assert r.status_code == 303
+    with db.engine().connect() as c:
+        assert c.execute(select(db.membros.c.cpf).where(db.membros.c.id == mid)).scalar() == "111.444.777-35"
+        u = c.execute(select(db.usuarios).where(db.usuarios.c.email == "joana@exemplo.com")).mappings().one()
+        acoes = [r[0] for r in c.execute(select(db.auditoria.c.acao))]
+    assert u["cpf"] == "111.444.777-35" and "CPF_INFORMADO" in acoes
+    assert "Informar meu CPF" not in dono.get("/inicio").text
+    # Depois de informado, o membro não troca sozinho
+    r = post(dono, "/meu-cpf", {"cpf": "52998224725"}, pagina="/meu-cpf")
+    assert r.status_code == 400 and "procure a Secretaria" in r.text
+
+
+def test_equipe_sem_ficha_informa_cpf_e_nao_repete_de_outra_pessoa():
+    enviar_ficha(novo_cliente())  # Maria: 529.982.247-25
+    sec = logado("secretaria")
+    r = post(sec, "/meu-cpf", {"cpf": "529.982.247-25"}, pagina="/meu-cpf")
+    assert r.status_code == 400 and "já está em outro cadastro" in r.text
+    assert post(sec, "/meu-cpf", {"cpf": "111.444.777-35"}, pagina="/meu-cpf").status_code == 303
+    # Secretaria/Adm podem corrigir o próprio CPF
+    assert post(sec, "/meu-cpf", {"cpf": "11144477735"}, pagina="/meu-cpf").status_code == 303
+    with db.engine().connect() as c:
+        assert c.execute(select(db.usuarios.c.cpf).where(db.usuarios.c.perfil == "secretaria")).scalar() == "111.444.777-35"
 
 
 # ---------------------------------------------------------------------------

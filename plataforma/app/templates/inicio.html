@@ -5,6 +5,11 @@
 <h1>Paz, {{ usuario.nome.split(' ')[0] }}!</h1>
 <p class="suave" style="margin-top:0">Você está como <span class="selo {{ usuario.perfil }}">{{ PERFIS_ROTULO[usuario.perfil] }}</span></p>
 
+{% if sem_cpf %}
+<div class="msg aviso"><b>Atualize seu cadastro:</b> informe seu CPF para a identificação única no sistema.
+  <a class="botao peq" href="/meu-cpf" style="margin-left:.5rem">🪪 Informar meu CPF</a></div>
+{% endif %}
+
 {% if pode('secretaria', 'admin') %}
 <div class="grade c2 c4" style="margin:1rem 0">
   <a class="numero" href="/membros?status=Aguardando+Análise"><b>{{ numeros.aguardando }}</b>Fichas aguardando análise</a>

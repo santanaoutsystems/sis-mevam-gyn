@@ -10,7 +10,7 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.routing import Route
 
-from .. import config, datas, db, seguranca
+from .. import config, datas, db, ficha, seguranca
 from ..web import auditar, flash, ir, render
 
 
@@ -126,6 +126,53 @@ async def trocar_senha(request: Request):
     return ir("/inicio")
 
 
+def cpf_da_pessoa(c, u: dict) -> str | None:
+    """CPF do login ou, se ele ainda não tiver, o da ficha de membro ligada a ele."""
+    if u.get("cpf"):
+        return u["cpf"]
+    if u.get("membro_id"):
+        return c.execute(select(db.membros.c.cpf).where(db.membros.c.id == u["membro_id"])).scalar()
+    return None
+
+
+@seguranca.exigir()
+async def meu_cpf(request: Request):
+    """Membros e equipe já cadastrados informam o próprio CPF (identificação única)."""
+    u = seguranca.usuario_atual(request)
+    with db.engine().connect() as c:
+        atual = cpf_da_pessoa(c, u)
+    # Depois de informado, só a Secretaria/Adm corrige (evita troca indevida de identidade)
+    pode_alterar = not atual or u["perfil"] in ("secretaria", "admin")
+    ctx = {"atual": atual, "pode_alterar": pode_alterar}
+    if request.method == "GET":
+        return render(request, "meu_cpf.html", ctx)
+
+    form = await request.form()
+    cpf = (form.get("cpf") or "").strip()
+    erro = None
+    if not pode_alterar:
+        erro = "Seu CPF já está registrado. Para corrigir, procure a Secretaria."
+    elif not ficha.cpf_valido(cpf):
+        erro = ficha.ERRO_CPF
+    else:
+        cpf = ficha.fmt_cpf(cpf)
+        with db.engine().connect() as c:
+            if ficha.cpf_em_uso(c, cpf, membro_id=u["membro_id"], usuario_id=u["id"]):
+                erro = ficha.ERRO_CPF_EM_USO
+    if erro:
+        return render(request, "meu_cpf.html", {**ctx, "erro": erro, "valor": cpf}, status_code=400)
+
+    with db.engine().begin() as c:
+        c.execute(update(db.usuarios).where(db.usuarios.c.id == u["id"]).values(cpf=cpf))
+        if u["membro_id"]:
+            c.execute(update(db.membros).where(db.membros.c.id == u["membro_id"])
+                      .values(cpf=cpf, atualizado_em=datas.agora_utc()))
+        auditar(request, "CPF_INFORMADO" if not atual else "CPF_CORRIGIDO", f"Usuário #{u['id']}",
+                f"Ficha #{u['membro_id']}" if u["membro_id"] else "", conexao=c)
+    flash(request, "CPF registrado. Obrigado por atualizar seus dados!")
+    return ir("/inicio")
+
+
 def _existe_admin() -> bool:
     with db.engine().connect() as c:
         return c.execute(select(db.usuarios.c.id).where(db.usuarios.c.perfil == "admin").limit(1)).first() is not None
@@ -202,9 +249,10 @@ async def inicio(request: Request):
         if u["membro_id"]:
             minha_ficha = c.execute(select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.status)
                                     .where(db.membros.c.id == u["membro_id"])).mappings().first()
+        sem_cpf = not cpf_da_pessoa(c, u)
     eventos_fmt = [{**e, "quando": datas.parse_data_hora_local(e["data_inicio"])} for e in proximos]
     return render(request, "inicio.html", {"proximos": eventos_fmt, "numeros": numeros, "minha_ficha": minha_ficha,
-                                           "meus_setores": meus_setores})
+                                           "meus_setores": meus_setores, "sem_cpf": sem_cpf})
 
 
 @seguranca.exigir()
@@ -220,6 +268,7 @@ rotas = [
     Route("/entrar", entrar, methods=["GET", "POST"]),
     Route("/sair", sair, methods=["POST"]),
     Route("/trocar-senha", trocar_senha, methods=["GET", "POST"]),
+    Route("/meu-cpf", meu_cpf, methods=["GET", "POST"]),
     Route("/inicio", inicio),
     Route("/primeiro-acesso", primeiro_acesso, methods=["GET", "POST"]),
 ]

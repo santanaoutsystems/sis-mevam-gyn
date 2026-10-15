@@ -187,14 +187,16 @@ def gerar_pdf_membro(dados_membro: dict) -> bytes:
             Paragraph(f"<b>Sexo:</b> {dados_membro.get('sexo', '')}", corpo_style),
             Paragraph(f"<b>Estado Civil:</b> {dados_membro.get('estado_civil', '')}", corpo_style)
         ],
-        [Paragraph(f"<b>Cônjuge:</b> {dados_membro.get('conjuge', 'Não informado')}", corpo_style), ""]
+        [
+            Paragraph(f"<b>CPF:</b> {dados_membro.get('cpf', 'Não informado')}", corpo_style),
+            Paragraph(f"<b>Cônjuge:</b> {dados_membro.get('conjuge', 'Não informado')}", corpo_style)
+        ]
     ]
 
     t_pessoal = Table(tabela_pessoal_dados, colWidths=[7.0 * cm, 7.1 * cm])
     t_pessoal.setStyle(TableStyle([
         ('SPAN', (0, 0), (1, 0)),
         ('SPAN', (0, 1), (1, 1)),
-        ('SPAN', (0, 5), (1, 5)),
         ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F8FAFC')),
         ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
         ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),

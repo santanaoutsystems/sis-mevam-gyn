@@ -37,7 +37,7 @@ OBRIGATORIOS = {
     "congregava_antes": "Congregava antes",
 }
 
-CAMPOS_TEXTO = ["nome_completo", "naturalidade", "sexo", "estado_civil", "conjuge", "cep", "endereco",
+CAMPOS_TEXTO = ["nome_completo", "cpf", "naturalidade", "sexo", "estado_civil", "conjuge", "cep", "endereco",
                 "bairro", "cidade", "whatsapp", "telefone", "email", "escolaridade", "formacao_academica",
                 "profissao", "empresa", "batizado", "congregava_antes", "onde_congregava", "area_ministerial",
                 "interesse_batismo_familia"]
@@ -47,6 +47,52 @@ _RE_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def so_digitos(v: str) -> str:
     return re.sub(r"\D", "", v or "")
+
+
+ERRO_CPF = "CPF inválido. Confira os 11 dígitos."
+
+
+def cpf_valido(v: str) -> bool:
+    """Confere os dois dígitos verificadores (e recusa sequências como 111.111.111-11)."""
+    d = so_digitos(v)
+    if len(d) != 11 or d == d[0] * 11:
+        return False
+    for tam in (9, 10):
+        soma = sum(int(d[i]) * (tam + 1 - i) for i in range(tam))
+        if (soma * 10 % 11) % 10 != int(d[tam]):
+            return False
+    return True
+
+
+def fmt_cpf(v: str) -> str:
+    d = so_digitos(v)
+    return f"{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:]}" if len(d) == 11 else (v or "").strip()
+
+
+ERRO_CPF_EM_USO = "Este CPF já está em outro cadastro. Procure a Secretaria."
+
+
+def cpf_em_uso(c, cpf: str | None, membro_id: int | None = None, usuario_id: int | None = None) -> bool:
+    """True se o CPF já pertence a OUTRA pessoa.
+
+    A mesma pessoa pode ter o CPF na ficha (membros) e no login (usuarios) ligado a essa ficha.
+    """
+    from sqlalchemy import or_, select
+
+    from . import db
+    if not cpf:
+        return False
+    q = select(db.membros.c.id).where(db.membros.c.cpf == cpf)
+    if membro_id:
+        q = q.where(db.membros.c.id != membro_id)
+    if c.execute(q.limit(1)).first():
+        return True
+    q = select(db.usuarios.c.id).where(db.usuarios.c.cpf == cpf)
+    if usuario_id:
+        q = q.where(db.usuarios.c.id != usuario_id)
+    if membro_id:
+        q = q.where(or_(db.usuarios.c.membro_id.is_(None), db.usuarios.c.membro_id != membro_id))
+    return c.execute(q.limit(1)).first() is not None
 
 
 ERRO_TELEFONE = "Use o padrão (62) 9 9999-9999: DDD + 9 dígitos."
@@ -85,8 +131,12 @@ def nome_proprio(v: str) -> str:
                     for i, p in enumerate(partes) if p)
 
 
-def validar(form, exigir_foto: bool = True, exigir_lgpd: bool = True) -> tuple[dict, dict]:
-    """Recebe o formulário e devolve (dados normalizados, erros por campo)."""
+def validar(form, exigir_foto: bool = True, exigir_lgpd: bool = True,
+            exigir_cpf: bool = True) -> tuple[dict, dict]:
+    """Recebe o formulário e devolve (dados normalizados, erros por campo).
+
+    O CPF é obrigatório nas fichas novas; na edição de fichas antigas pode ficar em branco.
+    """
     dados: dict = {}
     erros: dict = {}
 
@@ -102,6 +152,12 @@ def validar(form, exigir_foto: bool = True, exigir_lgpd: bool = True) -> tuple[d
         erros["nome_completo"] = "Informe nome e sobrenome."
     if dados["conjuge"]:
         dados["conjuge"] = nome_proprio(dados["conjuge"])
+
+    if dados["cpf"] and not cpf_valido(dados["cpf"]):
+        erros["cpf"] = ERRO_CPF
+    elif exigir_cpf and not dados["cpf"]:
+        erros["cpf"] = "CPF é obrigatório."
+    dados["cpf"] = fmt_cpf(dados["cpf"]) or None
 
     nasc = datas.parse_data(form.get("data_nascimento"))
     if not nasc:

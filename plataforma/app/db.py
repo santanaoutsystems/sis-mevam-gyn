@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
-    JSON, Boolean, Column, cast, Date, DateTime, Float, ForeignKey, Integer, MetaData,
+    JSON, Boolean, Column, cast, Date, DateTime, Float, ForeignKey, Index, Integer, MetaData,
     String, Table, Text, UniqueConstraint, Uuid, FetchedValue, create_engine, func,
 )
 from sqlalchemy import text
@@ -103,6 +103,7 @@ usuarios = Table(
     Column("bloqueado_ate", DateTime(timezone=True)),
     Column("ultimo_login", DateTime(timezone=True)),
     Column("origem", String),  # 'novo', 'agenda:administradores#ID', 'membros_app:usuarios#ID'
+    Column("cpf", String),  # 000.000.000-00; único entre os usuários (migracoes/006_cpf.sql)
     Column("criado_em", DateTime(timezone=True), server_default=func.now()),
 )
 
@@ -112,6 +113,7 @@ membros = Table(
     Column("data_registro", Date),
     # 1. Dados pessoais
     Column("nome_completo", String, nullable=False),
+    Column("cpf", String),  # 000.000.000-00; identificação única do membro (migracoes/006_cpf.sql)
     Column("endereco", String), Column("bairro", String), Column("cidade", String), Column("cep", String),
     Column("data_nascimento", Date), Column("naturalidade", String), Column("sexo", String),
     Column("estado_civil", String), Column("conjuge", String),
@@ -150,6 +152,10 @@ membros = Table(
     Column("criado_em", DateTime(timezone=True), server_default=func.now()),
     Column("atualizado_em", DateTime(timezone=True), server_default=func.now()),
 )
+
+# Mesmo efeito dos índices únicos de migracoes/006_cpf.sql no SQLite de desenvolvimento (vários NULL são aceitos)
+Index("uq_membros_cpf", membros.c.cpf, unique=True)
+Index("uq_usuarios_cpf", usuarios.c.cpf, unique=True)
 
 membro_setores = Table(
     "membro_setores", metadata,
@@ -275,7 +281,8 @@ def criar_tabelas_dev() -> None:
 def aplicar_migracoes_aditivas() -> None:
     """Aplica no Postgres as migrações aditivas e idempotentes que não exigem passo manual.
 
-    Hoje: 003 (Coordenação), 004 (id de setor como texto) e 005 (colunas que faltam na Agenda legada).
+    Hoje: 003 (Coordenação), 004 (id de setor como texto), 005 (colunas que faltam na Agenda legada)
+    e 006 (CPF de membros e usuários).
     Só cria/alarga; nunca remove dados. Se falhar, o app sobe mesmo assim e registra o erro.
     """
     import logging
@@ -284,7 +291,7 @@ def aplicar_migracoes_aditivas() -> None:
     if eng.dialect.name != "postgresql":
         return
     pasta = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes")
-    for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql"):
+    for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()

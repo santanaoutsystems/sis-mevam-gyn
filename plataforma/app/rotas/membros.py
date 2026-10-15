@@ -104,13 +104,20 @@ async def ficha_publica(request: Request):
         return ir("/ficha")
 
     dados, erros = ficha.validar(form)
+    usuario = seguranca.usuario_atual(request)
+    # A ficha é da própria pessoa logada quando o e-mail é o mesmo do login
+    propria = bool(usuario and not usuario["membro_id"]
+                   and (dados.get("email") or "").lower() == (usuario.get("email") or "").lower())
+    if not erros:
+        with db.engine().connect() as c:
+            if ficha.cpf_em_uso(c, dados["cpf"], usuario_id=usuario["id"] if propria else None):
+                erros["cpf"] = ficha.ERRO_CPF_EM_USO
     if erros:
         valores = dict(form)
         return render(request, "membros/ficha.html",
                       _contexto_form({"modo": "publico", "valores": valores, "erros": erros}), status_code=400)
 
     agora = datas.agora_utc()
-    usuario = seguranca.usuario_atual(request)
     with db.engine().begin() as c:
         novo_id = c.execute(insert(db.membros).values(
             **dados,
@@ -126,8 +133,9 @@ async def ficha_publica(request: Request):
             criado_em=agora, atualizado_em=agora,
         )).inserted_primary_key[0]
         # Liga a ficha ao login só quando é a própria pessoa (mesmo e-mail); a Secretaria pode cadastrar várias fichas seguidas
-        if usuario and not usuario["membro_id"] and (dados.get("email") or "").lower() == (usuario.get("email") or "").lower():
-            c.execute(update(db.usuarios).where(db.usuarios.c.id == usuario["id"]).values(membro_id=novo_id))
+        if propria:
+            c.execute(update(db.usuarios).where(db.usuarios.c.id == usuario["id"])
+                      .values(membro_id=novo_id, cpf=dados["cpf"]))
         auditar(request, "CADASTRO_MEMBRO", f"Membro #{novo_id}", "Pré-cadastro enviado para análise", conexao=c)
 
     request.session["protocolo"] = novo_id
@@ -174,6 +182,9 @@ async def lista(request: Request):
         q = q.where(or_(func.lower(db.membros.c.nome_completo).like(termo),
                         func.lower(db.membros.c.email).like(termo),
                         db.membros.c.whatsapp.like(f"%{ficha.so_digitos(busca) or busca}%"),
+                        # CPF com ou sem pontuação
+                        func.replace(func.replace(db.membros.c.cpf, ".", ""), "-", "")
+                        .like(f"%{ficha.so_digitos(busca) or busca}%"),
                         func.lower(db.membros.c.bairro).like(termo)))
     if status:
         q = q.where(db.membros.c.status == status)
@@ -219,15 +230,22 @@ async def editar(request: Request):
         return render(request, "membros/ficha.html", _contexto_form({"modo": "editar", "m": m, "valores": _valores_de(m)}))
 
     form = await request.form()
-    dados, erros = ficha.validar(form, exigir_foto=False, exigir_lgpd=False)
+    # Fichas antigas podem não ter CPF: na edição ele é opcional, mas se informado precisa ser válido e único
+    dados, erros = ficha.validar(form, exigir_foto=False, exigir_lgpd=False, exigir_cpf=False)
     if not dados["foto_3x4"]:
         dados.pop("foto_3x4")  # sem nova foto: mantém a atual
+    if not erros:
+        with db.engine().connect() as c:
+            if ficha.cpf_em_uso(c, dados["cpf"], membro_id=mid):
+                erros["cpf"] = ficha.ERRO_CPF_EM_USO
     if erros:
         return render(request, "membros/ficha.html",
                       _contexto_form({"modo": "editar", "m": m, "valores": dict(form), "erros": erros}), 400)
     alterados = [k for k, v in dados.items() if m.get(k) != v and k != "foto_3x4"]
     with db.engine().begin() as c:
         c.execute(update(db.membros).where(db.membros.c.id == mid).values(**dados, atualizado_em=datas.agora_utc()))
+        # O login ligado à ficha acompanha o CPF da ficha
+        c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == mid).values(cpf=dados["cpf"]))
         auditar(request, "EDICAO_FICHA", f"Membro #{mid}", "Campos: " + ", ".join(alterados), conexao=c)
     flash(request, "Ficha atualizada.")
     return ir(f"/membros/{mid}")
@@ -318,7 +336,7 @@ async def anonimizar(request: Request):
     if len(motivo) < 10:
         flash(request, "Descreva o motivo da anonimização (mínimo 10 caracteres).", "erro")
         return ir(f"/membros/{mid}")
-    vazios = {k: None for k in ("endereco", "bairro", "cep", "data_nascimento", "naturalidade", "conjuge",
+    vazios = {k: None for k in ("cpf", "endereco", "bairro", "cep", "data_nascimento", "naturalidade", "conjuge",
                                 "email", "telefone", "whatsapp", "formacao_academica", "profissao", "empresa",
                                 "data_batismo", "onde_congregava", "interesse_batismo_familia",
                                 "assinatura_rubrica", "foto_3x4", "ocr_documento_nome", "lgpd_ip_origem",
@@ -328,7 +346,7 @@ async def anonimizar(request: Request):
             **vazios, nome_completo=f"Titular Anonimizado #{mid}", filhos=[],
             status="Anonimizado (LGPD)", status_lgpd="Anonimizado", atualizado_em=datas.agora_utc()))
         c.execute(delete(db.membro_setores).where(db.membro_setores.c.membro_id == mid))
-        c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == mid).values(membro_id=None))
+        c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == mid).values(membro_id=None, cpf=None))
         auditar(request, "ANONIMIZACAO_LGPD", f"Membro #{mid}", motivo, conexao=c)
     flash(request, "Dados pessoais anonimizados conforme a LGPD.")
     return ir("/membros")
@@ -355,7 +373,7 @@ async def excluir(request: Request):
 
 @seguranca.exigir("admin")
 async def exportar_csv(request: Request):
-    campos = ["id", "nome_completo", "data_nascimento", "sexo", "estado_civil", "whatsapp", "email",
+    campos = ["id", "nome_completo", "cpf", "data_nascimento", "sexo", "estado_civil", "whatsapp", "email",
               "bairro", "cidade", "batizado", "data_batismo", "status", "data_registro"]
     with db.engine().connect() as c:
         linhas = c.execute(select(*[db.membros.c[k] for k in campos])

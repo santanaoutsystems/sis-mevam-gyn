@@ -109,6 +109,7 @@ class OcrEngine {
   parseDocumentText(rawText) {
     const result = {
       nome_completo: "",
+      cpf: "",
       endereco: "",
       bairro: "",
       cidade: "Goiânia",
@@ -141,6 +142,10 @@ class OcrEngine {
     // 1. Extração de E-mail
     const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     if (emailMatch) result.email = emailMatch[0].toLowerCase();
+
+    // 1b. Extração de CPF (000.000.000-00); a máscara do campo confere os dígitos verificadores
+    const cpfMatch = text.match(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/) || text.match(/cpf\D{0,5}(\d{11})\b/i);
+    if (cpfMatch) result.cpf = (cpfMatch[1] || cpfMatch[0]).replace(/\D/g, '');
 
     // 2. Extração de CEP
     const cepMatch = text.match(/\b\d{5}[-.\s]?\d{3}\b/);
