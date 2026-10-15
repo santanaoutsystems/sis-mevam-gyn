@@ -28,19 +28,31 @@
     <form method="post" action="/sair"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">Sair</button></form>
   </header>
   <div class="layout">
+    {# Ferramentas de cada perfil. No celular: as 4 primeiras na barra e o resto em "Mais". #}
+    {% set f = [('/inicio', '🏠', 'Início'), ('/agenda', '📅', 'Agenda')] %}
+    {% if pode('secretaria', 'admin') %}{% set f = f + [('/membros', '👥', 'Membros'), ('/coordenacao', '🧭', 'Coordenação')] %}{% endif %}
+    {% if pode('coordenacao') %}{% set f = f + [('/eventos/novo', '➕', 'Novo evento')] %}{% endif %}
+    {% if pode('coordenacao', 'secretaria', 'admin') %}{% set f = f + [('/relatorios/periodo', '🖨️', 'Relatórios')] %}{% endif %}
+    {% if pode('admin') %}{% set f = f + [('/admin/usuarios', '🔐', 'Usuários'), ('/admin/setores', '🏢', 'Setores'), ('/admin/auditoria', '🔍', 'Auditoria')] %}{% endif %}
+    {% set f = f + [('/minha-ficha', '🪪', 'Minha ficha')] %}
+    {% set na_barra = f if f|length <= 5 else f[:4] %}
+    {% set no_mais = [] if f|length <= 5 else f[4:] %}
+    {% macro item(href, ic, rotulo) %}
+      <a href="{{ href }}" class="{{ 'ativo' if caminho.startswith(href) else '' }}"{{ ' aria-current="page"' if caminho.startswith(href) }}><span class="ic" aria-hidden="true">{{ ic }}</span>{{ rotulo }}</a>
+    {% endmacro %}
     <nav class="nav" aria-label="Menu principal">
-      {% macro item(href, ic, rotulo, so_pc=False) %}
-        <a href="{{ href }}" class="{{ 'ativo' if caminho.startswith(href) else '' }}{{ ' so-pc' if so_pc else '' }}"><span class="ic">{{ ic }}</span>{{ rotulo }}</a>
-      {% endmacro %}
-      {{ item('/inicio', '🏠', 'Início') }}
-      {{ item('/agenda', '📅', 'Agenda') }}
-      {% if pode('secretaria', 'admin') %}{{ item('/membros', '👥', 'Membros') }}{{ item('/coordenacao', '🧭', 'Coordenação') }}{% endif %}
-      {% if pode('admin') %}
-        {{ item('/admin/usuarios', '🔐', 'Usuários') }}
-        {{ item('/admin/setores', '🏢', 'Setores', True) }}
-        {{ item('/admin/auditoria', '🔍', 'Auditoria', True) }}
+      {% for h, ic, r in na_barra %}{{ item(h, ic, r) }}{% endfor %}
+      {% if no_mais %}
+      {% set ns = namespace(ativo=False) %}
+      {% for h, ic, r in no_mais %}{% if caminho.startswith(h) %}{% set ns.ativo = True %}{% endif %}<span class="so-pc">{{ item(h, ic, r) }}</span>{% endfor %}
+      {% set mais_ativo = ns.ativo %}
+      <details class="mais">
+        <summary class="{{ 'ativo' if mais_ativo }}"><span class="ic" aria-hidden="true">☰</span>Mais</summary>
+        <div class="mais-lista" role="list">
+          {% for h, ic, r in no_mais %}{{ item(h, ic, r) }}{% endfor %}
+        </div>
+      </details>
       {% endif %}
-      {{ item('/minha-ficha', '🪪', 'Minha ficha', pode('secretaria', 'admin')) }}
     </nav>
     <main class="conteudo" id="conteudo" tabindex="-1">
       {% for m in mensagens %}<div class="msg {{ m.tipo }}" role="status">{{ m.texto }}</div>{% endfor %}

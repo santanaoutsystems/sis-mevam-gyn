@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import calendar
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import delete, func, insert, select, update
 from starlette.requests import Request
@@ -121,14 +121,53 @@ def _ler_form_evento(form) -> tuple[dict, dict]:
     return dados, erros
 
 
-def _conflito(c, data_iso: str, departamento: str, ignorar_id: int | None = None) -> dict | None:
-    dia = data_iso[:10]
-    q = select(db.eventos.c.id, db.eventos.c.titulo, db.eventos.c.departamento).where(
-        db.eventos.c.data_inicio >= db.data_evento(f"{dia}T00:00:00"),
-        db.eventos.c.data_inicio <= db.data_evento(f"{dia}T23:59:59"))
+INTERVALO_MINIMO = timedelta(hours=2)
+PODE_LIBERAR_CONFLITO = ("secretaria", "admin")
+
+
+def _conflitos(c, data_iso: str, ignorar_id: int | None = None) -> list[dict]:
+    """Eventos (de qualquer setor ou local) a menos de 2 horas do horário pedido.
+
+    Evita interferência acústica e de logística. Vários eventos no mesmo dia são
+    permitidos desde que respeitem o intervalo.
+    """
+    alvo = datetime.fromisoformat(data_iso)
+    de, ate = (alvo - timedelta(days=1)).date().isoformat(), (alvo + timedelta(days=2)).date().isoformat()
+    if db._DATA_EVENTO["modo"] == "texto":
+        # Compara só a data (texto) para pegar também registros legados com espaço no lugar do 'T'
+        filtro = (db.eventos.c.data_inicio >= de, db.eventos.c.data_inicio < ate)
+    else:
+        filtro = (db.eventos.c.data_inicio >= db.data_evento(f"{de}T00:00:00"),
+                  db.eventos.c.data_inicio < db.data_evento(f"{ate}T00:00:00"))
+    q = select(db.eventos.c.id, db.eventos.c.titulo, db.eventos.c.departamento, db.eventos.c.local,
+               db.eventos.c.data_inicio).where(*filtro)
+    achados = []
     for r in c.execute(q).mappings():
-        if r["id"] != ignorar_id and r["departamento"] != departamento:
-            return dict(r)
+        quando = datas.parse_data_hora_local(r["data_inicio"])
+        if r["id"] != ignorar_id and quando and abs(quando - alvo) < INTERVALO_MINIMO:
+            achados.append({**r, "quando": quando})
+    return sorted(achados, key=lambda e: e["quando"])
+
+
+def _verificar_conflito(c, form, dados: dict, usuario: dict, erros: dict, ignorar_id: int | None = None) -> dict | None:
+    """Aplica a regra das 2 horas. Secretaria e Adm podem liberar com motivo; devolve a liberação, se houver."""
+    conflitos = _conflitos(c, dados["data_inicio"], ignorar_id)
+    if not conflitos:
+        return None
+    lista = "; ".join(f"\"{e['titulo']}\" às {e['quando'].strftime('%H:%M')} de {e['quando'].strftime('%d/%m')}"
+                      f" ({e.get('departamento') or 'Geral'}{', ' + e['local'] if e.get('local') else ''})"
+                      for e in conflitos)
+    pode_liberar = usuario["perfil"] in PODE_LIBERAR_CONFLITO
+    motivo = (form.get("motivo_liberacao") or "").strip()
+    if pode_liberar and form.get("liberar_conflito") == "sim":
+        if len(motivo) >= 5:
+            return {"conflitos": lista, "motivo": motivo}
+        erros["motivo_liberacao"] = "Informe o motivo da liberação."
+    erros["data"] = (f"Conflito de agenda: é preciso um intervalo mínimo de 2 horas entre eventos. "
+                     f"Já existe {lista}.")
+    if not pode_liberar:
+        erros["data"] += " Escolha outro horário ou peça a liberação à Secretaria ou ao Adm."
+    erros["_conflito"] = True
     return None
 
 
@@ -212,17 +251,19 @@ async def novo(request: Request):
     if escopo is not None and dados["departamento"] not in escopo:
         erros["departamento"] = "Escolha um dos setores que você coordena."
     with db.engine().begin() as c:
-        if not erros:
-            conflito = _conflito(c, dados["data_inicio"], dados["departamento"])
-            if conflito:
-                erros["data"] = (f"Conflito de agenda: o departamento {conflito['departamento']} já tem "
-                                 f"\"{conflito['titulo']}\" nesta data.")
+        liberacao = None if erros else _verificar_conflito(c, form, dados, u, erros)
         if erros:
             return render(request, "eventos/form.html", {"deptos": deptos, "valores": dict(form), "erros": erros}, 400)
         carimbo = _carimbo(u)
-        dados.update(criado_por=carimbo, historico_alteracoes=f"[{carimbo}] Criado")
+        historico = f"[{carimbo}] Criado"
+        if liberacao:
+            historico += f"\n[{carimbo}] Conflito de horário liberado ({liberacao['conflitos']}). Motivo: {liberacao['motivo']}"
+        dados.update(criado_por=carimbo, historico_alteracoes=historico)
         eid = c.execute(insert(db.eventos).values(**{**dados, "data_inicio": db.data_evento(dados["data_inicio"])})).inserted_primary_key[0]
         auditar(request, "EVENTO_CRIADO", f"Evento #{eid}", dados["titulo"], conexao=c)
+        if liberacao:
+            auditar(request, "CONFLITO_LIBERADO", f"Evento #{eid}",
+                    f"{liberacao['conflitos']}. Motivo: {liberacao['motivo']}", conexao=c)
     notificacoes.alerta_evento("novo", dados, u["nome"])
     flash(request, "Evento salvo na agenda.")
     return ir(f"/eventos/{eid}")
@@ -254,16 +295,16 @@ async def editar(request: Request):
     if escopo is not None and dados["departamento"] not in escopo:
         erros["departamento"] = "Escolha um dos setores que você coordena."
     with db.engine().begin() as c:
-        if not erros:
-            conflito = _conflito(c, dados["data_inicio"], dados["departamento"], ignorar_id=eid)
-            if conflito:
-                erros["data"] = (f"Conflito de agenda: o departamento {conflito['departamento']} já tem "
-                                 f"\"{conflito['titulo']}\" nesta data.")
+        liberacao = None if erros else _verificar_conflito(c, form, dados, u, erros, ignorar_id=eid)
         if erros:
             return render(request, "eventos/form.html",
                           {"deptos": deptos, "valores": dict(form), "erros": erros, "e": e}, 400)
         carimbo = _carimbo(u)
         historico = f"{e.get('historico_alteracoes') or ''}\n[{carimbo}] Atualizado: {justificativa}".strip()
+        if liberacao:
+            historico += f"\n[{carimbo}] Conflito de horário liberado ({liberacao['conflitos']}). Motivo: {liberacao['motivo']}"
+            auditar(request, "CONFLITO_LIBERADO", f"Evento #{eid}",
+                    f"{liberacao['conflitos']}. Motivo: {liberacao['motivo']}", conexao=c)
         c.execute(update(db.eventos).where(db.eventos.c.id == eid).values(
             **{**dados, "data_inicio": db.data_evento(dados["data_inicio"])},
             criado_por=carimbo, historico_alteracoes=historico))

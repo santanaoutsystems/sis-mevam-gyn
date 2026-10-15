@@ -322,11 +322,48 @@ def test_evento_gravado_no_formato_legado():
     assert "Pessoa Secretaria em" in e["criado_por"]
 
 
-def test_conflito_de_data_entre_setores():
+def test_mesmo_dia_com_intervalo_de_2_horas_e_permitido():
     sec = logado("secretaria")
-    criar_evento(sec)
-    r = criar_evento(sec, titulo="Culto Jovem", departamento="Jovens", hora="19:00")
-    assert r.status_code == 400 and "Conflito de agenda" in r.text
+    criar_evento(sec)  # 09:00
+    assert criar_evento(sec, titulo="Culto Jovem", departamento="Jovens", hora="11:00").status_code == 303
+    assert criar_evento(sec, titulo="Ensaio", departamento="Família", hora="19:00").status_code == 303
+
+
+def test_menos_de_2_horas_e_conflito_e_so_secretaria_ou_adm_liberam():
+    sec = logado("secretaria")
+    criar_evento(sec)  # 09:00, Família
+    r = criar_evento(sec, titulo="Culto Jovem", departamento="Jovens", hora="10:30")
+    assert r.status_code == 400 and "intervalo mínimo de 2 horas" in r.text and "Liberar mesmo assim" in r.text
+    # Liberação exige motivo
+    r = criar_evento(sec, titulo="Culto Jovem", departamento="Jovens", hora="10:30", liberar_conflito="sim")
+    assert r.status_code == 400 and "motivo da liberação" in r.text
+    r = criar_evento(sec, titulo="Culto Jovem", departamento="Jovens", hora="10:30", liberar_conflito="sim",
+                     motivo_liberacao="Salas separadas, sem som")
+    assert r.status_code == 303
+    eid = int(r.headers["location"].split("/")[-1])
+    with db.engine().connect() as c:
+        hist = c.execute(select(db.eventos.c.historico_alteracoes).where(db.eventos.c.id == eid)).scalar()
+        acoes = c.execute(select(db.auditoria.c.acao)).scalars().all()
+    assert "Conflito de horário liberado" in hist and "CONFLITO_LIBERADO" in acoes
+    # Coordenação não libera
+    coord = logado("coordenacao")
+    with db.engine().begin() as c:
+        c.execute(insert(db.usuario_setores).values(usuario_id=coord.usuario["id"], departamento_id=_setor_id("Jovens")))
+    r = post(coord, "/eventos/novo", {**EVENTO, "titulo": "Vigília", "departamento": "Jovens", "hora": "08:00",
+                                      "liberar_conflito": "sim", "motivo_liberacao": "quero liberar"},
+             pagina="/eventos/novo")
+    assert r.status_code == 400 and "peça a liberação à Secretaria ou ao Adm" in r.text
+    assert "Liberar mesmo assim" not in r.text
+
+
+def test_menu_do_celular_mostra_todas_as_ferramentas_do_perfil():
+    adm = logado("admin")
+    html = adm.get("/inicio").text
+    for rotulo in ("Membros", "Coordenação", "Relatórios", "Usuários", "Setores", "Auditoria", "Minha ficha", "Mais"):
+        assert rotulo in html
+    coord = logado("coordenacao")
+    html = coord.get("/inicio").text
+    assert "Novo evento" in html and "Relatórios" in html and "Membros" not in html
 
 
 def test_inscricoes_vagas_valores_e_financeiro():

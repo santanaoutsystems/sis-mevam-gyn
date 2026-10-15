@@ -40,6 +40,17 @@
     {% if erros.get('justificativa') %}<div class="erro-campo">{{ erros.justificativa }}</div>{% endif %}
   </div>
   {% endif %}
+  {% if erros.get('_conflito') and pode('secretaria', 'admin') %}
+  <div class="msg aviso">
+    <label class="check"><input type="checkbox" name="liberar_conflito" value="sim" {{ 'checked' if valores.get('liberar_conflito') == 'sim' }}>
+      <span><b>Liberar mesmo assim</b> (autorização da Secretaria / Adm). Fica registrado no histórico e na auditoria.</span></label>
+    <div class="{{ 'campo-erro' if erros.get('motivo_liberacao') }}">
+      <label for="motivo_liberacao">Motivo da liberação</label>
+      <textarea id="motivo_liberacao" name="motivo_liberacao" placeholder="Ex: salas separadas, sem som no outro evento">{{ valores.get('motivo_liberacao') or '' }}</textarea>
+      {% if erros.get('motivo_liberacao') %}<div class="erro-campo">{{ erros.motivo_liberacao }}</div>{% endif %}
+    </div>
+  </div>
+  {% endif %}
   <div class="acoes">
     <button class="botao" type="submit">💾 Salvar</button>
     <a class="botao secundario" href="{{ '/eventos/%d' % e.id if e else '/agenda' }}">Cancelar</a>
