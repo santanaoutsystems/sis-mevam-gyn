@@ -275,7 +275,7 @@ def criar_tabelas_dev() -> None:
 def aplicar_migracoes_aditivas() -> None:
     """Aplica no Postgres as migrações aditivas e idempotentes que não exigem passo manual.
 
-    Hoje: migracoes/003_coordenacao.sql (perfil Coordenação + tabela usuario_setores).
+    Hoje: 003 (Coordenação), 004 (id de setor como texto) e 005 (colunas que faltam na Agenda legada).
     Só cria/alarga; nunca remove dados. Se falhar, o app sobe mesmo assim e registra o erro.
     """
     import logging
@@ -284,7 +284,7 @@ def aplicar_migracoes_aditivas() -> None:
     if eng.dialect.name != "postgresql":
         return
     pasta = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes")
-    for nome in ("003_coordenacao.sql", "004_setor_texto.sql"):
+    for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()
