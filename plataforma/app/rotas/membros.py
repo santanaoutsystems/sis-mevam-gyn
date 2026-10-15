@@ -35,7 +35,7 @@ def _carregar(c, membro_id: int) -> dict | None:
 
 def _setores_do_membro(c, membro_id: int) -> list[dict]:
     q = (select(db.membro_setores.c.departamento_id, db.membro_setores.c.funcao, db.departamentos.c.nome)
-         .join(db.departamentos, db.departamentos.c.id == db.membro_setores.c.departamento_id)
+         .join(db.departamentos, db.DEP_ID == db.membro_setores.c.departamento_id)
          .where(db.membro_setores.c.membro_id == membro_id).order_by(db.departamentos.c.nome))
     return [dict(r) for r in c.execute(q).mappings()]
 
@@ -176,9 +176,9 @@ async def lista(request: Request):
                         func.lower(db.membros.c.bairro).like(termo)))
     if status:
         q = q.where(db.membros.c.status == status)
-    if setor.isdigit():
+    if setor:
         q = q.where(db.membros.c.id.in_(select(db.membro_setores.c.membro_id)
-                                        .where(db.membro_setores.c.departamento_id == int(setor))))
+                                        .where(db.membro_setores.c.departamento_id == setor)))
     q = q.order_by(db.membros.c.nome_completo).limit(500)
     with db.engine().connect() as c:
         linhas = [dict(r) for r in c.execute(q).mappings()]
@@ -278,9 +278,9 @@ async def link_enviado(request: Request):
 async def setores(request: Request):
     mid = request.path_params["id"]
     form = await request.form()
-    ids = [int(x) for x in form.getlist("departamento_id") if str(x).isdigit()]
+    ids = [str(x) for x in form.getlist("departamento_id") if x]
     with db.engine().begin() as c:
-        validos = {r[0] for r in c.execute(select(db.departamentos.c.id))}
+        validos = {str(r[0]) for r in c.execute(select(db.departamentos.c.id))}
         c.execute(delete(db.membro_setores).where(db.membro_setores.c.membro_id == mid))
         for did in ids:
             if did in validos:

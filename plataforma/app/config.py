@@ -48,7 +48,13 @@ if not SECRET_KEY:
 FUSO_HORARIO = "America/Sao_Paulo"
 URL_BASE = os.getenv("URL_BASE", "http://localhost:8000").rstrip("/")
 
+VERSAO = "2.1.0"
+
 # Sessão
+# Sem uso por este tempo, o acesso é bloqueado e é preciso entrar de novo.
+# Quem vê dados pessoais (Secretaria e Adm) tem um tempo menor.
+INATIVIDADE_MIN_GESTAO = int(os.getenv("INATIVIDADE_MIN_GESTAO", "15"))
+INATIVIDADE_MIN_PADRAO = int(os.getenv("INATIVIDADE_MIN_PADRAO", "30"))
 SESSAO_MAX_SEGUNDOS = int(os.getenv("SESSAO_MAX_SEGUNDOS", str(60 * 60 * 12)))  # 12 horas
 COOKIE_SEGURO = _bool(os.getenv("COOKIE_SEGURO"), padrao=EM_PRODUCAO)
 

@@ -58,9 +58,9 @@
     {% set meus = setores|map(attribute='departamento_id')|list %}
     <div class="grade c2">
     {% for d in deptos %}
-      {% set funcao_atual = (setores|selectattr('departamento_id','equalto',d.id)|map(attribute='funcao')|first) or 'Voluntário' %}
+      {% set funcao_atual = (setores|selectattr('departamento_id','equalto',d.id|string)|map(attribute='funcao')|first) or 'Voluntário' %}
       <div class="opcoes" style="align-items:center">
-        <label style="flex:1"><input type="checkbox" name="departamento_id" value="{{ d.id }}" {{ 'checked' if d.id in meus }}> {{ d.nome }}</label>
+        <label style="flex:1"><input type="checkbox" name="departamento_id" value="{{ d.id }}" {{ 'checked' if d.id|string in meus }}> {{ d.nome }}</label>
         <select name="funcao_{{ d.id }}" style="width:auto" aria-label="Função em {{ d.nome }}">{% for f in ['Voluntário','Líder','Apoio'] %}<option {{ 'selected' if f == funcao_atual }}>{{ f }}</option>{% endfor %}</select>
       </div>
     {% else %}<p class="suave">Nenhum setor cadastrado.</p>{% endfor %}

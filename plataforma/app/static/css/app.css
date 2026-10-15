@@ -145,6 +145,7 @@ pre, summary, details, p, li, td, th, label, span, div { color: inherit; }
 /* "Mais" no celular: abre uma folha acima da barra com as demais ferramentas */
 .nav .mais { flex: 1; display: flex; }
 .nav .so-pc { display: none; }
+.nav .versao { display: none; }
 .nav .mais summary { flex: 1; list-style: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 2px; padding: .45rem .2rem; min-height: 56px; color: var(--t-suave); font-size: .72rem; cursor: pointer; }
 .nav .mais summary::-webkit-details-marker { display: none; }
@@ -169,6 +170,7 @@ pre, summary, details, p, li, td, th, label, span, div { color: inherit; }
   /* No PC não há "Mais": tudo aparece na lateral */
   .nav .mais { display: none; }
   .nav .so-pc { display: contents; }
+  .nav .versao { display: block; margin-top: auto; padding: .5rem .8rem; font-size: .75rem; color: var(--t-suave); }
   .conteudo { padding: 1.5rem 2rem; }
 }
 

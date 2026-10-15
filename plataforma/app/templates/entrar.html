@@ -20,6 +20,7 @@
     <h1 style="text-align:center">SIS MEVAM-GYN</h1>
     <p class="suave" style="text-align:center;margin-top:0">Acesse com seu e-mail e senha</p>
     {% for m in mensagens %}<div class="msg {{ m.tipo }}">{{ m.texto }}</div>{% endfor %}
+    {% if aviso %}<div class="msg aviso" role="status">🔒 {{ aviso }}</div>{% endif %}
     {% if erro %}<div class="msg erro" role="alert">{{ erro }}</div>{% endif %}
     <form method="post" action="/entrar" autocomplete="on">
       <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -33,7 +34,7 @@
     <hr style="border:0;border-top:1px solid var(--borda);margin:1.25rem 0">
     <p class="pequeno" style="text-align:center">Ainda não é membro? <a href="/ficha">Preencha sua ficha de membro</a>.<br>
       Esqueceu a senha? Fale com a Secretaria.</p>
-    <p class="pequeno suave" style="text-align:center"><a href="/privacidade">Privacidade e LGPD</a></p>
+    <p class="pequeno suave" style="text-align:center"><a href="/privacidade">Privacidade e LGPD</a> · versão {{ versao }}</p>
   </div>
 </main>
 <script src="/static/js/tema.js" defer></script>

@@ -60,7 +60,7 @@ def escopo_setores(c, usuario: dict) -> set[str] | None:
     if usuario["perfil"] != "coordenacao":
         return None
     return set(c.execute(select(db.departamentos.c.nome).select_from(
-        db.usuario_setores.join(db.departamentos, db.departamentos.c.id == db.usuario_setores.c.departamento_id))
+        db.usuario_setores.join(db.departamentos, db.DEP_ID == db.usuario_setores.c.departamento_id))
         .where(db.usuario_setores.c.usuario_id == usuario["id"])).scalars())
 
 

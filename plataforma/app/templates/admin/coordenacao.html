@@ -34,7 +34,7 @@
     <legend class="pequeno"><b>Setores que pode gerenciar</b></legend>
     <div class="grade c2 c3">
       {% for d in deptos %}
-      <label class="check"><input type="checkbox" name="setores" value="{{ d.id }}" {{ 'checked' if d.id in u.setores }}> {{ d.nome }}</label>
+      <label class="check"><input type="checkbox" name="setores" value="{{ d.id }}" {{ 'checked' if d.id|string in u.setores }}> {{ d.nome }}</label>
       {% endfor %}
     </div>
   </fieldset>

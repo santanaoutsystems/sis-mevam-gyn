@@ -79,3 +79,30 @@
   });
   document.addEventListener("keydown", function (ev) { if (ev.key === "Escape") fechar(null); });
 })();
+
+/* Bloqueio por inatividade: sem uso pelo tempo do perfil, volta para a tela de entrada.
+   Enquanto a pessoa digita ou rola a tela, avisa o servidor (no máximo 1 vez por minuto). */
+(function () {
+  var limite = parseInt(document.body && document.body.dataset.inatividade, 10);
+  if (!limite) return;
+  var ultimoUso = Date.now(), ultimoAviso = Date.now();
+  function usou() {
+    ultimoUso = Date.now();
+    if (Date.now() - ultimoAviso > 60000) {
+      ultimoAviso = Date.now();
+      fetch("/sessao/manter", { credentials: "same-origin", cache: "no-store" }).then(function (r) {
+        if (r.redirected || r.status >= 400) location.href = "/entrar?expirou=1";
+      }).catch(function () {});
+    }
+  }
+  ["pointerdown", "keydown", "scroll", "touchstart", "input"].forEach(function (ev) {
+    document.addEventListener(ev, usou, { passive: true, capture: true });
+  });
+  setInterval(function () {
+    if (Date.now() - ultimoUso >= limite * 1000) location.href = "/entrar?expirou=1&proximo=" + encodeURIComponent(location.pathname);
+  }, 15000);
+  /* Ao voltar para a aba depois de muito tempo, confere na hora */
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && Date.now() - ultimoUso >= limite * 1000) location.href = "/entrar?expirou=1";
+  });
+})();

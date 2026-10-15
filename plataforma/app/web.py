@@ -36,6 +36,8 @@ def render(request: Request, nome: str, contexto: dict | None = None, status_cod
         "mensagens": request.session.pop("flash", []),
         "caminho": request.url.path,
         "pode": lambda *p: seguranca.pode(usuario, *p),
+        "inatividade": seguranca.limite_inatividade(usuario),
+        "versao": config.VERSAO,
     }
     ctx.update(contexto or {})
     return templates.TemplateResponse(request, nome, ctx, status_code=status_code)

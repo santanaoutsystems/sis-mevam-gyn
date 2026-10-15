@@ -185,18 +185,18 @@ async def adicionar_coordenador(request: Request):
 async def salvar_setores_coordenador(request: Request):
     uid = request.path_params["id"]
     form = await request.form()
-    escolhidos = {int(x) for x in form.getlist("setores") if str(x).isdigit()}
+    escolhidos = {str(x) for x in form.getlist("setores") if x}
     with db.engine().begin() as c:
         alvo = _usuario(c, uid)
         if not alvo or alvo["perfil"] != "coordenacao":
             flash(request, "Este usuário não é da Coordenação.", "erro")
             return ir("/coordenacao")
-        validos = set(c.execute(select(db.departamentos.c.id)).scalars())
+        validos = {str(i) for i in c.execute(select(db.departamentos.c.id)).scalars()}
         escolhidos &= validos
         c.execute(delete(db.usuario_setores).where(db.usuario_setores.c.usuario_id == uid))
         for d in sorted(escolhidos):
             c.execute(insert(db.usuario_setores).values(usuario_id=uid, departamento_id=d))
-        nomes = c.execute(select(db.departamentos.c.nome).where(db.departamentos.c.id.in_(escolhidos))
+        nomes = c.execute(select(db.departamentos.c.nome).where(db.DEP_ID.in_(escolhidos))
                           .order_by(db.departamentos.c.nome)).scalars().all() if escolhidos else []
         auditar(request, "COORDENACAO_SETORES", f"Usuário #{uid}", ", ".join(nomes) or "nenhum setor", conexao=c)
     flash(request, f"Setores de {alvo['nome']} atualizados.")
@@ -226,8 +226,13 @@ async def setores(request: Request):
         linhas = [dict(r) for r in c.execute(
             select(db.departamentos, func.count(db.membro_setores.c.id).label("qtd"))
             .select_from(db.departamentos.outerjoin(db.membro_setores,
-                                                    db.membro_setores.c.departamento_id == db.departamentos.c.id))
+                                                    db.membro_setores.c.departamento_id == db.DEP_ID))
             .group_by(*db.departamentos.c).order_by(db.departamentos.c.nome)).mappings()]
+        coords = c.execute(select(db.usuario_setores.c.departamento_id, db.usuarios.c.nome)
+                           .join(db.usuarios, db.usuarios.c.id == db.usuario_setores.c.usuario_id)
+                           .where(db.usuarios.c.perfil == "coordenacao").order_by(db.usuarios.c.nome)).all()
+    for s in linhas:
+        s["coordenadores"] = [n for d, n in coords if d == str(s["id"])]
     return render(request, "admin/setores.html", {"linhas": linhas})
 
 
@@ -236,14 +241,14 @@ async def salvar_setor(request: Request):
     form = await request.form()
     nome = (form.get("nome") or "").strip()
     responsavel = (form.get("responsavel") or "").strip()
-    sid = form.get("id")
+    sid = (form.get("id") or "").strip()
     if len(nome) < 2:
         flash(request, "Informe o nome do setor.", "erro")
         return ir("/admin/setores")
     with db.engine().begin() as c:
-        if sid and sid.isdigit():
-            antigo = c.execute(select(db.departamentos.c.nome).where(db.departamentos.c.id == int(sid))).scalar()
-            c.execute(update(db.departamentos).where(db.departamentos.c.id == int(sid))
+        if sid:
+            antigo = c.execute(select(db.departamentos.c.nome).where(db.DEP_ID == sid)).scalar()
+            c.execute(update(db.departamentos).where(db.DEP_ID == sid)
                       .values(nome=nome, responsavel=responsavel))
             if antigo and antigo != nome:
                 # Os eventos guardam o nome do departamento: renomeia junto para não perder o vínculo
@@ -260,14 +265,14 @@ async def salvar_setor(request: Request):
 async def excluir_setor(request: Request):
     sid = request.path_params["id"]
     with db.engine().begin() as c:
-        nome = c.execute(select(db.departamentos.c.nome).where(db.departamentos.c.id == sid)).scalar()
+        nome = c.execute(select(db.departamentos.c.nome).where(db.DEP_ID == sid)).scalar()
         usados = c.execute(select(func.count()).select_from(db.eventos).where(db.eventos.c.departamento == nome)).scalar()
         if usados:
             flash(request, f"O setor {nome} tem {usados} evento(s) na agenda e não pode ser excluído.", "erro")
             return ir("/admin/setores")
         c.execute(delete(db.membro_setores).where(db.membro_setores.c.departamento_id == sid))
         c.execute(delete(db.usuario_setores).where(db.usuario_setores.c.departamento_id == sid))
-        c.execute(delete(db.departamentos).where(db.departamentos.c.id == sid))
+        c.execute(delete(db.departamentos).where(db.DEP_ID == sid))
         auditar(request, "SETOR_EXCLUIDO", f"Setor #{sid}", nome or "", conexao=c)
     flash(request, "Setor excluído.")
     return ir("/admin/setores")
@@ -301,6 +306,6 @@ rotas = [
     Route("/coordenacao/{id:int}/remover", remover_coordenador, methods=["POST"]),
     Route("/admin/setores", setores),
     Route("/admin/setores/salvar", salvar_setor, methods=["POST"]),
-    Route("/admin/setores/{id:int}/excluir", excluir_setor, methods=["POST"]),
+    Route("/admin/setores/{id}/excluir", excluir_setor, methods=["POST"]),
     Route("/admin/auditoria", auditoria),
 ]

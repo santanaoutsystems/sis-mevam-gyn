@@ -507,7 +507,7 @@ def test_senha_provisoria_copiada_do_celular_funciona():
 # ---------------------------------------------------------------------------
 def _setor_id(nome):
     with db.engine().connect() as c:
-        return c.execute(select(db.departamentos.c.id).where(db.departamentos.c.nome == nome)).scalar()
+        return str(c.execute(select(db.departamentos.c.id).where(db.departamentos.c.nome == nome)).scalar())
 
 
 def test_secretaria_define_coordenador_e_setores():
@@ -580,3 +580,53 @@ def test_telefone_no_padrao_obrigatorio():
          pagina=f"/eventos/{eid}")
     with db.engine().connect() as c:
         assert c.execute(select(db.inscricoes)).first() is None
+
+
+def test_coordenador_entra_e_ve_seus_setores():
+    sec = logado("secretaria")
+    criar_evento(sec)
+    membro = criar("membro", email="naira@mevam.test")
+    post(sec, "/coordenacao/adicionar", {"usuario_id": membro["id"]}, pagina="/coordenacao")
+    post(sec, f"/coordenacao/{membro['id']}", {"setores": [_setor_id("Jovens"), _setor_id("Família")]}, pagina="/coordenacao")
+    c = novo_cliente()
+    assert entrar(c, "naira@mevam.test").status_code == 303
+    r = c.get("/inicio")
+    assert r.status_code == 200 and "Minha coordenação" in r.text and "Jovens" in r.text and "Família" in r.text
+    assert c.get("/eventos/novo").status_code == 200
+    assert 'checked' in sec.get("/coordenacao").text
+
+
+def test_bloqueio_por_inatividade(monkeypatch):
+    import time as _t
+    membro = logado("membro")
+    assert membro.get("/inicio").status_code == 200
+    agora = _t.time()
+    monkeypatch.setattr(seguranca.time, "time", lambda: agora + 31 * 60)
+    r = membro.get("/inicio", follow_redirects=False)
+    assert r.status_code == 303 and "expirou=1" in r.headers["location"]
+    assert "encerrado por falta de uso" in membro.get(r.headers["location"]).text
+    # Secretaria: limite menor (15 min)
+    monkeypatch.setattr(seguranca.time, "time", lambda: agora)
+    sec = logado("secretaria")
+    monkeypatch.setattr(seguranca.time, "time", lambda: agora + 16 * 60)
+    assert sec.get("/inicio", follow_redirects=False).status_code == 303
+    # Uso contínuo mantém o acesso
+    monkeypatch.setattr(seguranca.time, "time", lambda: agora)
+    coord = logado("coordenacao")
+    for minutos in (20, 40, 60):
+        monkeypatch.setattr(seguranca.time, "time", lambda m=minutos: agora + m * 60)
+        assert coord.get("/sessao/manter").status_code == 204
+
+
+def test_versao_visivel():
+    from app import config
+    assert f"versão {config.VERSAO}" in novo_cliente().get("/entrar").text
+
+
+def test_tela_de_setores_mostra_coordenadores():
+    adm = logado("admin")
+    criar_evento(adm)
+    coord = criar("coordenacao", email="lia@mevam.test")
+    post(adm, f"/coordenacao/{coord['id']}", {"setores": [_setor_id("Jovens")]}, pagina="/coordenacao")
+    html = adm.get("/admin/setores").text
+    assert "Pessoa Coordenacao" in html and "ninguém ainda" in html

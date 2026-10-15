@@ -24,7 +24,10 @@ async def entrar(request: Request):
     if request.method == "GET":
         if seguranca.usuario_atual(request):
             return ir("/inicio")
-        return render(request, "entrar.html", {"proximo": request.query_params.get("proximo", "")})
+        ctx = {"proximo": request.query_params.get("proximo", "")}
+        if request.query_params.get("expirou"):
+            ctx["aviso"] = "Seu acesso foi encerrado por falta de uso, para sua segurança. Entre novamente."
+        return render(request, "entrar.html", ctx)
 
     form = await request.form()
     if not await seguranca.conferir_csrf(request):
@@ -204,7 +207,15 @@ async def inicio(request: Request):
                                            "meus_setores": meus_setores})
 
 
+@seguranca.exigir()
+async def manter_sessao(request: Request):
+    """Chamado pelo navegador enquanto a pessoa usa a tela (digitando, rolando): mantém o acesso ativo."""
+    from starlette.responses import Response
+    return Response(status_code=204, headers={"Cache-Control": "no-store"})
+
+
 rotas = [
+    Route("/sessao/manter", manter_sessao),
     Route("/", raiz),
     Route("/entrar", entrar, methods=["GET", "POST"]),
     Route("/sair", sair, methods=["POST"]),

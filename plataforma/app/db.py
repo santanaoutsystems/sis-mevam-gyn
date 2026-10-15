@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
-    JSON, Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, MetaData,
+    JSON, Boolean, Column, cast, Date, DateTime, Float, ForeignKey, Integer, MetaData,
     String, Table, Text, UniqueConstraint, create_engine, func,
 )
 from sqlalchemy import text
@@ -155,7 +155,8 @@ membro_setores = Table(
     "membro_setores", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("membro_id", Integer, ForeignKey("membros.id", ondelete="CASCADE"), nullable=False),
-    Column("departamento_id", Integer, nullable=False),
+    # Texto: o id da tabela legada 'departamentos' pode ser número ou UUID no Supabase
+    Column("departamento_id", String, nullable=False),
     Column("funcao", String, default="Voluntário"),  # Líder | Voluntário | Apoio
     UniqueConstraint("membro_id", "departamento_id", name="uq_membro_setor"),
 )
@@ -165,7 +166,7 @@ usuario_setores = Table(
     "usuario_setores", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False),
-    Column("departamento_id", Integer, nullable=False),
+    Column("departamento_id", String, nullable=False),
     UniqueConstraint("usuario_id", "departamento_id", name="uq_usuario_setor"),
 )
 
@@ -180,6 +181,9 @@ auditoria = Table(
     Column("detalhes", Text),
     Column("ip", String),
 )
+
+# Id do setor sempre comparado como texto (funciona com id numérico ou UUID na tabela legada)
+DEP_ID = cast(departamentos.c.id, String)
 
 PERFIS = ("membro", "coordenacao", "secretaria", "admin")
 PERFIS_ROTULO = {"membro": "Membro", "coordenacao": "Coordenação", "secretaria": "Secretaria", "admin": "Adm"}
@@ -259,11 +263,12 @@ def aplicar_migracoes_aditivas() -> None:
     eng = engine()
     if eng.dialect.name != "postgresql":
         return
-    caminho = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes", "003_coordenacao.sql")
-    try:
-        with open(caminho, encoding="utf-8") as f:
-            sql = f.read()
-        with eng.begin() as c:
-            c.exec_driver_sql(sql)
-    except Exception:  # noqa: BLE001
-        logging.getLogger("mevam").exception("Falha ao aplicar a migração 003")
+    pasta = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes")
+    for nome in ("003_coordenacao.sql", "004_setor_texto.sql"):
+        try:
+            with open(os.path.join(pasta, nome), encoding="utf-8") as f:
+                sql = f.read()
+            with eng.begin() as c:
+                c.exec_driver_sql(sql)
+        except Exception:  # noqa: BLE001
+            logging.getLogger("mevam").exception("Falha ao aplicar a migração %s", nome)

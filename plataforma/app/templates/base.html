@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="/static/css/app.css">
   {% block cabeca %}{% endblock %}
 </head>
-<body>
+<body{% if usuario %} data-inatividade="{{ inatividade }}"{% endif %}>
 <a class="pular" href="#conteudo">Pular para o conteúdo</a>
 {% if usuario %}
   <header class="topo">
@@ -53,6 +53,7 @@
         </div>
       </details>
       {% endif %}
+      <span class="versao">versão {{ versao }}</span>
     </nav>
     <main class="conteudo" id="conteudo" tabindex="-1">
       {% for m in mensagens %}<div class="msg {{ m.tipo }}" role="status">{{ m.texto }}</div>{% endfor %}

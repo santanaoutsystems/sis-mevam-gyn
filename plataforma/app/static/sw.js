@@ -1,5 +1,5 @@
 /* Service worker mínimo: permite instalar o app (PWA) sem guardar dados pessoais em cache. */
-const CACHE = "mevam-estaticos-v6";
+const CACHE = "mevam-estaticos-v7";
 const ESTATICOS = ["/static/css/app.css", "/static/js/mascaras.js", "/static/js/tema.js", "/static/img/logo_round.jpg",
   "/static/fonts/plus-jakarta-sans-latin-wght-normal.woff2", "/static/fonts/outfit-latin-wght-normal.woff2"];
 self.addEventListener("install", (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ESTATICOS))));

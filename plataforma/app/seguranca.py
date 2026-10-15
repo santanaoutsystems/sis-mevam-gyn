@@ -122,6 +122,13 @@ def ip_cliente(request: Request) -> str:
     return request.client.host if request.client else ""
 
 
+def limite_inatividade(usuario: dict | None) -> int:
+    """Segundos sem uso até o acesso ser bloqueado."""
+    if usuario and usuario.get("perfil") in ("secretaria", "admin"):
+        return config.INATIVIDADE_MIN_GESTAO * 60
+    return config.INATIVIDADE_MIN_PADRAO * 60
+
+
 def usuario_atual(request: Request) -> dict | None:
     """Relê o usuário no banco a cada requisição: desativar ou trocar o perfil vale na hora."""
     if hasattr(request.state, "usuario"):
@@ -129,12 +136,22 @@ def usuario_atual(request: Request) -> dict | None:
     uid = request.session.get("uid")
     usuario = None
     if uid:
+        agora = time.time()
         inicio = request.session.get("inicio", 0)
-        if time.time() - inicio <= config.SESSAO_MAX_SEGUNDOS:
+        if agora - inicio <= config.SESSAO_MAX_SEGUNDOS:
             with db.engine().connect() as c:
                 row = c.execute(select(db.usuarios).where(db.usuarios.c.id == uid)).mappings().first()
             if row and row["ativo"] and row["senha_hash"] and request.session.get("ver") == row["senha_hash"][:12]:
                 usuario = dict(row)
+        if usuario is not None:
+            ultimo = request.session.get("ultimo", inicio)
+            if agora - ultimo > limite_inatividade(usuario):
+                usuario = None
+                request.state.expirou = True
+            elif agora - ultimo >= 30:  # renova sem regravar o cookie a cada clique
+                request.session["ultimo"] = int(agora)
+        else:
+            request.state.expirou = True
         if usuario is None:
             request.session.clear()
     request.state.usuario = usuario
@@ -147,6 +164,7 @@ def iniciar_sessao(request: Request, usuario: dict) -> None:
     request.session.update({
         "uid": usuario["id"],
         "inicio": int(time.time()),
+        "ultimo": int(time.time()),
         # Trocar a senha invalida as sessões antigas
         "ver": usuario["senha_hash"][:12],
         "csrf": csrf or secrets.token_urlsafe(32),
@@ -161,7 +179,8 @@ def exigir(*perfis: str):
             u = usuario_atual(request)
             if not u:
                 destino = request.url.path
-                return RedirectResponse(f"/entrar?proximo={destino}", status_code=303)
+                aviso = "&expirou=1" if getattr(request.state, "expirou", False) else ""
+                return RedirectResponse(f"/entrar?proximo={destino}{aviso}", status_code=303)
             if u["trocar_senha"] and request.url.path not in ("/trocar-senha", "/sair"):
                 return RedirectResponse("/trocar-senha", status_code=303)
             if perfis and u["perfil"] not in perfis:
