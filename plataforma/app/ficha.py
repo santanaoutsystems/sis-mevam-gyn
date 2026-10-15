@@ -49,13 +49,26 @@ def so_digitos(v: str) -> str:
     return re.sub(r"\D", "", v or "")
 
 
-def fmt_telefone(v: str) -> str:
+ERRO_TELEFONE = "Use o padrão (62) 9 9999-9999: DDD + 9 dígitos."
+
+
+def _digitos_telefone(v: str) -> str:
     d = so_digitos(v)
     if d.startswith("55") and len(d) in (12, 13):
         d = d[2:]
+    return d
+
+
+def telefone_valido(v: str) -> bool:
+    """Padrão obrigatório (##) # ####-####: DDD + 9 dígitos."""
+    return len(_digitos_telefone(v)) == 11
+
+
+def fmt_telefone(v: str) -> str:
+    d = _digitos_telefone(v)
     if len(d) == 11:
-        return f"({d[:2]}) {d[2:7]}-{d[7:]}"
-    if len(d) == 10:
+        return f"({d[:2]}) {d[2]} {d[3:7]}-{d[7:]}"
+    if len(d) == 10:  # registros antigos (fixo) continuam legíveis
         return f"({d[:2]}) {d[2:6]}-{d[6:]}"
     return (v or "").strip()
 
@@ -116,9 +129,10 @@ def validar(form, exigir_foto: bool = True, exigir_lgpd: bool = True) -> tuple[d
         if not _RE_EMAIL.match(dados["email"]):
             erros["email"] = "E-mail inválido."
 
-    wpp = so_digitos(dados["whatsapp"])
-    if dados["whatsapp"] and len(wpp) not in (10, 11, 12, 13):
-        erros["whatsapp"] = "WhatsApp inválido. Use DDD + número."
+    if dados["whatsapp"] and not telefone_valido(dados["whatsapp"]):
+        erros["whatsapp"] = ERRO_TELEFONE
+    if dados["telefone"] and not telefone_valido(dados["telefone"]):
+        erros["telefone"] = ERRO_TELEFONE
     dados["whatsapp"] = fmt_telefone(dados["whatsapp"])
     dados["telefone"] = fmt_telefone(dados["telefone"])
 

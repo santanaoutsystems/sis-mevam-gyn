@@ -357,6 +357,8 @@ def _ler_inscricao(form, base: float) -> tuple[dict, dict]:
     status = form.get("status_pagamento") if form.get("status_pagamento") in STATUS_PAGAMENTO else "Pendente"
     if forma == "A Receber":
         status = "Pendente"
+    if (form.get("telefone") or "").strip() and not ficha.telefone_valido(form.get("telefone")):
+        erros["telefone"] = ficha.ERRO_TELEFONE
     membro_id = form.get("membro_id")
     return {"nome": nome, "telefone": ficha.fmt_telefone(form.get("telefone") or ""), "tipo_ingresso": tipo,
             "forma_pagamento": forma, "status_pagamento": status, "valor_pago": _valor_ingresso(base, tipo),

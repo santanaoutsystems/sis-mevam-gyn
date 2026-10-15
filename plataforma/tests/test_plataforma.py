@@ -168,7 +168,7 @@ def test_ficha_publica_grava_normalizado_e_aguarda_analise():
     assert m["nome_completo"] == "Maria da Silva Souza"
     assert m["conjuge"] == "João Souza"
     assert m["data_nascimento"] == date(1985, 3, 15)
-    assert m["whatsapp"] == "(62) 99999-8888"
+    assert m["whatsapp"] == "(62) 9 9999-8888"
     assert m["cep"] == "74000-000"
     assert m["email"] == "maria@exemplo.com"
     assert m["status"] == "Aguardando Análise"
@@ -563,3 +563,20 @@ def test_rotulo_adm():
     adm = logado("admin")
     html = adm.get("/inicio").text
     assert ">Adm<" in html and "Administrador" not in html
+
+
+def test_telefone_no_padrao_obrigatorio():
+    from app import ficha
+    assert ficha.fmt_telefone("62988887777") == "(62) 9 8888-7777"
+    assert ficha.fmt_telefone("+55 62 98888-7777") == "(62) 9 8888-7777"
+    assert ficha.telefone_valido("(62) 9 8888-7777") and not ficha.telefone_valido("(62) 3333-4444")
+    r = enviar_ficha(novo_cliente(), whatsapp="6233334444")
+    assert r.status_code == 400 and "(62) 9 9999-9999" in r.text
+    r = enviar_ficha(novo_cliente(), telefone="12345")
+    assert r.status_code == 400 and "(62) 9 9999-9999" in r.text
+    sec = logado("secretaria")
+    eid = int(criar_evento(sec).headers["location"].split("/")[-1])
+    post(sec, f"/eventos/{eid}/inscricoes", {"nome": "Ana Souza", "telefone": "6233334444", "lgpd": "sim"},
+         pagina=f"/eventos/{eid}")
+    with db.engine().connect() as c:
+        assert c.execute(select(db.inscricoes)).first() is None

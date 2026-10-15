@@ -3,7 +3,7 @@
  * Use nos inputs:
  *   data-mascara="data"     -> dd/mm/aaaa (teclado numérico; as barras entram sozinhas)
  *   data-mascara="hora"     -> HH:MM
- *   data-mascara="telefone" -> (62) 99999-9999
+ *   data-mascara="telefone" -> (62) 9 9999-9999 (obrigatório: DDD + 9 dígitos)
  *   data-mascara="cep"      -> 00000-000 e busca o endereço (ViaCEP)
  *   data-mascara="moeda"    -> 1.234,56
  */
@@ -27,10 +27,11 @@
       let d = soDigitos(v);
       if (d.startsWith("55") && d.length > 11) d = d.slice(2);
       d = d.slice(0, 11);
+      // Padrão obrigatório: (##) # ####-####
       if (d.length <= 2) return d.length ? "(" + d : "";
-      if (d.length <= 6) return "(" + d.slice(0, 2) + ") " + d.slice(2);
-      if (d.length <= 10) return "(" + d.slice(0, 2) + ") " + d.slice(2, 6) + "-" + d.slice(6);
-      return "(" + d.slice(0, 2) + ") " + d.slice(2, 7) + "-" + d.slice(7);
+      if (d.length <= 3) return "(" + d.slice(0, 2) + ") " + d.slice(2);
+      if (d.length <= 7) return "(" + d.slice(0, 2) + ") " + d.slice(2, 3) + " " + d.slice(3);
+      return "(" + d.slice(0, 2) + ") " + d.slice(2, 3) + " " + d.slice(3, 7) + "-" + d.slice(7);
     },
     cep(v) {
       const d = soDigitos(v).slice(0, 8);
@@ -46,8 +47,8 @@
   };
 
   const teclados = { data: "numeric", hora: "numeric", telefone: "tel", cep: "numeric", moeda: "decimal" };
-  const tamanhos = { data: 10, hora: 5, telefone: 15, cep: 9 };
-  const exemplos = { data: "dd/mm/aaaa", hora: "HH:MM", telefone: "(62) 99999-9999", cep: "00000-000", moeda: "0,00" };
+  const tamanhos = { data: 10, hora: 5, telefone: 16, cep: 9 };
+  const exemplos = { data: "dd/mm/aaaa", hora: "HH:MM", telefone: "(62) 9 9999-9999", cep: "00000-000", moeda: "0,00" };
 
   function dataValida(texto) {
     const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(texto);
@@ -84,8 +85,15 @@
         el.setCustomValidity("Data inválida");
       }
       if (tipo === "cep" && soDigitos(el.value).length === 8) buscarCep(el);
+      if (tipo === "telefone" && el.value && soDigitos(el.value).length !== 11) {
+        el.setCustomValidity("Use o padrão (62) 9 9999-9999: DDD + 9 dígitos.");
+      }
     });
     el.addEventListener("blur", () => {
+      if (tipo === "telefone" && el.value && soDigitos(el.value).length !== 11) {
+        el.setCustomValidity("Use o padrão (62) 9 9999-9999: DDD + 9 dígitos.");
+        el.reportValidity();
+      }
       if (tipo === "data" && el.value && !dataValida(el.value)) {
         el.setCustomValidity("Data inválida. Use dd/mm/aaaa.");
         el.reportValidity();
