@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}{{ m.nome_completo }}{% endblock %}
+{% block cabeca %}<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>{% endblock %}
+{% block conteudo %}
+{% if senha_provisoria %}
+<div class="msg aviso"><b>Acesso criado para {{ senha_provisoria.nome }}.</b><br>
+  E-mail: <b>{{ senha_provisoria.email }}</b> · Senha provisória: <b style="font-family:monospace;font-size:1.1rem">{{ senha_provisoria.senha }}</b><br>
+  <span class="pequeno">Anote agora: ela não será exibida de novo. A pessoa troca a senha no primeiro acesso.</span></div>
+{% endif %}
+
+<div class="cartao" style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
+  <div class="foto3x4">{% if m.foto_3x4 %}<img src="{{ m.foto_3x4 }}" alt="Foto 3x4">{% else %}Sem foto{% endif %}</div>
+  <div style="flex:1;min-width:220px">
+    <span class="pequeno suave">Protocolo #{{ m.id }} · registrado em {{ m.data_registro|data_br }}</span>
+    <h1>{{ m.nome_completo }}</h1>
+    {{ ui.selo(m.status) }}
+    {% if m.credo_aceito %}<span class="selo ativo">✍️ Credo assinado em {{ m.data_assinatura|data_hora_br }}</span>{% endif %}
+    {% if setores %}<p class="pequeno">Setores: {% for s in setores %}<span class="selo validado">{{ s.nome }} · {{ s.funcao }}</span> {% endfor %}</p>{% endif %}
+    <div class="acoes">
+      <a class="botao secundario peq" href="/membros/{{ m.id }}/pdf" target="_blank">🖨️ PDF da ficha</a>
+      {% if not propria and m.status != 'Anonimizado (LGPD)' %}<a class="botao secundario peq" href="/membros/{{ m.id }}/editar">✏️ Editar</a>{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if not propria and m.status != 'Anonimizado (LGPD)' %}
+<div class="cartao">
+  <h2>Fluxo da Secretaria</h2>
+  {% if m.status == 'Aguardando Análise' %}
+    <p>Confira os dados e valide a ficha para liberar o envio da Confissão de Fé.</p>
+    <form method="post" action="/membros/{{ m.id }}/validar">{{ ui.csrf_input() }}<button class="botao sucesso">✅ Validar ficha</button></form>
+  {% elif not m.credo_aceito %}
+    <p>Envie o link pessoal do Credo para o membro assinar. {% if m.link_credo_enviado %}<span class="selo validado">Link já enviado</span>{% endif %}</p>
+    <div class="acoes">
+      <a class="botao sucesso" href="{{ whatsapp_credo(m) }}" target="_blank" rel="noopener">📲 Enviar pelo WhatsApp</a>
+      <button class="botao secundario" type="button" onclick="navigator.clipboard.writeText('{{ link_credo }}');this.textContent='Link copiado!'">🔗 Copiar link</button>
+      <button class="botao secundario" type="button" onclick="document.getElementById('qr').style.display='block'">▦ Mostrar QR Code</button>
+      <form method="post" action="/membros/{{ m.id }}/link-enviado">{{ ui.csrf_input() }}<button class="botao secundario">Marcar como enviado</button></form>
+    </div>
+    <div id="qr" style="display:none;margin-top:1rem;text-align:center"><div id="qrcode" style="display:inline-block;background:#fff;padding:10px;border-radius:10px"></div>
+      <p class="pequeno suave">Peça para o membro apontar a câmera do celular.</p></div>
+    <script>document.addEventListener("DOMContentLoaded",function(){ if(window.QRCode) new QRCode(document.getElementById("qrcode"),{text:"{{ link_credo }}",width:200,height:200,colorDark:"#022986"}); });</script>
+  {% else %}
+    <p>✅ Ficha validada por {{ m.validado_por or 'Secretaria' }} {% if m.data_validacao %}em {{ m.data_validacao|data_hora_br }}{% endif %} e Credo assinado.</p>
+  {% endif %}
+
+  <h3>Acesso ao sistema</h3>
+  {% if login %}
+    <p>Login: <b>{{ login.email }}</b> <span class="selo {{ login.perfil }}">{{ PERFIS_ROTULO[login.perfil] }}</span></p>
+  {% elif m.status != 'Aguardando Análise' %}
+    <form method="post" action="/membros/{{ m.id }}/criar-acesso">{{ ui.csrf_input() }}
+      <button class="botao secundario">🔐 Criar login de membro ({{ m.email or 'sem e-mail' }})</button></form>
+  {% else %}<p class="suave pequeno">Valide a ficha para criar o login.</p>{% endif %}
+
+  <h3>Setores</h3>
+  <form method="post" action="/membros/{{ m.id }}/setores">{{ ui.csrf_input() }}
+    {% set meus = setores|map(attribute='departamento_id')|list %}
+    <div class="grade c2">
+    {% for d in deptos %}
+      {% set funcao_atual = (setores|selectattr('departamento_id','equalto',d.id)|map(attribute='funcao')|first) or 'Voluntário' %}
+      <div class="opcoes" style="align-items:center">
+        <label style="flex:1"><input type="checkbox" name="departamento_id" value="{{ d.id }}" {{ 'checked' if d.id in meus }}> {{ d.nome }}</label>
+        <select name="funcao_{{ d.id }}" style="width:auto">{% for f in ['Voluntário','Líder','Apoio'] %}<option {{ 'selected' if f == funcao_atual }}>{{ f }}</option>{% endfor %}</select>
+      </div>
+    {% else %}<p class="suave">Nenhum setor cadastrado.</p>{% endfor %}
+    </div>
+    {% if deptos %}<button class="botao secundario peq" style="margin-top:.5rem">Salvar setores</button>{% endif %}
+  </form>
+
+  <h3>Status</h3>
+  <form method="post" action="/membros/{{ m.id }}/status" class="com-acao">{{ ui.csrf_input() }}
+    <select name="status">{% for s in ['Ativo','Inativo','Validado pela Secretaria','Aguardando Análise'] %}<option {{ 'selected' if s == m.status }}>{{ s }}</option>{% endfor %}</select>
+    <button class="botao secundario">Alterar</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="cartao">
+  <h2>1. Dados pessoais</h2>
+  <div class="grade c2 pequeno">
+    <div><b>Nascimento:</b> {{ m.data_nascimento|data_br or '-' }}</div>
+    <div><b>Naturalidade:</b> {{ m.naturalidade or '-' }}</div>
+    <div><b>Sexo:</b> {{ m.sexo or '-' }}</div>
+    <div><b>Estado civil:</b> {{ m.estado_civil or '-' }}{% if m.conjuge %} · {{ m.conjuge }}{% endif %}</div>
+    <div><b>Endereço:</b> {{ m.endereco or '-' }}, {{ m.bairro or '' }}</div>
+    <div><b>Cidade / CEP:</b> {{ m.cidade or '-' }} · {{ m.cep or '' }}</div>
+  </div>
+  {% if m.filhos %}<p class="pequeno"><b>Filhos:</b> {% for f in m.filhos %}{{ f.nome }} ({{ f.data_nascimento }}){{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+  <h2>2. Contato e profissão</h2>
+  <div class="grade c2 pequeno">
+    <div><b>WhatsApp:</b> {{ m.whatsapp or '-' }}</div><div><b>Telefone:</b> {{ m.telefone or '-' }}</div>
+    <div><b>E-mail:</b> {{ m.email or '-' }}</div><div><b>Escolaridade:</b> {{ m.escolaridade or '-' }}</div>
+    <div><b>Formação:</b> {{ m.formacao_academica or '-' }}</div><div><b>Profissão / empresa:</b> {{ m.profissao or '-' }} · {{ m.empresa or '' }}</div>
+  </div>
+  <h2>3. Vida cristã</h2>
+  <div class="grade c2 pequeno">
+    <div><b>Batizado:</b> {{ m.batizado or '-' }}{% if m.data_batismo %} em {{ m.data_batismo|data_br }}{% endif %}</div>
+    <div><b>Igreja anterior:</b> {{ m.onde_congregava if m.congregava_antes == 'Sim' else 'Não congregava' }}</div>
+    <div><b>Áreas ministeriais:</b> {{ m.area_ministerial or '-' }}</div>
+    <div><b>Batismo na família:</b> {{ m.interesse_batismo_familia or '-' }}</div>
+  </div>
+  {% if m.observacoes and not propria %}<p class="pequeno"><b>Observações:</b> {{ m.observacoes }}</p>{% endif %}
+  <p class="pequeno suave">LGPD: {{ m.status_lgpd }} · termo {{ m.lgpd_versao_termo or '-' }} · consentimento em {{ m.lgpd_data_consentimento|data_hora_br or '-' }}</p>
+</div>
+
+{% if not propria and m.status != 'Anonimizado (LGPD)' %}
+<details class="cartao">
+  <summary><b>Direitos do titular (LGPD)</b></summary>
+  <form method="post" action="/membros/{{ m.id }}/anonimizar" onsubmit="return confirm('Anonimizar remove os dados pessoais de forma definitiva. Continuar?')">
+    {{ ui.csrf_input() }}
+    <label for="motivo">Motivo da anonimização (pedido do titular, art. 18)</label>
+    <textarea id="motivo" name="motivo" required minlength="10"></textarea>
+    <button class="botao perigo" style="margin-top:.5rem">Anonimizar dados</button>
+  </form>
+  {% if pode('admin') %}
+  <form method="post" action="/membros/{{ m.id }}/excluir" style="margin-top:1rem" onsubmit="return confirm('Excluir a ficha definitivamente?')">
+    {{ ui.csrf_input() }}
+    <label for="confirmacao">Para excluir definitivamente, digite o protocolo <b>{{ m.id }}</b></label>
+    <div class="com-acao"><input id="confirmacao" name="confirmacao" inputmode="numeric" required><button class="botao perigo">Excluir</button></div>
+  </form>
+  {% endif %}
+</details>
+{% endif %}
+{% endblock %}

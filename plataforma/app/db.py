@@ -1,0 +1,199 @@
+"""
+Banco de dados único (Supabase Postgres em produção, SQLite em desenvolvimento/testes).
+
+Tabelas LEGADAS da Agenda (já existem no Supabase e têm dados reais):
+    departamentos, eventos, inscricoes, custos_evento, administradores, logs_auditoria
+    -> São usadas como estão. Só recebem colunas NOVAS e opcionais (nunca removemos nem
+       renomeamos colunas). Ver migracoes/001_unificacao.sql.
+
+Tabelas NOVAS da plataforma:
+    usuarios, membros, membro_setores, auditoria
+"""
+
+from __future__ import annotations
+
+from sqlalchemy import (
+    JSON, Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, MetaData,
+    String, Table, Text, UniqueConstraint, create_engine, func,
+)
+from sqlalchemy.engine import Engine
+
+from . import config
+
+metadata = MetaData()
+
+# ---------------------------------------------------------------------------
+# Tabelas legadas da Agenda (Supabase)
+# ---------------------------------------------------------------------------
+departamentos = Table(
+    "departamentos", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("nome", String, nullable=False),
+    Column("responsavel", String),
+)
+
+eventos = Table(
+    "eventos", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("titulo", String, nullable=False),
+    # Texto ISO "AAAA-MM-DDTHH:MM:SS" no horário de Goiânia (formato legado preservado)
+    Column("data_inicio", String, nullable=False),
+    Column("departamento", String),
+    Column("valor_inscricao", Float, default=0.0),
+    Column("limite_vagas", Integer, default=0),
+    Column("criado_por", String),
+    Column("historico_alteracoes", Text),
+    # Novas (opcionais)
+    Column("descricao", Text),
+    Column("local", String),
+)
+
+inscricoes = Table(
+    "inscricoes", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("evento_id", Integer, nullable=False),
+    Column("nome", String, nullable=False),
+    Column("telefone", String),
+    Column("forma_pagamento", String),
+    Column("status_pagamento", String),
+    Column("tipo_ingresso", String),
+    Column("valor_pago", Float, default=0.0),
+    Column("observacoes", Text),
+    # Nova (opcional): liga a inscrição ao cadastro do membro, quando houver
+    Column("membro_id", Integer),
+)
+
+custos_evento = Table(
+    "custos_evento", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("evento_id", Integer, nullable=False),
+    Column("descricao", String),
+    Column("valor", Float, default=0.0),
+)
+
+# Somente leitura: usado apenas pelo script de migração de logins.
+administradores = Table(
+    "administradores", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("nome", String),
+    Column("telefone", String),
+    Column("email", String),
+    Column("senha", String),
+)
+
+# ---------------------------------------------------------------------------
+# Tabelas novas
+# ---------------------------------------------------------------------------
+usuarios = Table(
+    "usuarios", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("nome", String, nullable=False),
+    Column("email", String, nullable=False, unique=True),
+    Column("senha_hash", String, nullable=False),
+    Column("salt", String, nullable=False),
+    Column("iteracoes", Integer, nullable=False, default=600_000),
+    Column("perfil", String, nullable=False, default="membro"),  # membro | secretaria | admin
+    Column("ativo", Boolean, nullable=False, default=True),
+    Column("trocar_senha", Boolean, nullable=False, default=False),
+    Column("membro_id", Integer, ForeignKey("membros.id", ondelete="SET NULL")),
+    Column("tentativas_falhas", Integer, nullable=False, default=0),
+    Column("bloqueado_ate", DateTime(timezone=True)),
+    Column("ultimo_login", DateTime(timezone=True)),
+    Column("origem", String),  # 'novo', 'agenda:administradores#ID', 'membros_app:usuarios#ID'
+    Column("criado_em", DateTime(timezone=True), server_default=func.now()),
+)
+
+membros = Table(
+    "membros", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("data_registro", Date),
+    # 1. Dados pessoais
+    Column("nome_completo", String, nullable=False),
+    Column("endereco", String), Column("bairro", String), Column("cidade", String), Column("cep", String),
+    Column("data_nascimento", Date), Column("naturalidade", String), Column("sexo", String),
+    Column("estado_civil", String), Column("conjuge", String),
+    Column("filhos", JSON),  # [{"nome":..., "data_nascimento":"dd/mm/aaaa"}]
+    # 2. Contato e profissão
+    Column("email", String), Column("telefone", String), Column("whatsapp", String),
+    Column("escolaridade", String), Column("formacao_academica", String),
+    Column("profissao", String), Column("empresa", String),
+    # 3. Vida cristã
+    Column("batizado", String), Column("data_batismo", Date),
+    Column("congregava_antes", String), Column("onde_congregava", String),
+    Column("area_ministerial", String), Column("interesse_batismo_familia", String),
+    # Credo e rúbrica digital
+    Column("credo_aceito", Boolean, nullable=False, default=False),
+    Column("nome_assinante", String),
+    Column("assinatura_rubrica", Text),
+    Column("data_assinatura", DateTime(timezone=True)),
+    Column("hash_autenticidade", String),
+    # Documento lido por OCR
+    Column("ocr_documento_nome", String),
+    # Foto 3x4 (data URL). Próxima fase: Supabase Storage.
+    Column("foto_3x4", Text),
+    # LGPD
+    Column("lgpd_consentimento", Boolean, nullable=False, default=False),
+    Column("lgpd_versao_termo", String),
+    Column("lgpd_data_consentimento", DateTime(timezone=True)),
+    Column("lgpd_ip_origem", String),
+    Column("status_lgpd", String, default="Consentimento Ativo"),
+    # Fluxo da secretaria
+    Column("status", String, nullable=False, default="Aguardando Análise"),
+    Column("validado_por", String),
+    Column("data_validacao", DateTime(timezone=True)),
+    Column("link_credo_enviado", Boolean, nullable=False, default=False),
+    Column("observacoes", Text),
+    Column("origem", String),  # 'novo' ou 'membros_app:membros#ID'
+    Column("criado_em", DateTime(timezone=True), server_default=func.now()),
+    Column("atualizado_em", DateTime(timezone=True), server_default=func.now()),
+)
+
+membro_setores = Table(
+    "membro_setores", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("membro_id", Integer, ForeignKey("membros.id", ondelete="CASCADE"), nullable=False),
+    Column("departamento_id", Integer, nullable=False),
+    Column("funcao", String, default="Voluntário"),  # Líder | Voluntário | Apoio
+    UniqueConstraint("membro_id", "departamento_id", name="uq_membro_setor"),
+)
+
+auditoria = Table(
+    "auditoria", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("criado_em", DateTime(timezone=True), server_default=func.now()),
+    Column("usuario_id", Integer),
+    Column("usuario_nome", String),
+    Column("acao", String, nullable=False),
+    Column("recurso", String),
+    Column("detalhes", Text),
+    Column("ip", String),
+)
+
+PERFIS = ("membro", "secretaria", "admin")
+PERFIS_ROTULO = {"membro": "Membro", "secretaria": "Secretaria", "admin": "Administrador"}
+
+STATUS_MEMBRO = ("Aguardando Análise", "Validado pela Secretaria", "Ativo", "Inativo", "Anonimizado (LGPD)")
+
+_engine: Engine | None = None
+
+
+def engine() -> Engine:
+    global _engine
+    if _engine is None:
+        kwargs = {"future": True, "pool_pre_ping": True}
+        if config.DATABASE_URL.startswith("sqlite"):
+            kwargs["connect_args"] = {"check_same_thread": False}
+        _engine = create_engine(config.DATABASE_URL, **kwargs)
+    return _engine
+
+
+def definir_engine(novo: Engine) -> None:
+    """Usado pelos testes."""
+    global _engine
+    _engine = novo
+
+
+def criar_tabelas_dev() -> None:
+    """Somente desenvolvimento/testes (SQLite). Em produção use migracoes/*.sql."""
+    if engine().dialect.name == "sqlite":
+        metadata.create_all(engine())

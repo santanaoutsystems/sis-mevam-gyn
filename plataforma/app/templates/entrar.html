@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#022986">
+  <title>Entrar · SIS MEVAM-GYN</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" href="/static/img/logo_round.jpg">
+  <link rel="apple-touch-icon" href="/static/img/icone-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body style="padding:0">
+<div class="tela-login">
+  <div class="cartao">
+    <img class="logo" src="/static/img/logo_round.jpg" alt="MEVAM GYN">
+    <h1 style="text-align:center">SIS MEVAM-GYN</h1>
+    <p class="suave" style="text-align:center;margin-top:0">Acesse com seu e-mail e senha</p>
+    {% for m in mensagens %}<div class="msg {{ m.tipo }}">{{ m.texto }}</div>{% endfor %}
+    {% if erro %}<div class="msg erro" role="alert">{{ erro }}</div>{% endif %}
+    <form method="post" action="/entrar" autocomplete="on">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="proximo" value="{{ proximo }}">
+      <label for="email">E-mail</label>
+      <input type="email" id="email" name="email" value="{{ email or '' }}" required autocomplete="username" autofocus>
+      <label for="senha">Senha</label>
+      <input type="password" id="senha" name="senha" required autocomplete="current-password">
+      <button class="botao bloco" type="submit" style="margin-top:1rem">Entrar</button>
+    </form>
+    <hr style="border:0;border-top:1px solid var(--borda);margin:1.25rem 0">
+    <p class="pequeno" style="text-align:center">Ainda não é membro? <a href="/ficha">Preencha sua ficha de membro</a>.<br>
+      Esqueceu a senha? Fale com a Secretaria.</p>
+    <p class="pequeno suave" style="text-align:center"><a href="/privacidade">Privacidade e LGPD</a></p>
+  </div>
+</div>
+</body>
+</html>

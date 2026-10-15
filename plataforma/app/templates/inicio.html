@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Início{% endblock %}
+{% block conteudo %}
+<h1>Graça e Paz, {{ usuario.nome.split(' ')[0] }}!</h1>
+<p class="suave" style="margin-top:0">Você está como <span class="selo {{ usuario.perfil }}">{{ PERFIS_ROTULO[usuario.perfil] }}</span></p>
+
+{% if pode('secretaria', 'admin') %}
+<div class="grade c2 c4" style="margin:1rem 0">
+  <a class="numero" href="/membros?status=Aguardando+Análise"><b>{{ numeros.aguardando }}</b>Fichas aguardando análise</a>
+  <a class="numero" href="/membros"><b>{{ numeros.membros }}</b>Membros cadastrados</a>
+  <a class="numero" href="/agenda"><b>{{ numeros.eventos_futuros }}</b>Eventos futuros</a>
+  {% if pode('admin') %}<a class="numero" href="/admin/usuarios"><b>{{ numeros.usuarios }}</b>Usuários com acesso</a>{% endif %}
+</div>
+<div class="acoes nao-imprimir">
+  <a class="botao" href="/eventos/novo">➕ Novo evento</a>
+  <a class="botao secundario" href="/ficha">📝 Nova ficha de membro</a>
+  <a class="botao secundario" href="/relatorios/periodo">🖨️ Relatório do período</a>
+  {% if pode('admin') %}
+    <a class="botao secundario" href="/admin/setores">🏢 Setores</a>
+    <a class="botao secundario" href="/admin/auditoria">🔍 Auditoria</a>
+  {% endif %}
+</div>
+{% else %}
+<div class="cartao">
+  <h2>Minha ficha</h2>
+  {% if minha_ficha %}
+    <p>Protocolo #{{ minha_ficha.id }} · {{ ui.selo(minha_ficha.status) }}</p>
+    <a class="botao" href="/minha-ficha">Ver minha ficha</a>
+  {% else %}
+    <p class="suave">Seu acesso ainda não está ligado a uma ficha de membro.</p>
+    <a class="botao" href="/ficha">Preencher minha ficha</a>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="cartao">
+  <h2>Próximos eventos</h2>
+  {% if proximos %}
+  <ul class="lista">
+    {% for e in proximos %}
+    <li><a class="linha" href="/eventos/{{ e.id }}">
+      <div style="text-align:center;min-width:52px"><b style="font-size:1.3rem;color:var(--destaque)">{{ e.quando.strftime('%d') if e.quando }}</b><br><span class="pequeno suave">{{ e.quando.strftime('%m/%Y') if e.quando }}</span></div>
+      <div><b>{{ e.titulo }}</b><br><span class="pequeno suave">{{ e.quando.strftime('%H:%M') if e.quando }} · {{ e.departamento or 'Geral' }}</span></div>
+    </a></li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="suave">Nenhum evento agendado.</p>{% endif %}
+  <a class="botao secundario" href="/agenda">Ver agenda completa</a>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#022986">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>{% block titulo %}SIS MEVAM-GYN{% endblock %} · MEVAM GYN</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" href="/static/img/logo_round.jpg">
+  <link rel="apple-touch-icon" href="/static/img/icone-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css">
+  {% block cabeca %}{% endblock %}
+</head>
+<body>
+{% if usuario %}
+  <header class="topo">
+    <img src="/static/img/logo_round.jpg" alt="MEVAM GYN">
+    <div class="nome-app">SIS MEVAM-GYN<small>Ministério MEVAM Goiânia</small></div>
+    <div class="usuario">
+      {{ usuario.nome.split(' ')[0] }}<br><span class="perfil">{{ PERFIS_ROTULO[usuario.perfil] }}</span>
+    </div>
+    <form method="post" action="/sair"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">Sair</button></form>
+  </header>
+  <div class="layout">
+    <nav class="nav" aria-label="Menu principal">
+      {% macro item(href, ic, rotulo, so_pc=False) %}
+        <a href="{{ href }}" class="{{ 'ativo' if caminho.startswith(href) else '' }}{{ ' so-pc' if so_pc else '' }}"><span class="ic">{{ ic }}</span>{{ rotulo }}</a>
+      {% endmacro %}
+      {{ item('/inicio', '🏠', 'Início') }}
+      {{ item('/agenda', '📅', 'Agenda') }}
+      {% if pode('secretaria', 'admin') %}{{ item('/membros', '👥', 'Membros') }}{% endif %}
+      {% if pode('admin') %}
+        {{ item('/admin/usuarios', '🔐', 'Usuários') }}
+        {{ item('/admin/setores', '🏢', 'Setores', True) }}
+        {{ item('/admin/auditoria', '🔍', 'Auditoria', True) }}
+      {% endif %}
+      {{ item('/minha-ficha', '🪪', 'Minha ficha', pode('secretaria', 'admin')) }}
+    </nav>
+    <main class="conteudo">
+      {% for m in mensagens %}<div class="msg {{ m.tipo }}" role="status">{{ m.texto }}</div>{% endfor %}
+      {% block conteudo %}{% endblock %}
+    </main>
+  </div>
+{% else %}
+  <header class="topo">
+    <img src="/static/img/logo_round.jpg" alt="MEVAM GYN">
+    <div class="nome-app">SIS MEVAM-GYN<small>Ministério MEVAM Goiânia</small></div>
+    <div class="usuario"><a href="/entrar" style="color:#fff">Entrar</a></div>
+  </header>
+  <main class="conteudo">
+    {% for m in mensagens %}<div class="msg {{ m.tipo }}" role="status">{{ m.texto }}</div>{% endfor %}
+    {% block publico %}{% endblock %}
+  </main>
+{% endif %}
+<style>@media (max-width: 899px) { .nav a.so-pc { display: none; } }</style>
+<script src="/static/js/mascaras.js" defer></script>
+<script src="/static/js/voz.js" defer></script>
+{% block scripts %}{% endblock %}
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(function(){});</script>
+</body>
+</html>

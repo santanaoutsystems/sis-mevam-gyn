@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }}{% endblock %}
+{% macro corpo() %}
+<div class="cartao" style="max-width:520px;margin:2rem auto;text-align:center">
+  <h1>{{ titulo }}</h1>
+  <p class="suave">{{ mensagem }}</p>
+  <a class="botao" href="{{ '/inicio' if usuario else '/' }}">Voltar</a>
+</div>
+{% endmacro %}
+{% block conteudo %}{{ corpo() }}{% endblock %}
+{% block publico %}{{ corpo() }}{% endblock %}
