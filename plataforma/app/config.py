@@ -48,7 +48,7 @@ if not SECRET_KEY:
 FUSO_HORARIO = "America/Sao_Paulo"
 URL_BASE = os.getenv("URL_BASE", "http://localhost:8000").rstrip("/")
 
-VERSAO = "2.4.2"
+VERSAO = "2.4.3"
 
 # Sessão
 # Sem uso por este tempo, o acesso é bloqueado e é preciso entrar de novo.
@@ -67,6 +67,11 @@ SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORTA = int(os.getenv("SMTP_PORTA", "587"))
 SMTP_USUARIO = os.getenv("SMTP_USUARIO", "")
 SMTP_SENHA = os.getenv("SMTP_SENHA", "").replace(" ", "")  # senha de app do Google vem com espaços
+# O plano gratuito do Render bloqueia as portas SMTP (25, 465 e 587). Com BREVO_API_KEY o envio vai
+# pela API HTTPS da Brevo, que funciona no Render. O remetente precisa estar verificado na Brevo.
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "").strip()
+EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE", "").strip() or SMTP_USUARIO
+EMAIL_NOME = os.getenv("EMAIL_NOME", "SIS MEVAM-GYN")
 
 # WhatsApp automático (opcional) pela Evolution API. Sem estas variáveis, o envio é manual (wa.me).
 EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "").rstrip("/")

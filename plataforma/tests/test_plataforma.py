@@ -984,3 +984,56 @@ def test_importar_planilha_sem_duplicar():
         assert c.execute(select(db.membros.c.cpf).where(db.membros.c.nome_completo == "Maria Antiga Lima")).scalar() == cpf
     assert nomes == ["Maria Antiga Lima", "Pedro Sem Dados"]
     assert "2 fichas criadas, 1 já existiam" in sec.get("/regularizacao").text
+
+
+def test_email_pela_brevo_quando_ha_chave(monkeypatch):
+    import json as _json
+    from app import config, envios
+    pedidos = []
+
+    class Resposta:
+        status = 201
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    def falso_urlopen(req, timeout=0):
+        pedidos.append(req)
+        return Resposta()
+    monkeypatch.setattr(config, "BREVO_API_KEY", "chave-teste")
+    monkeypatch.setattr(config, "EMAIL_REMETENTE", "secretaria@exemplo.com")
+    monkeypatch.setattr(config, "SMTP_USUARIO", "")
+    monkeypatch.setattr(config, "SMTP_SENHA", "")
+    monkeypatch.setattr(envios.urllib.request, "urlopen", falso_urlopen)
+    monkeypatch.setattr(envios.smtplib, "SMTP", lambda *a, **k: (_ for _ in ()).throw(AssertionError("não usar SMTP")))
+    assert envios.email_configurado() and envios.canal_email() == "Brevo (HTTPS)"
+    assert envios.enviar_email("ana@exemplo.com", "Assunto", "Corpo") is None
+    corpo = _json.loads(pedidos[0].data)
+    assert pedidos[0].full_url == "https://api.brevo.com/v3/smtp/email"
+    assert pedidos[0].get_header("Api-key") == "chave-teste"
+    assert corpo["sender"]["email"] == "secretaria@exemplo.com" and corpo["to"] == [{"email": "ana@exemplo.com"}]
+
+
+def test_email_de_teste_do_adm(monkeypatch):
+    from app import envios
+    enviados = []
+    monkeypatch.setattr(envios, "canal_email", lambda: "Brevo (HTTPS)")
+    monkeypatch.setattr(envios, "enviar_email", lambda d, a, t: enviados.append(d) or None)
+    adm = logado("admin")
+    assert "Enviar e-mail de teste para mim" in adm.get("/admin/auditoria").text
+    r = post(adm, "/admin/email-teste", {}, pagina="/admin/auditoria")
+    assert r.status_code == 303 and len(enviados) == 1
+    monkeypatch.setattr(envios, "enviar_email", lambda d, a, t: "OSError: [Errno 101] Network is unreachable")
+    post(adm, "/admin/email-teste", {}, pagina="/admin/auditoria")
+    with db.engine().connect() as c:
+        acoes = [r[0] for r in c.execute(select(db.auditoria.c.acao))]
+    assert "EMAIL_TESTE" in acoes and "FALHA_EMAIL" in acoes
+    assert logado("secretaria").post("/admin/email-teste", follow_redirects=False).status_code in (302, 303, 403)
+
+
+def test_alerta_de_evento_registra_falha_por_destinatario(monkeypatch):
+    from app import envios, notificacoes
+    monkeypatch.setattr(envios, "enviar_email", lambda d, a, t: "OSError: [Errno 101] Network is unreachable")
+    notificacoes._enviar("Assunto X", "corpo", ["a@exemplo.com", "b@exemplo.com"])
+    with db.engine().connect() as c:
+        det = c.execute(select(db.auditoria.c.detalhes).where(db.auditoria.c.acao == "FALHA_EMAIL")).scalar()
+    assert "a@exemplo.com" in det and "b@exemplo.com" in det

@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import smtplib
 import threading
-from email.mime.text import MIMEText
 
 from sqlalchemy import insert, select
 
-from . import config, datas, db
+from . import config, datas, db, envios
 
 ASSUNTOS = {
     "novo": "📅 SIS MEVAM-GYN: Novo evento - {titulo}",
@@ -24,23 +22,16 @@ def _destinatarios() -> list[str]:
 
 
 def _enviar(assunto: str, corpo: str, emails: list[str]) -> None:
-    try:
-        with smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORTA, timeout=20) as s:
-            s.starttls()
-            s.login(config.SMTP_USUARIO, config.SMTP_SENHA)
-            for destino in emails:
-                msg = MIMEText(corpo, "plain", "utf-8")
-                msg["Subject"], msg["From"], msg["To"] = assunto, config.SMTP_USUARIO, destino
-                s.sendmail(config.SMTP_USUARIO, [destino], msg.as_string())
-    except Exception as e:  # registra para a administração ver
+    falhas = [f"{d}: {erro}" for d in emails if (erro := envios.enviar_email(d, assunto, corpo))]
+    if falhas:  # registra para a administração ver
         with db.engine().begin() as c:
             c.execute(insert(db.auditoria).values(usuario_nome="Sistema", acao="FALHA_EMAIL",
-                                                  recurso=assunto[:200], detalhes=str(e)[:500],
+                                                  recurso=assunto[:200], detalhes="; ".join(falhas)[:500],
                                                   criado_em=datas.agora_utc()))
 
 
 def alerta_evento(tipo: str, evento: dict, autor: str, motivo: str = "") -> None:
-    if not (config.SMTP_USUARIO and config.SMTP_SENHA):
+    if not envios.email_configurado():
         return
     emails = _destinatarios()
     if not emails:

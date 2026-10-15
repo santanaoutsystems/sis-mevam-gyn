@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from starlette.requests import Request
 from starlette.routing import Route
 
-from .. import datas, db, ficha, seguranca
+from .. import config, datas, db, envios, ficha, seguranca
 from ..web import auditar, flash, ir, render
 
 
@@ -317,7 +317,25 @@ async def auditoria(request: Request):
                         func.lower(db.auditoria.c.recurso).like(termo), func.lower(db.auditoria.c.detalhes).like(termo)))
     with db.engine().connect() as c:
         linhas = [dict(r) for r in c.execute(q).mappings()]
-    return render(request, "admin/auditoria.html", {"linhas": linhas, "busca": busca})
+    return render(request, "admin/auditoria.html", {"linhas": linhas, "busca": busca,
+                                                    "canal_email": envios.canal_email()})
+
+
+@seguranca.exigir("admin")
+async def email_teste(request: Request):
+    """Envia um e-mail de teste para o próprio Adm e mostra o resultado na hora."""
+    eu = seguranca.usuario_atual(request)
+    erro = envios.enviar_email(eu["email"], "SIS MEVAM-GYN: e-mail de teste",
+                               f"Paz, {eu['nome']}!\n\nEste é um e-mail de teste do SIS MEVAM-GYN "
+                               f"(envio por {envios.canal_email()}).\nSe chegou, o envio automático está funcionando.\n\n"
+                               f"{config.URL_BASE}\n")
+    if erro:
+        auditar(request, "FALHA_EMAIL", "E-mail de teste", f"{eu['email']}: {erro}")
+        flash(request, f"O e-mail de teste falhou: {erro}", "erro")
+    else:
+        auditar(request, "EMAIL_TESTE", "E-mail de teste", f"Enviado para {eu['email']} por {envios.canal_email()}")
+        flash(request, f"E-mail de teste enviado para {eu['email']}. Confira a caixa de entrada e o spam.")
+    return ir("/admin/auditoria")
 
 
 rotas = [
@@ -334,4 +352,5 @@ rotas = [
     Route("/admin/setores/salvar", salvar_setor, methods=["POST"]),
     Route("/admin/setores/{id}/excluir", excluir_setor, methods=["POST"]),
     Route("/admin/auditoria", auditoria),
+    Route("/admin/email-teste", email_teste, methods=["POST"]),
 ]
