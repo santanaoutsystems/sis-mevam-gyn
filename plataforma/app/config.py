@@ -66,7 +66,7 @@ LOGIN_BLOQUEIO_MINUTOS = int(os.getenv("LOGIN_BLOQUEIO_MINUTOS", "15"))
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORTA = int(os.getenv("SMTP_PORTA", "587"))
 SMTP_USUARIO = os.getenv("SMTP_USUARIO", "")
-SMTP_SENHA = os.getenv("SMTP_SENHA", "")
+SMTP_SENHA = os.getenv("SMTP_SENHA", "").replace(" ", "")  # senha de app do Google vem com espaços
 
 # WhatsApp automático (opcional) pela Evolution API. Sem estas variáveis, o envio é manual (wa.me).
 EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "").rstrip("/")
