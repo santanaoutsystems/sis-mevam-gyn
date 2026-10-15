@@ -102,7 +102,8 @@ def _ler_form_evento(form) -> tuple[dict, dict]:
 def _conflito(c, data_iso: str, departamento: str, ignorar_id: int | None = None) -> dict | None:
     dia = data_iso[:10]
     q = select(db.eventos.c.id, db.eventos.c.titulo, db.eventos.c.departamento).where(
-        db.eventos.c.data_inicio >= f"{dia}T00:00:00", db.eventos.c.data_inicio <= f"{dia}T23:59:59")
+        db.eventos.c.data_inicio >= db.data_evento(f"{dia}T00:00:00"),
+        db.eventos.c.data_inicio <= db.data_evento(f"{dia}T23:59:59"))
     for r in c.execute(q).mappings():
         if r["id"] != ignorar_id and r["departamento"] != departamento:
             return dict(r)
@@ -124,7 +125,7 @@ async def agenda(request: Request):
     fim = f"{ano:04d}-{mes:02d}-{calendar.monthrange(ano, mes)[1]:02d}T23:59:59"
     with db.engine().connect() as c:
         eventos = [dict(r) for r in c.execute(select(db.eventos).where(
-            db.eventos.c.data_inicio >= inicio, db.eventos.c.data_inicio <= fim)
+            db.eventos.c.data_inicio >= db.data_evento(inicio), db.eventos.c.data_inicio <= db.data_evento(fim))
             .order_by(db.eventos.c.data_inicio)).mappings()]
         ocupadas = dict(c.execute(select(db.inscricoes.c.evento_id, func.count())
                                   .group_by(db.inscricoes.c.evento_id)).all())
@@ -190,7 +191,7 @@ async def novo(request: Request):
             return render(request, "eventos/form.html", {"deptos": deptos, "valores": dict(form), "erros": erros}, 400)
         carimbo = _carimbo(u)
         dados.update(criado_por=carimbo, historico_alteracoes=f"[{carimbo}] Criado")
-        eid = c.execute(insert(db.eventos).values(**dados)).inserted_primary_key[0]
+        eid = c.execute(insert(db.eventos).values(**{**dados, "data_inicio": db.data_evento(dados["data_inicio"])})).inserted_primary_key[0]
         auditar(request, "EVENTO_CRIADO", f"Evento #{eid}", dados["titulo"], conexao=c)
     notificacoes.alerta_evento("novo", dados, u["nome"])
     flash(request, "Evento salvo na agenda.")
@@ -229,7 +230,8 @@ async def editar(request: Request):
         carimbo = _carimbo(u)
         historico = f"{e.get('historico_alteracoes') or ''}\n[{carimbo}] Atualizado: {justificativa}".strip()
         c.execute(update(db.eventos).where(db.eventos.c.id == eid).values(
-            **dados, criado_por=carimbo, historico_alteracoes=historico))
+            **{**dados, "data_inicio": db.data_evento(dados["data_inicio"])},
+            criado_por=carimbo, historico_alteracoes=historico))
         auditar(request, "EVENTO_ATUALIZADO", f"Evento #{eid}", justificativa, conexao=c)
     notificacoes.alerta_evento("atualizado", dados, u["nome"], justificativa)
     flash(request, "Evento atualizado e registrado na auditoria.")
@@ -419,8 +421,8 @@ async def relatorio_periodo(request: Request):
     ate = datas.parse_data(request.query_params.get("ate")) or date(hoje.year, hoje.month, calendar.monthrange(hoje.year, hoje.month)[1])
     with db.engine().connect() as c:
         eventos = [dict(r) for r in c.execute(select(db.eventos).where(
-            db.eventos.c.data_inicio >= f"{de.isoformat()}T00:00:00",
-            db.eventos.c.data_inicio <= f"{ate.isoformat()}T23:59:59").order_by(db.eventos.c.data_inicio)).mappings()]
+            db.eventos.c.data_inicio >= db.data_evento(f"{de.isoformat()}T00:00:00"),
+            db.eventos.c.data_inicio <= db.data_evento(f"{ate.isoformat()}T23:59:59")).order_by(db.eventos.c.data_inicio)).mappings()]
     for e in eventos:
         e["quando"] = datas.parse_data_hora_local(e["data_inicio"])
     return render(request, "eventos/relatorio_periodo.html", {"eventos": eventos, "de": de, "ate": ate,

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Usuários e perfis{% endblock %}
+{% block conteudo %}
+<h1>Usuários e perfis de acesso</h1>
+<p class="suave" style="margin-top:0">O perfil define o que cada pessoa vê ao entrar: <span class="selo membro">Membro</span> vê a agenda e a própria ficha,
+  <span class="selo secretaria">Secretaria</span> gerencia membros, eventos e inscrições, <span class="selo admin">Administrador</span> também gerencia usuários, setores e auditoria.</p>
+{% if senha_provisoria %}
+<div class="msg aviso"><b>Senha provisória de {{ senha_provisoria.nome }}</b> ({{ senha_provisoria.email }}):
+  <b style="font-family:monospace;font-size:1.15rem">{{ senha_provisoria.senha }}</b><br>
+  <span class="pequeno">Anote agora e entregue pessoalmente ou por mensagem privada: ela não será exibida de novo. A troca é obrigatória no primeiro acesso.</span></div>
+{% endif %}
+<details class="cartao" {{ 'open' if not linhas }}>
+  <summary class="botao peq" style="display:inline-flex">➕ Novo usuário</summary>
+  <form method="post" action="/admin/usuarios/novo" class="grade c3" style="align-items:end;margin-top:.75rem">
+    {{ ui.csrf_input() }}
+    <div><label for="n_nome">Nome completo</label><input id="n_nome" name="nome" required></div>
+    <div><label for="n_email">E-mail</label><input id="n_email" name="email" type="email" required></div>
+    <div><label for="n_perfil">Perfil</label><select id="n_perfil" name="perfil">{% for p in PERFIS %}<option value="{{ p }}">{{ PERFIS_ROTULO[p] }}</option>{% endfor %}</select></div>
+    <button class="botao">Criar e gerar senha provisória</button>
+  </form>
+</details>
+<form method="get" class="cartao com-acao"><input type="search" name="q" value="{{ busca }}" placeholder="Buscar por nome ou e-mail"><button class="botao">Buscar</button></form>
+<div class="cartao">
+  <table class="tabela responsiva">
+    <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Último acesso</th><th>Ações</th></tr></thead>
+    <tbody>
+    {% for u in linhas %}
+      <tr>
+        <td data-rotulo="Nome"><b>{{ u.nome }}</b>{% if not u.ativo %} <span class="selo inativo">Desativado</span>{% endif %}
+          {% if u.membro_id %}<br><a class="pequeno" href="/membros/{{ u.membro_id }}">Ficha #{{ u.membro_id }}</a>{% endif %}</td>
+        <td data-rotulo="E-mail">{{ u.email }}</td>
+        <td data-rotulo="Perfil"><span class="selo {{ u.perfil }}">{{ PERFIS_ROTULO[u.perfil] }}</span></td>
+        <td data-rotulo="Último acesso">{{ u.ultimo_login|data_hora_br or 'Nunca' }}{% if u.trocar_senha %}<br><span class="pequeno suave">senha provisória</span>{% endif %}</td>
+        <td data-rotulo="">
+          <details><summary class="pequeno">Alterar</summary>
+            <form method="post" action="/admin/usuarios/{{ u.id }}">
+              {{ ui.csrf_input() }}
+              <select name="perfil">{% for p in PERFIS %}<option value="{{ p }}" {{ 'selected' if p == u.perfil }}>{{ PERFIS_ROTULO[p] }}</option>{% endfor %}</select>
+              <label class="check"><input type="checkbox" name="ativo" value="sim" {{ 'checked' if u.ativo }}> Acesso ativo</label>
+              <button class="botao peq">Salvar</button>
+            </form>
+            <form method="post" action="/admin/usuarios/{{ u.id }}/senha" style="margin-top:.4rem" onsubmit="return confirm('Gerar nova senha provisória para {{ u.nome }}?')">
+              {{ ui.csrf_input() }}<button class="botao secundario peq">🔑 Redefinir senha</button></form>
+          </details>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

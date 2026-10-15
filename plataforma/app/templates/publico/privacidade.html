@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titulo %}Privacidade e LGPD{% endblock %}
+{% macro corpo() %}
+<div class="cartao" style="max-width:820px;margin:0 auto">
+  <h1>Política de Privacidade (LGPD)</h1>
+  <p class="suave">Ministério MEVAM Goiânia · Lei 13.709/2018 · versão {{ 'v2.0-2026' }}</p>
+  <h2>Quais dados tratamos</h2>
+  <p>Dados da ficha de membro (identificação, contato, família, formação, vida cristã, foto 3x4 e assinatura), inscrições em eventos e registros de acesso ao sistema.</p>
+  <h2>Para quê</h2>
+  <p>Cadastro de membresia, cuidado pastoral, comunicação ministerial, organização de eventos e setores, controle financeiro de eventos e cumprimento de obrigações legais.</p>
+  <h2>Quem acessa</h2>
+  <p>Somente pessoas autorizadas: a Secretaria e a Administração da igreja. Cada membro acessa apenas a própria ficha. Todo acesso a dados pessoais fica registrado (quem, quando e de onde).</p>
+  <h2>Onde ficam guardados</h2>
+  <p>Em banco de dados com acesso protegido por senha e conexão criptografada. Não vendemos nem compartilhamos seus dados com terceiros para fins comerciais.</p>
+  <h2>Seus direitos</h2>
+  <p>Você pode pedir a qualquer momento: confirmação e acesso aos seus dados, correção, anonimização ou exclusão, e revogação do consentimento (art. 18 da LGPD). Procure a Secretaria do MEVAM GYN.</p>
+  <h2>Por quanto tempo</h2>
+  <p>Enquanto houver vínculo com a igreja ou pelo prazo exigido em lei. Depois disso, os dados são anonimizados ou excluídos.</p>
+</div>
+{% endmacro %}
+{% block conteudo %}{{ corpo() }}{% endblock %}
+{% block publico %}{{ corpo() }}{% endblock %}

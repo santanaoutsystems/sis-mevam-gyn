@@ -12,10 +12,13 @@ Tabelas NOVAS da plataforma:
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import (
     JSON, Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, MetaData,
     String, Table, Text, UniqueConstraint, create_engine, func,
 )
+from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from . import config
@@ -176,6 +179,40 @@ STATUS_MEMBRO = ("Aguardando Análise", "Validado pela Secretaria", "Ativo", "In
 
 _engine: Engine | None = None
 
+# A coluna legada eventos.data_inicio pode ser texto ISO ou timestamp no Supabase.
+# O tipo real é lido do banco na conexão e os valores são convertidos conforme ele.
+_DATA_EVENTO = {"modo": "texto"}  # texto | timestamp | timestamptz
+
+
+def _detectar_tipos(eng: Engine) -> None:
+    if eng.dialect.name != "postgresql":
+        return
+    with eng.connect() as c:
+        tipo = c.execute(text(
+            "select data_type from information_schema.columns "
+            "where table_schema='public' and table_name='eventos' and column_name='data_inicio'")).scalar()
+    if tipo and tipo.startswith("timestamp"):
+        com_fuso = "with time zone" in tipo and "without" not in tipo
+        _DATA_EVENTO["modo"] = "timestamptz" if com_fuso else "timestamp"
+        eventos.c.data_inicio.type = DateTime(timezone=com_fuso)
+    elif tipo == "date":
+        _DATA_EVENTO["modo"] = "date"
+        eventos.c.data_inicio.type = Date()
+
+
+def data_evento(iso: str):
+    """Converte 'AAAA-MM-DDTHH:MM:SS' (horário de Goiânia) para o tipo da coluna eventos.data_inicio."""
+    modo = _DATA_EVENTO["modo"]
+    if modo == "texto":
+        return iso
+    dt = datetime.fromisoformat(iso)
+    if modo == "date":
+        return dt.date()
+    if modo == "timestamptz":
+        from zoneinfo import ZoneInfo
+        return dt.replace(tzinfo=ZoneInfo(config.FUSO_HORARIO))
+    return dt
+
 
 def engine() -> Engine:
     global _engine
@@ -184,6 +221,7 @@ def engine() -> Engine:
         if config.DATABASE_URL.startswith("sqlite"):
             kwargs["connect_args"] = {"check_same_thread": False}
         _engine = create_engine(config.DATABASE_URL, **kwargs)
+        _detectar_tipos(_engine)
     return _engine
 
 

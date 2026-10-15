@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Setores{% endblock %}
+{% block conteudo %}
+<h1>Setores e departamentos</h1>
+<p class="suave" style="margin-top:0">Os mesmos departamentos da Agenda. Os membros são ligados aos setores na ficha de cada um.</p>
+<form method="post" action="/admin/setores/salvar" class="cartao grade c3" style="align-items:end">
+  {{ ui.csrf_input() }}
+  <div><label for="s_nome">Novo setor</label><input id="s_nome" name="nome" required></div>
+  <div><label for="s_resp">Responsável</label><input id="s_resp" name="responsavel"></div>
+  <button class="botao">➕ Adicionar</button>
+</form>
+<div class="cartao">
+  <ul class="lista">
+  {% for s in linhas %}
+    <li>
+      <form method="post" action="/admin/setores/salvar" class="grade c3" style="align-items:end">
+        {{ ui.csrf_input() }}<input type="hidden" name="id" value="{{ s.id }}">
+        <div><label>Setor ({{ s.qtd }} membro{{ 's' if s.qtd != 1 }})</label><input name="nome" value="{{ s.nome }}" required></div>
+        <div><label>Responsável</label><input name="responsavel" value="{{ s.responsavel or '' }}"></div>
+        <div class="acoes" style="margin:0"><button class="botao secundario peq">Salvar</button>
+          <button class="botao perigo peq" formaction="/admin/setores/{{ s.id }}/excluir" onclick="return confirm('Excluir o setor {{ s.nome }}?')">Excluir</button></div>
+      </form>
+    </li>
+  {% else %}<li class="suave">Nenhum setor cadastrado.</li>{% endfor %}
+  </ul>
+</div>
+{% endblock %}

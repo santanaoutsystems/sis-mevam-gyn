@@ -113,7 +113,8 @@ def fmt_data(valor) -> str:
 
 
 def fmt_data_hora(valor) -> str:
-    """Formata timestamp (UTC/aware ou naive local) como dd/mm/aaaa HH:MM em Goiânia."""
+    """Formata timestamp de sistema como dd/mm/aaaa HH:MM em Goiânia.
+    Timestamps sem fuso são tratados como UTC (é como o banco grava os registros de sistema)."""
     if valor is None or valor == "":
         return ""
     if isinstance(valor, str):
@@ -122,9 +123,9 @@ def fmt_data_hora(valor) -> str:
         except ValueError:
             return valor
     if isinstance(valor, datetime):
-        if valor.tzinfo is not None:
-            valor = valor.astimezone(TZ)
-        return valor.strftime("%d/%m/%Y %H:%M")
+        if valor.tzinfo is None:
+            valor = valor.replace(tzinfo=timezone.utc)
+        return valor.astimezone(TZ).strftime("%d/%m/%Y %H:%M")
     return fmt_data(valor)
 
 

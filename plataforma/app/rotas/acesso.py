@@ -125,7 +125,7 @@ async def raiz(request: Request):
 async def inicio(request: Request):
     """Painel inicial: cada perfil cai no seu conjunto de atalhos e números."""
     u = seguranca.usuario_atual(request)
-    hoje_iso = datas.hoje().isoformat()
+    hoje_iso = db.data_evento(f"{datas.hoje().isoformat()}T00:00:00")
     with db.engine().connect() as c:
         proximos = c.execute(
             select(db.eventos).where(db.eventos.c.data_inicio >= hoje_iso)

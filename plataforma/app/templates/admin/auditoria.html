@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block titulo %}Auditoria{% endblock %}
+{% block conteudo %}
+<h1>Trilha de auditoria</h1>
+<p class="suave" style="margin-top:0">Quem fez o quê, quando (horário de Goiânia) e de onde. Exibe os 300 registros mais recentes.</p>
+<form method="get" class="cartao com-acao"><input type="search" name="q" value="{{ busca }}" placeholder="Filtrar por ação, pessoa ou registro"><button class="botao">Filtrar</button></form>
+<div class="cartao">
+  <table class="tabela responsiva">
+    <thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Registro</th><th>Detalhes</th><th>IP</th></tr></thead>
+    <tbody>{% for l in linhas %}<tr>
+      <td data-rotulo="Quando">{{ l.criado_em|data_hora_br }}</td><td data-rotulo="Quem">{{ l.usuario_nome }}</td>
+      <td data-rotulo="Ação"><b>{{ l.acao }}</b></td><td data-rotulo="Registro">{{ l.recurso or '' }}</td>
+      <td data-rotulo="Detalhes" class="pequeno">{{ l.detalhes or '' }}</td><td data-rotulo="IP" class="pequeno">{{ l.ip or '' }}</td></tr>
+    {% else %}<tr><td colspan="6">Nenhum registro.</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% endblock %}

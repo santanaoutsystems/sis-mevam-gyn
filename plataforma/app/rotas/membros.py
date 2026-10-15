@@ -6,6 +6,7 @@ import csv
 import hashlib
 import io
 import json
+import os
 from html import escape
 from urllib.parse import quote
 
@@ -19,6 +20,9 @@ from ..pdf import gerar_pdf_membro
 from ..web import auditar, flash, ir, render
 
 ADMIN_SECRETARIA = ("secretaria", "admin")
+
+with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "credo.json"), encoding="utf-8") as _f:
+    CREDO = json.load(_f)
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +68,8 @@ def _para_pdf(m: dict) -> dict:
                        for f in (m.get("filhos") or [])]
     if m.get("batizado") == "Não":
         saida["data_batismo"] = "Não batizado"
-    return saida
+    # O gerador usa valores padrão quando a chave não existe; None/"" cairiam em erro
+    return {k: v for k, v in saida.items() if v not in (None, "")}
 
 
 def _pode_ver(usuario: dict, membro_id: int) -> bool:
@@ -387,7 +392,7 @@ async def credo(request: Request):
                       "mensagem": "Sua ficha ainda está em análise pela Secretaria."}, 403)
 
     if request.method == "GET":
-        return render(request, "publico/credo.html", {"m": m, "token": token})
+        return render(request, "publico/credo.html", {"m": m, "token": token, "credo": CREDO})
 
     if not await seguranca.conferir_csrf(request):
         flash(request, "A página expirou. Assine novamente.", "erro")
