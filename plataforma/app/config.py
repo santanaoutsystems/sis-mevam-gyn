@@ -48,7 +48,7 @@ if not SECRET_KEY:
 FUSO_HORARIO = "America/Sao_Paulo"
 URL_BASE = os.getenv("URL_BASE", "http://localhost:8000").rstrip("/")
 
-VERSAO = "2.4.3"
+VERSAO = "2.4.4"
 
 # Sessão
 # Sem uso por este tempo, o acesso é bloqueado e é preciso entrar de novo.
@@ -67,8 +67,12 @@ SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORTA = int(os.getenv("SMTP_PORTA", "587"))
 SMTP_USUARIO = os.getenv("SMTP_USUARIO", "")
 SMTP_SENHA = os.getenv("SMTP_SENHA", "").replace(" ", "")  # senha de app do Google vem com espaços
-# O plano gratuito do Render bloqueia as portas SMTP (25, 465 e 587). Com BREVO_API_KEY o envio vai
-# pela API HTTPS da Brevo, que funciona no Render. O remetente precisa estar verificado na Brevo.
+# O plano gratuito do Render bloqueia as portas SMTP (25, 465 e 587). Saídas por HTTPS, em ordem:
+# 1) EMAIL_GOOGLE_URL + EMAIL_GOOGLE_SEGREDO: script do Google Apps Script na conta Gmail da Secretaria
+#    (grátis, ~100 e-mails/dia); o código está em plataforma/docs/email_google_apps_script.js.
+# 2) BREVO_API_KEY: API da Brevo, com o remetente verificado lá.
+EMAIL_GOOGLE_URL = os.getenv("EMAIL_GOOGLE_URL", "").strip()
+EMAIL_GOOGLE_SEGREDO = os.getenv("EMAIL_GOOGLE_SEGREDO", "").strip()
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "").strip()
 EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE", "").strip() or SMTP_USUARIO
 EMAIL_NOME = os.getenv("EMAIL_NOME", "SIS MEVAM-GYN")

@@ -1037,3 +1037,31 @@ def test_alerta_de_evento_registra_falha_por_destinatario(monkeypatch):
     with db.engine().connect() as c:
         det = c.execute(select(db.auditoria.c.detalhes).where(db.auditoria.c.acao == "FALHA_EMAIL")).scalar()
     assert "a@exemplo.com" in det and "b@exemplo.com" in det
+
+
+def test_email_pelo_google_apps_script(monkeypatch):
+    import json as _json
+    from app import config, envios
+    pedidos, respostas = [], [b'{"ok": true}', b'{"ok": false, "erro": "segredo inv\\u00e1lido"}', b"<html>login</html>"]
+
+    class Resposta:
+        status = 200
+        def __init__(self, corpo): self.corpo = corpo
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return self.corpo
+
+    def falso_urlopen(req, timeout=0):
+        pedidos.append(req)
+        return Resposta(respostas[len(pedidos) - 1])
+    monkeypatch.setattr(config, "EMAIL_GOOGLE_URL", "https://script.google.com/macros/s/abc/exec")
+    monkeypatch.setattr(config, "EMAIL_GOOGLE_SEGREDO", "frase-secreta")
+    monkeypatch.setattr(config, "BREVO_API_KEY", "chave-que-nao-deve-ser-usada")
+    monkeypatch.setattr(envios.urllib.request, "urlopen", falso_urlopen)
+    assert envios.canal_email() == "Gmail (Google Apps Script)"
+    assert envios.enviar_email("ana@exemplo.com", "Assunto", "Corpo") is None
+    corpo = _json.loads(pedidos[0].data)
+    assert pedidos[0].full_url.startswith("https://script.google.com/")
+    assert corpo["segredo"] == "frase-secreta" and corpo["para"] == "ana@exemplo.com"
+    assert "segredo inválido" in envios.enviar_email("ana@exemplo.com", "A", "C")
+    assert "Qualquer pessoa" in envios.enviar_email("ana@exemplo.com", "A", "C")

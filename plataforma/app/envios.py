@@ -1,4 +1,4 @@
-"""Envio de mensagens individuais: e-mail (API da Brevo ou SMTP) e WhatsApp (Evolution API, opcional).
+"""Envio de mensagens individuais: e-mail (Google Apps Script, Brevo ou SMTP) e WhatsApp (Evolution API, opcional).
 
 Cada função devolve None quando deu certo ou o motivo da falha, para registrar na auditoria.
 """
@@ -15,12 +15,22 @@ from . import config
 from .ficha import so_digitos
 
 
+def _google_ok() -> bool:
+    return bool(config.EMAIL_GOOGLE_URL and config.EMAIL_GOOGLE_SEGREDO)
+
+
+def _brevo_ok() -> bool:
+    return bool(config.BREVO_API_KEY and config.EMAIL_REMETENTE)
+
+
 def email_configurado() -> bool:
-    return bool(config.BREVO_API_KEY and config.EMAIL_REMETENTE) or bool(config.SMTP_USUARIO and config.SMTP_SENHA)
+    return _google_ok() or _brevo_ok() or bool(config.SMTP_USUARIO and config.SMTP_SENHA)
 
 
 def canal_email() -> str:
-    if config.BREVO_API_KEY and config.EMAIL_REMETENTE:
+    if _google_ok():
+        return "Gmail (Google Apps Script)"
+    if _brevo_ok():
         return "Brevo (HTTPS)"
     return "SMTP" if email_configurado() else "não configurado"
 
@@ -35,6 +45,26 @@ def numero_whatsapp(v: str | None) -> str:
     if not d:
         return ""
     return d if d.startswith("55") and len(d) >= 12 else "55" + d
+
+
+def _email_google(destino: str, assunto: str, corpo: str) -> str | None:
+    req = urllib.request.Request(
+        config.EMAIL_GOOGLE_URL,
+        data=json.dumps({"segredo": config.EMAIL_GOOGLE_SEGREDO, "para": destino, "assunto": assunto,
+                         "corpo": corpo, "nome": config.EMAIL_NOME}).encode(),
+        headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:  # o Google responde com um redirecionamento
+            texto = r.read().decode("utf-8", "replace")
+        try:
+            resposta = json.loads(texto)
+        except ValueError:
+            return "resposta inesperada do Google (confira se o script foi implantado com acesso 'Qualquer pessoa')"
+        return None if resposta.get("ok") else f"Google: {resposta.get('erro') or 'falha sem detalhe'}"[:300]
+    except urllib.error.HTTPError as e:
+        return f"Google HTTP {e.code}"
+    except Exception as e:  # noqa: BLE001
+        return f"{type(e).__name__}: {e}"[:300]
 
 
 def _email_brevo(destino: str, assunto: str, corpo: str) -> str | None:
@@ -69,7 +99,9 @@ def _email_smtp(destino: str, assunto: str, corpo: str) -> str | None:
 def enviar_email(destino: str, assunto: str, corpo: str) -> str | None:
     if not email_configurado():
         return "e-mail não configurado"
-    if config.BREVO_API_KEY and config.EMAIL_REMETENTE:
+    if _google_ok():
+        return _email_google(destino, assunto, corpo)
+    if _brevo_ok():
         return _email_brevo(destino, assunto, corpo)
     return _email_smtp(destino, assunto, corpo)
 
