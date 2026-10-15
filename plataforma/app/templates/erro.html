@@ -4,6 +4,7 @@
 <div class="cartao" style="max-width:520px;margin:2rem auto;text-align:center">
   <h1>{{ titulo }}</h1>
   <p class="suave">{{ mensagem }}</p>
+  {% if detalhe %}<p class="pequeno" style="text-align:left;word-break:break-word;background:var(--fundo-suave, rgba(127,127,127,.12));padding:.6rem;border-radius:.5rem">Detalhe técnico (só o Adm vê): <code>{{ detalhe }}</code></p>{% endif %}
   <a class="botao" href="{{ '/inicio' if usuario else '/' }}">Voltar</a>
 </div>
 {% endmacro %}

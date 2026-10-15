@@ -7,6 +7,7 @@ Execução local:
 
 from __future__ import annotations
 
+import logging
 import os
 
 from starlette.applications import Starlette
@@ -19,7 +20,7 @@ from starlette.routing import Mount, Route
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.staticfiles import StaticFiles
 
-from . import config, datas, db
+from . import config, datas, db, seguranca
 from .rotas import acesso, admin, agenda, membros
 from .web import BASE, render
 
@@ -72,8 +73,16 @@ async def nao_encontrado(request: Request, exc):
 
 
 async def erro_interno(request: Request, exc):
-    return render(request, "erro.html", {"titulo": "Algo deu errado",
-                                         "mensagem": "Tente novamente. Se persistir, avise a Secretaria."}, status_code=500)
+    logging.getLogger("mevam").error("Erro em %s %s", request.method, request.url.path, exc_info=exc)
+    ctx = {"titulo": "Algo deu errado", "mensagem": "Tente novamente. Se persistir, avise a Secretaria."}
+    try:
+        u = seguranca.usuario_atual(request)
+    except Exception:
+        u = None
+    if u and u.get("perfil") == "admin":
+        # Só o Adm vê o detalhe técnico, para repassar ao suporte
+        ctx["detalhe"] = f"{type(exc).__name__}: {str(exc).splitlines()[0][:400] if str(exc) else ''}"
+    return render(request, "erro.html", ctx, status_code=500)
 
 
 rotas = [

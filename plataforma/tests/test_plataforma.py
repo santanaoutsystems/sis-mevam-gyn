@@ -661,3 +661,17 @@ def test_links_da_agenda_abrem_detalhe_e_edicao_para_coordenacao():
     html = coord.get(f"/eventos/{eid}").text
     assert "Ana Souza" not in html and "Lanche" not in html
     assert coord.get("/eventos/nao-existe").status_code == 404
+
+
+def test_erro_interno_mostra_detalhe_so_para_adm(monkeypatch):
+    from app.rotas import agenda as rotas_agenda
+
+    def quebra(*a, **k):
+        raise ValueError("falha simulada")
+    adm, sec = logado("admin"), logado("secretaria")
+    monkeypatch.setattr(rotas_agenda, "_evento", quebra)
+    for cliente, ve in ((adm, True), (sec, False)):
+        cliente._transport.raise_server_exceptions = False
+        r = cliente.get("/eventos/abc")
+        assert r.status_code == 500 and "Algo deu errado" in r.text
+        assert ("ValueError: falha simulada" in r.text) is ve
