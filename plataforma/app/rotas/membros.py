@@ -76,21 +76,51 @@ def _pode_ver(usuario: dict, membro_id: int) -> bool:
     return usuario["perfil"] in ADMIN_SECRETARIA or usuario.get("membro_id") == membro_id
 
 
+def _login_da_ficha(c, membro_id) -> bool:
+    return membro_id is not None and c.execute(
+        select(db.usuarios.c.id).where(db.usuarios.c.membro_id == membro_id)).first() is not None
+
+
 def _cpf_em_uso(c, cpf: str | None, membro_id=None, usuario_id=None) -> bool:
-    """CPF já pertence a outra ficha ou a outro login (que não seja da mesma pessoa)?"""
+    """CPF já pertence a outra pessoa?
+
+    Ficha sem login e login sem ficha com o mesmo CPF são a mesma pessoa (ex.: a Secretaria informou o CPF
+    em "Meu CPF" e depois cadastrou a própria ficha): não é conflito; `_ligar_pelo_cpf` faz a ligação.
+    """
     if not cpf:
         return False
+    sem_ficha = usuario_id is not None and membro_id is None  # login sem ficha informando o próprio CPF
     q = select(db.membros.c.id).where(db.membros.c.cpf == cpf)
     if membro_id is not None:
         q = q.where(db.membros.c.id != membro_id)
-    if c.execute(q).first():
-        return True
-    q = select(db.usuarios.c.id).where(db.usuarios.c.cpf == cpf)
+    for (outra,) in c.execute(q):
+        if not (sem_ficha and not _login_da_ficha(c, outra)):
+            return True
+    q = select(db.usuarios.c.id, db.usuarios.c.membro_id).where(db.usuarios.c.cpf == cpf)
     if usuario_id is not None:
         q = q.where(db.usuarios.c.id != usuario_id)
-    if membro_id is not None:
-        q = q.where(or_(db.usuarios.c.membro_id.is_(None), db.usuarios.c.membro_id != membro_id))
-    return c.execute(q).first() is not None
+    ficha_tem_login = _login_da_ficha(c, membro_id)
+    for _uid, uid_membro in c.execute(q):
+        if membro_id is not None and uid_membro == membro_id:
+            continue  # o login desta mesma ficha
+        if uid_membro is None and not sem_ficha and not ficha_tem_login:
+            continue  # login sem ficha da mesma pessoa: será ligado a esta ficha
+        return True
+    return False
+
+
+def _ligar_pelo_cpf(c, cpf: str | None, membro_id=None, usuario_id=None) -> None:
+    """Liga ficha e login da mesma pessoa (mesmo CPF) quando um dos dois ainda está solto."""
+    if not cpf:
+        return
+    if membro_id is not None and not _login_da_ficha(c, membro_id):
+        c.execute(update(db.usuarios).where(db.usuarios.c.cpf == cpf, db.usuarios.c.membro_id.is_(None))
+                  .values(membro_id=membro_id))
+    elif usuario_id is not None and membro_id is None:
+        for (mid,) in c.execute(select(db.membros.c.id).where(db.membros.c.cpf == cpf)).all():
+            if not _login_da_ficha(c, mid):
+                c.execute(update(db.usuarios).where(db.usuarios.c.id == usuario_id).values(membro_id=mid))
+                break
 
 
 ERRO_CPF_REPETIDO = "Este CPF já está em outro cadastro. Se for o seu, fale com a Secretaria."
@@ -153,6 +183,7 @@ async def ficha_publica(request: Request):
         # Liga a ficha ao login só quando é a própria pessoa (mesmo e-mail); a Secretaria pode cadastrar várias fichas seguidas
         if usuario and not usuario["membro_id"] and (dados.get("email") or "").lower() == (usuario.get("email") or "").lower():
             c.execute(update(db.usuarios).where(db.usuarios.c.id == usuario["id"]).values(membro_id=novo_id, cpf=dados["cpf"]))
+        _ligar_pelo_cpf(c, dados["cpf"], membro_id=novo_id)
         auditar(request, "CADASTRO_MEMBRO", f"Membro #{novo_id}", "Pré-cadastro enviado para análise", conexao=c)
 
     request.session["protocolo"] = novo_id
@@ -202,6 +233,8 @@ async def meu_cpf(request: Request):
             return render(request, "membros/meu_cpf.html",
                           {"atual": None, "valores": {"cpf": form.get("cpf") or ""}, "erros": {"cpf": erro}}, 400)
         c.execute(update(db.usuarios).where(db.usuarios.c.id == u["id"]).values(cpf=cpf))
+        if not m:
+            _ligar_pelo_cpf(c, cpf, usuario_id=u["id"])
         if m and not m.get("cpf"):
             c.execute(update(db.membros).where(db.membros.c.id == m["id"]).values(cpf=cpf, atualizado_em=datas.agora_utc()))
         auditar(request, "CPF_INFORMADO", f"Usuário #{u['id']}" + (f" / Membro #{m['id']}" if m else ""), conexao=c)
@@ -286,6 +319,7 @@ async def editar(request: Request):
         c.execute(update(db.membros).where(db.membros.c.id == mid).values(**dados, atualizado_em=datas.agora_utc()))
         if "cpf" in alterados:  # o login da mesma pessoa acompanha o CPF da ficha
             c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == mid).values(cpf=dados["cpf"]))
+        _ligar_pelo_cpf(c, dados["cpf"], membro_id=mid)
         auditar(request, "EDICAO_FICHA", f"Membro #{mid}", "Campos: " + ", ".join(alterados), conexao=c)
     flash(request, "Ficha atualizada.")
     return ir(f"/membros/{mid}")

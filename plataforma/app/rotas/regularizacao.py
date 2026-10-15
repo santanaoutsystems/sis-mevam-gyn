@@ -23,7 +23,7 @@ from starlette.routing import Route
 
 from .. import config, datas, db, envios, ficha, seguranca
 from ..web import auditar, flash, ir, render
-from .membros import ERRO_CPF_REPETIDO, _carregar, _contexto_form, _cpf_em_uso, _valores_de
+from .membros import ERRO_CPF_REPETIDO, _carregar, _contexto_form, _cpf_em_uso, _ligar_pelo_cpf, _valores_de
 
 ADMIN_SECRETARIA = ("secretaria", "admin")
 ORIGEM_IMPRESSA = "ficha_impressa"  # membros.origem é único (exceto 'novo'): cada ficha leva um sufixo
@@ -265,6 +265,7 @@ async def nova(request: Request):
             ficha_escaneada=escaneada, ficha_escaneada_em=agora if escaneada else None,
             ficha_escaneada_por=u["nome"] if escaneada else None, criado_em=agora, atualizado_em=agora,
         )).inserted_primary_key[0]
+        _ligar_pelo_cpf(c, cpf or None, membro_id=mid)
         auditar(request, "CADASTRO_FICHA_IMPRESSA", f"Membro #{mid}",
                 "Com ficha escaneada" if escaneada else "Sem escaneamento", conexao=c)
     flash(request, f"Ficha antiga de {nome} cadastrada (protocolo #{mid}).")
@@ -542,6 +543,7 @@ async def atualizar(request: Request):
             status_lgpd="Consentimento Ativo", atualizado_em=agora))
         c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == m["id"], db.usuarios.c.cpf.is_(None))
                   .values(cpf=dados["cpf"]))
+        _ligar_pelo_cpf(c, dados["cpf"], membro_id=m["id"])
         c.execute(update(db.regularizacoes).where(db.regularizacoes.c.id == reg["id"]).values(concluido_em=agora))
         c.execute(update(db.regularizacoes).where(
             db.regularizacoes.c.membro_id == m["id"], db.regularizacoes.c.id != reg["id"],

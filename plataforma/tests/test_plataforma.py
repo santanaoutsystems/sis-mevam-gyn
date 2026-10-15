@@ -763,6 +763,36 @@ def test_quem_ja_tem_cadastro_informa_o_proprio_cpf():
     assert post(sec, "/meu-cpf", {"cpf": gerar_cpf(987654321)}, pagina="/meu-cpf").status_code == 303
 
 
+def test_cpf_do_proprio_login_nao_bloqueia_a_ficha_da_mesma_pessoa():
+    # Secretaria informou o CPF em "Meu CPF" (login sem ficha) e depois a ficha dela foi cadastrada sem CPF
+    sec = logado("secretaria", email="ale@exemplo.com")
+    cpf = gerar_cpf(333444555)
+    assert post(sec, "/meu-cpf", {"cpf": cpf}, pagina="/meu-cpf").status_code == 303
+    with db.engine().begin() as c:
+        mid = c.execute(insert(db.membros).values(nome_completo="Alessandra Teste", status="Ativo", filhos=[])).inserted_primary_key[0]
+    m = sec.get(f"/membros/{mid}/editar").text
+    dados = {**FICHA_OK, "nome_completo": "Alessandra Teste", "cpf": cpf, "csrf": csrf_de(m)}
+    dados.pop("foto_3x4")
+    r = sec.post(f"/membros/{mid}/editar", data=dados, follow_redirects=False)
+    assert r.status_code == 303, r.text
+    with db.engine().connect() as c:
+        assert c.execute(select(db.membros.c.cpf).where(db.membros.c.id == mid)).scalar() == cpf
+        assert c.execute(select(db.usuarios.c.membro_id).where(db.usuarios.c.email == "ale@exemplo.com")).scalar() == mid
+    # Outra ficha com o mesmo CPF continua recusada
+    r = enviar_ficha(novo_cliente(), cpf=cpf, email="outra@exemplo.com")
+    assert r.status_code == 400 and "já está em outro cadastro" in r.text
+
+
+def test_login_sem_ficha_informa_cpf_de_ficha_sem_login_e_e_ligado():
+    with db.engine().begin() as c:
+        cpf = gerar_cpf(444555666)
+        mid = c.execute(insert(db.membros).values(nome_completo="Pessoa Secretaria", status="Ativo", cpf=cpf, filhos=[])).inserted_primary_key[0]
+    sec = logado("secretaria", email="sec3@exemplo.com")
+    assert post(sec, "/meu-cpf", {"cpf": cpf}, pagina="/meu-cpf").status_code == 303
+    with db.engine().connect() as c:
+        assert c.execute(select(db.usuarios.c.membro_id).where(db.usuarios.c.email == "sec3@exemplo.com")).scalar() == mid
+
+
 def test_anonimizar_apaga_o_cpf():
     enviar_ficha(novo_cliente(), cpf="529.982.247-25")
     mid = membro_id_mais_recente()
