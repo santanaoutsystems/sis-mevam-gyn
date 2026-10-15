@@ -3,7 +3,7 @@
 {% block publico %}
 <div class="cartao" style="max-width:480px;margin:0 auto">
   <h1>Primeiro acesso</h1>
-  <p class="suave">Crie o Administrador do sistema. Esta página some assim que ele for criado.</p>
+  <p class="suave">Crie o Adm do sistema. Esta página some assim que ele for criado.</p>
   {% if erro %}<div class="msg erro" role="alert">{{ erro }}</div>{% endif %}
   <form method="post" autocomplete="off">
     <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -19,7 +19,7 @@
     <p class="pequeno suave">Mínimo de 8 caracteres, com letras maiúsculas, minúsculas e número.</p>
     <label for="confirma">Confirme a senha</label>
     <input type="password" id="confirma" name="confirma" required minlength="8" autocomplete="new-password">
-    <button class="botao bloco" type="submit" style="margin-top:1rem">Criar Administrador</button>
+    <button class="botao bloco" type="submit" style="margin-top:1rem">Criar Adm</button>
   </form>
 </div>
 {% endblock %}

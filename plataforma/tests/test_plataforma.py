@@ -445,7 +445,7 @@ def test_primeiro_acesso_cria_admin_uma_unica_vez(monkeypatch):
     assert c.post("/primeiro-acesso", data={**dados, "codigo": "errado"}).status_code == 400
     r = c.post("/primeiro-acesso", data={**dados, "codigo": "codigo-secreto-123"}, follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"] == "/inicio"
-    assert "Administrador" in c.get("/inicio").text
+    assert ">Adm<" in c.get("/inicio").text
     with db.engine().connect() as cx:
         u = cx.execute(select(db.usuarios).where(db.usuarios.c.email == "ricardo@mevam.test")).mappings().one()
     assert u["perfil"] == "admin" and not u["trocar_senha"]
@@ -463,3 +463,66 @@ def test_senha_provisoria_copiada_do_celular_funciona():
     # Senha definitiva não ganha essa tolerância
     criar("membro", email="joao@mevam.test")
     assert entrar(novo_cliente(), "joao@mevam.test", SENHA + " ").status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Coordenação: gerencia eventos só dos setores atribuídos
+# ---------------------------------------------------------------------------
+def _setor_id(nome):
+    with db.engine().connect() as c:
+        return c.execute(select(db.departamentos.c.id).where(db.departamentos.c.nome == nome)).scalar()
+
+
+def test_secretaria_define_coordenador_e_setores():
+    sec = logado("secretaria")
+    criar_evento(sec)  # cria setores Família e Jovens
+    membro = criar("membro", email="coord@mevam.test")
+    r = post(sec, "/coordenacao/adicionar", {"usuario_id": membro["id"]}, pagina="/coordenacao")
+    assert r.status_code == 303
+    post(sec, f"/coordenacao/{membro['id']}", {"setores": [_setor_id("Jovens")]}, pagina="/coordenacao")
+    with db.engine().connect() as c:
+        assert c.execute(select(db.usuarios.c.perfil).where(db.usuarios.c.id == membro["id"])).scalar() == "coordenacao"
+        assert c.execute(select(db.usuario_setores.c.departamento_id)
+                         .where(db.usuario_setores.c.usuario_id == membro["id"])).scalars().all() == [_setor_id("Jovens")]
+    assert "Coordenação" in sec.get("/coordenacao").text
+
+
+def test_coordenacao_gerencia_somente_os_proprios_setores():
+    sec = logado("secretaria")
+    eid_familia = int(criar_evento(sec).headers["location"].split("/")[-1])
+    coord = logado("coordenacao")
+    # Sem setor atribuído: não cria evento
+    assert coord.get("/eventos/novo").status_code == 403
+    with db.engine().begin() as c:
+        c.execute(insert(db.usuario_setores).values(usuario_id=coord.usuario["id"], departamento_id=_setor_id("Jovens")))
+    pagina = coord.get("/eventos/novo")
+    assert pagina.status_code == 200 and "Jovens" in pagina.text and "Família" not in pagina.text
+    # Cria evento no próprio setor
+    r = post(coord, "/eventos/novo", {**EVENTO, "titulo": "Culto Jovem", "departamento": "Jovens",
+                                      "data": "20/11/2026"}, pagina="/eventos/novo")
+    assert r.status_code == 303
+    eid_jovens = int(r.headers["location"].split("/")[-1])
+    # Não cria em setor alheio
+    r = post(coord, "/eventos/novo", {**EVENTO, "titulo": "Outro", "data": "21/11/2026"}, pagina="/eventos/novo")
+    assert r.status_code == 400 and "setores que você coordena" in r.text
+    # Edita o próprio, não o alheio
+    assert coord.get(f"/eventos/{eid_jovens}/editar").status_code == 200
+    assert coord.get(f"/eventos/{eid_familia}/editar").status_code == 403
+    r = post(coord, f"/eventos/{eid_familia}/excluir", {"justificativa": "teste de exclusão"},
+             pagina=f"/eventos/{eid_jovens}")
+    assert r.status_code == 403
+    assert "Editar" not in coord.get(f"/eventos/{eid_familia}").text
+    # Exclui o próprio
+    r = post(coord, f"/eventos/{eid_jovens}/excluir", {"justificativa": "cancelado pela coordenação"},
+             pagina=f"/eventos/{eid_jovens}")
+    assert r.status_code == 303
+    # Não acessa fichas de membros nem administração
+    assert coord.get("/membros").status_code == 403
+    assert coord.get("/coordenacao").status_code == 403
+    assert coord.get("/admin/usuarios").status_code == 403
+
+
+def test_rotulo_adm():
+    adm = logado("admin")
+    html = adm.get("/inicio").text
+    assert ">Adm<" in html and "Administrador" not in html

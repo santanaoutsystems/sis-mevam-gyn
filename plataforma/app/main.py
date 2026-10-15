@@ -94,6 +94,7 @@ middleware = [
 
 def criar_app() -> Starlette:
     db.criar_tabelas_dev()
+    db.aplicar_migracoes_aditivas()
     return Starlette(routes=rotas, middleware=middleware,
                      exception_handlers={404: nao_encontrado, 500: erro_interno})
 

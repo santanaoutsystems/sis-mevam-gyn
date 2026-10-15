@@ -12,7 +12,7 @@ from starlette.routing import Route
 from .. import datas, db, ficha, notificacoes, seguranca
 from ..web import auditar, flash, ir, render
 
-GESTAO = ("secretaria", "admin")
+GESTAO = db.PERFIS_AGENDA
 TIPOS_INGRESSO = ["Inteira", "Meia (5-11 anos)", "Cortesia/Isento"]
 FORMAS_PAGAMENTO = ["Pix", "Cartão de Crédito", "Cartão de Débito", "Dinheiro", "A Receber"]
 STATUS_PAGAMENTO = ["Confirmado", "Pendente"]
@@ -53,6 +53,28 @@ def _evento(c, eid: int) -> dict | None:
 
 def _deptos(c) -> list[dict]:
     return [dict(r) for r in c.execute(select(db.departamentos).order_by(db.departamentos.c.nome)).mappings()]
+
+
+def escopo_setores(c, usuario: dict) -> set[str] | None:
+    """Setores (nomes) que o usuário pode gerenciar. None = todos (Secretaria e Adm)."""
+    if usuario["perfil"] != "coordenacao":
+        return None
+    return set(c.execute(select(db.departamentos.c.nome).select_from(
+        db.usuario_setores.join(db.departamentos, db.departamentos.c.id == db.usuario_setores.c.departamento_id))
+        .where(db.usuario_setores.c.usuario_id == usuario["id"])).scalars())
+
+
+def _pode_gerir(escopo: set[str] | None, evento: dict | None) -> bool:
+    return bool(evento) and (escopo is None or evento.get("departamento") in escopo)
+
+
+def _fora_do_setor(request: Request):
+    return render(request, "erro.html", {"titulo": "Acesso restrito",
+                  "mensagem": "Este evento é de um setor que não está sob a sua coordenação."}, 403)
+
+
+def _deptos_permitidos(c, escopo: set[str] | None) -> list[dict]:
+    return [d for d in _deptos(c) if escopo is None or d["nome"] in escopo]
 
 
 def _carimbo(usuario: dict) -> str:
@@ -164,7 +186,9 @@ async def detalhe(request: Request):
     e["vagas_txt"] = "Livre acesso" if not lim else f"{max(lim - len(inscritos), 0)} vagas restantes de {lim}"
     ctx = {"e": e, "TIPOS_INGRESSO": TIPOS_INGRESSO, "FORMAS_PAGAMENTO": FORMAS_PAGAMENTO,
            "STATUS_PAGAMENTO": STATUS_PAGAMENTO}
-    if u["perfil"] in GESTAO:
+    with db.engine().connect() as c:
+        ctx["pode_gerir"] = u["perfil"] in GESTAO and _pode_gerir(escopo_setores(c, u), e)
+    if ctx["pode_gerir"]:
         ctx.update(inscritos=inscritos, custos=custos, fin=_resumo_financeiro(inscritos, custos))
     return render(request, "eventos/detalhe.html", ctx)
 
@@ -174,13 +198,19 @@ async def detalhe(request: Request):
 # ---------------------------------------------------------------------------
 @seguranca.exigir(*GESTAO)
 async def novo(request: Request):
+    u = seguranca.usuario_atual(request)
     with db.engine().connect() as c:
-        deptos = _deptos(c)
+        escopo = escopo_setores(c, u)
+        deptos = _deptos_permitidos(c, escopo)
+    if escopo is not None and not deptos:
+        return render(request, "erro.html", {"titulo": "Nenhum setor atribuído",
+                      "mensagem": "Peça à Secretaria ou ao Adm para definir os setores que você coordena."}, 403)
     if request.method == "GET":
         return render(request, "eventos/form.html", {"deptos": deptos, "valores": {}, "erros": {}})
     form = await request.form()
     dados, erros = _ler_form_evento(form)
-    u = seguranca.usuario_atual(request)
+    if escopo is not None and dados["departamento"] not in escopo:
+        erros["departamento"] = "Escolha um dos setores que você coordena."
     with db.engine().begin() as c:
         if not erros:
             conflito = _conflito(c, dados["data_inicio"], dados["departamento"])
@@ -201,11 +231,15 @@ async def novo(request: Request):
 @seguranca.exigir(*GESTAO)
 async def editar(request: Request):
     eid = request.path_params["id"]
+    u = seguranca.usuario_atual(request)
     with db.engine().connect() as c:
         e = _evento(c, eid)
-        deptos = _deptos(c)
+        escopo = escopo_setores(c, u)
+        deptos = _deptos_permitidos(c, escopo)
     if not e:
         return ir("/agenda")
+    if not _pode_gerir(escopo, e):
+        return _fora_do_setor(request)
     if request.method == "GET":
         valores = {**e, "data": e["quando"].strftime("%d/%m/%Y") if e["quando"] else "",
                    "hora": e["quando"].strftime("%H:%M") if e["quando"] else "",
@@ -217,7 +251,8 @@ async def editar(request: Request):
     justificativa = (form.get("justificativa") or "").strip()
     if len(justificativa) < 5:
         erros["justificativa"] = "A justificativa é obrigatória para auditoria."
-    u = seguranca.usuario_atual(request)
+    if escopo is not None and dados["departamento"] not in escopo:
+        erros["departamento"] = "Escolha um dos setores que você coordena."
     with db.engine().begin() as c:
         if not erros:
             conflito = _conflito(c, dados["data_inicio"], dados["departamento"], ignorar_id=eid)
@@ -248,6 +283,8 @@ async def excluir(request: Request):
         e = _evento(c, eid)
         if not e:
             return ir("/agenda")
+        if not _pode_gerir(escopo_setores(c, u), e):
+            return _fora_do_setor(request)
         if len(justificativa) < 5:
             flash(request, "Informe a justificativa para excluir o evento.", "erro")
             return ir(f"/eventos/{eid}")
@@ -293,6 +330,8 @@ async def inscrever(request: Request):
         e = _evento(c, eid)
         if not e:
             return ir("/agenda")
+        if not _pode_gerir(escopo_setores(c, seguranca.usuario_atual(request)), e):
+            return _fora_do_setor(request)
         dados, erros = _ler_inscricao(form, e.get("valor_inscricao") or 0)
         if form.get("lgpd") != "sim":
             erros["lgpd"] = "Confirme o consentimento LGPD do participante."
@@ -325,6 +364,8 @@ async def editar_inscricao(request: Request):
             return ir("/agenda")
         eid = atual["evento_id"]
         e = _evento(c, eid)
+        if not _pode_gerir(escopo_setores(c, seguranca.usuario_atual(request)), e):
+            return _fora_do_setor(request)
         if len(justificativa) < 5:
             flash(request, "A justificativa é obrigatória para alterar a inscrição.", "erro")
             return ir(f"/eventos/{eid}#inscricoes")
@@ -351,6 +392,8 @@ async def excluir_inscricao(request: Request):
         atual = c.execute(select(db.inscricoes).where(db.inscricoes.c.id == iid)).mappings().first()
         if not atual:
             return ir("/agenda")
+        if not _pode_gerir(escopo_setores(c, seguranca.usuario_atual(request)), _evento(c, atual["evento_id"])):
+            return _fora_do_setor(request)
         if len(justificativa) < 5:
             flash(request, "A justificativa é obrigatória para excluir a inscrição.", "erro")
             return ir(f"/eventos/{atual['evento_id']}#inscricoes")
@@ -373,6 +416,8 @@ async def lancar_custo(request: Request):
         flash(request, "Informe descrição e valor da despesa.", "erro")
         return ir(f"/eventos/{eid}#financeiro")
     with db.engine().begin() as c:
+        if not _pode_gerir(escopo_setores(c, seguranca.usuario_atual(request)), _evento(c, eid)):
+            return _fora_do_setor(request)
         cid = c.execute(insert(db.custos_evento).values(evento_id=eid, descricao=descricao, valor=valor)).inserted_primary_key[0]
         auditar(request, "CUSTO_LANCADO", f"Custo #{cid} / Evento #{eid}", f"{descricao}: {valor:.2f}", conexao=c)
     flash(request, "Despesa lançada.")
@@ -386,6 +431,8 @@ async def excluir_custo(request: Request):
         atual = c.execute(select(db.custos_evento).where(db.custos_evento.c.id == cid)).mappings().first()
         if not atual:
             return ir("/agenda")
+        if not _pode_gerir(escopo_setores(c, seguranca.usuario_atual(request)), _evento(c, atual["evento_id"])):
+            return _fora_do_setor(request)
         c.execute(delete(db.custos_evento).where(db.custos_evento.c.id == cid))
         auditar(request, "CUSTO_EXCLUIDO", f"Custo #{cid}", f"{atual['descricao']}: {atual['valor']}", conexao=c)
     flash(request, "Despesa removida.")
@@ -403,6 +450,8 @@ async def relatorio_evento(request: Request):
         e = _evento(c, eid)
         if not e:
             return ir("/agenda")
+        if not _pode_gerir(escopo_setores(c, seguranca.usuario_atual(request)), e):
+            return _fora_do_setor(request)
         inscritos = [dict(r) for r in c.execute(select(db.inscricoes).where(db.inscricoes.c.evento_id == eid)
                                                 .order_by(db.inscricoes.c.nome)).mappings()]
         custos = [dict(r) for r in c.execute(select(db.custos_evento).where(db.custos_evento.c.evento_id == eid)).mappings()]
@@ -423,6 +472,8 @@ async def relatorio_periodo(request: Request):
         eventos = [dict(r) for r in c.execute(select(db.eventos).where(
             db.eventos.c.data_inicio >= db.data_evento(f"{de.isoformat()}T00:00:00"),
             db.eventos.c.data_inicio <= db.data_evento(f"{ate.isoformat()}T23:59:59")).order_by(db.eventos.c.data_inicio)).mappings()]
+        escopo = escopo_setores(c, seguranca.usuario_atual(request))
+    eventos = [e for e in eventos if _pode_gerir(escopo, e)]
     for e in eventos:
         e["quando"] = datas.parse_data_hora_local(e["data_inicio"])
     return render(request, "eventos/relatorio_periodo.html", {"eventos": eventos, "de": de, "ate": ate,

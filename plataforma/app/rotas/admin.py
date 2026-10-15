@@ -89,12 +89,14 @@ async def alterar_usuario(request: Request):
             return ir("/admin/usuarios")
         perde_admin = alvo["perfil"] == "admin" and (perfil != "admin" or not ativo)
         if perde_admin and _admins_ativos(c, exceto=uid) == 0:
-            flash(request, "O sistema precisa de pelo menos um Administrador ativo.", "erro")
+            flash(request, "O sistema precisa de pelo menos um Adm ativo.", "erro")
             return ir("/admin/usuarios")
         if uid == eu["id"] and perde_admin:
-            flash(request, "Você não pode remover o seu próprio acesso de Administrador.", "erro")
+            flash(request, "Você não pode remover o seu próprio acesso de Adm.", "erro")
             return ir("/admin/usuarios")
         c.execute(update(db.usuarios).where(db.usuarios.c.id == uid).values(perfil=perfil, ativo=ativo))
+        if perfil != "coordenacao":
+            c.execute(delete(db.usuario_setores).where(db.usuario_setores.c.usuario_id == uid))
         auditar(request, "USUARIO_ALTERADO", f"Usuário #{uid}",
                 f"Perfil {alvo['perfil']} → {perfil}; ativo {alvo['ativo']} → {ativo}", conexao=c)
     flash(request, "Usuário atualizado.")
@@ -138,6 +140,81 @@ async def criar_acesso_membro(request: Request):
         auditar(request, "USUARIO_CRIADO", f"Usuário #{uid}", f"Acesso de membro para ficha #{mid}", conexao=c)
     request.session["senha_provisoria"] = {"nome": m["nome_completo"], "email": m["email"], "senha": senha}
     return ir(f"/membros/{mid}")
+
+
+# ---------------------------------------------------------------------------
+# Coordenação: Secretaria ou Adm definem quem coordena e quais setores
+# ---------------------------------------------------------------------------
+def _usuario(c, uid: int):
+    return c.execute(select(db.usuarios).where(db.usuarios.c.id == uid)).mappings().first()
+
+
+@seguranca.exigir("secretaria", "admin")
+async def coordenacao(request: Request):
+    with db.engine().connect() as c:
+        deptos = [dict(r) for r in c.execute(select(db.departamentos).order_by(db.departamentos.c.nome)).mappings()]
+        coords = [dict(r) for r in c.execute(
+            select(db.usuarios.c.id, db.usuarios.c.nome, db.usuarios.c.email, db.usuarios.c.ativo)
+            .where(db.usuarios.c.perfil == "coordenacao").order_by(db.usuarios.c.nome)).mappings()]
+        vinculos = c.execute(select(db.usuario_setores.c.usuario_id, db.usuario_setores.c.departamento_id)).all()
+        candidatos = [dict(r) for r in c.execute(
+            select(db.usuarios.c.id, db.usuarios.c.nome, db.usuarios.c.email)
+            .where(db.usuarios.c.perfil == "membro", db.usuarios.c.ativo.is_(True))
+            .order_by(db.usuarios.c.nome)).mappings()]
+    for u in coords:
+        u["setores"] = {d for uid, d in vinculos if uid == u["id"]}
+    return render(request, "admin/coordenacao.html", {"deptos": deptos, "coords": coords, "candidatos": candidatos})
+
+
+@seguranca.exigir("secretaria", "admin")
+async def adicionar_coordenador(request: Request):
+    form = await request.form()
+    uid = int(form.get("usuario_id") or 0) if str(form.get("usuario_id") or "").isdigit() else 0
+    with db.engine().begin() as c:
+        alvo = _usuario(c, uid)
+        if not alvo or alvo["perfil"] != "membro":
+            flash(request, "Escolha um usuário com perfil Membro.", "erro")
+            return ir("/coordenacao")
+        c.execute(update(db.usuarios).where(db.usuarios.c.id == uid).values(perfil="coordenacao"))
+        auditar(request, "USUARIO_ALTERADO", f"Usuário #{uid}", "Perfil membro → coordenacao", conexao=c)
+    flash(request, f"{alvo['nome']} agora é Coordenação. Marque abaixo os setores que vai gerenciar.")
+    return ir(f"/coordenacao#u{uid}")
+
+
+@seguranca.exigir("secretaria", "admin")
+async def salvar_setores_coordenador(request: Request):
+    uid = request.path_params["id"]
+    form = await request.form()
+    escolhidos = {int(x) for x in form.getlist("setores") if str(x).isdigit()}
+    with db.engine().begin() as c:
+        alvo = _usuario(c, uid)
+        if not alvo or alvo["perfil"] != "coordenacao":
+            flash(request, "Este usuário não é da Coordenação.", "erro")
+            return ir("/coordenacao")
+        validos = set(c.execute(select(db.departamentos.c.id)).scalars())
+        escolhidos &= validos
+        c.execute(delete(db.usuario_setores).where(db.usuario_setores.c.usuario_id == uid))
+        for d in sorted(escolhidos):
+            c.execute(insert(db.usuario_setores).values(usuario_id=uid, departamento_id=d))
+        nomes = c.execute(select(db.departamentos.c.nome).where(db.departamentos.c.id.in_(escolhidos))
+                          .order_by(db.departamentos.c.nome)).scalars().all() if escolhidos else []
+        auditar(request, "COORDENACAO_SETORES", f"Usuário #{uid}", ", ".join(nomes) or "nenhum setor", conexao=c)
+    flash(request, f"Setores de {alvo['nome']} atualizados.")
+    return ir(f"/coordenacao#u{uid}")
+
+
+@seguranca.exigir("secretaria", "admin")
+async def remover_coordenador(request: Request):
+    uid = request.path_params["id"]
+    with db.engine().begin() as c:
+        alvo = _usuario(c, uid)
+        if not alvo or alvo["perfil"] != "coordenacao":
+            return ir("/coordenacao")
+        c.execute(delete(db.usuario_setores).where(db.usuario_setores.c.usuario_id == uid))
+        c.execute(update(db.usuarios).where(db.usuarios.c.id == uid).values(perfil="membro"))
+        auditar(request, "USUARIO_ALTERADO", f"Usuário #{uid}", "Perfil coordenacao → membro", conexao=c)
+    flash(request, f"{alvo['nome']} voltou a ser Membro.")
+    return ir("/coordenacao")
 
 
 # ---------------------------------------------------------------------------
@@ -189,6 +266,7 @@ async def excluir_setor(request: Request):
             flash(request, f"O setor {nome} tem {usados} evento(s) na agenda e não pode ser excluído.", "erro")
             return ir("/admin/setores")
         c.execute(delete(db.membro_setores).where(db.membro_setores.c.departamento_id == sid))
+        c.execute(delete(db.usuario_setores).where(db.usuario_setores.c.departamento_id == sid))
         c.execute(delete(db.departamentos).where(db.departamentos.c.id == sid))
         auditar(request, "SETOR_EXCLUIDO", f"Setor #{sid}", nome or "", conexao=c)
     flash(request, "Setor excluído.")
@@ -217,6 +295,10 @@ rotas = [
     Route("/admin/usuarios/{id:int}", alterar_usuario, methods=["POST"]),
     Route("/admin/usuarios/{id:int}/senha", redefinir_senha, methods=["POST"]),
     Route("/membros/{id:int}/criar-acesso", criar_acesso_membro, methods=["POST"]),
+    Route("/coordenacao", coordenacao),
+    Route("/coordenacao/adicionar", adicionar_coordenador, methods=["POST"]),
+    Route("/coordenacao/{id:int}", salvar_setores_coordenador, methods=["POST"]),
+    Route("/coordenacao/{id:int}/remover", remover_coordenador, methods=["POST"]),
     Route("/admin/setores", setores),
     Route("/admin/setores/salvar", salvar_setor, methods=["POST"]),
     Route("/admin/setores/{id:int}/excluir", excluir_setor, methods=["POST"]),

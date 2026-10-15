@@ -34,7 +34,7 @@
       {% endmacro %}
       {{ item('/inicio', '🏠', 'Início') }}
       {{ item('/agenda', '📅', 'Agenda') }}
-      {% if pode('secretaria', 'admin') %}{{ item('/membros', '👥', 'Membros') }}{% endif %}
+      {% if pode('secretaria', 'admin') %}{{ item('/membros', '👥', 'Membros') }}{{ item('/coordenacao', '🧭', 'Coordenação') }}{% endif %}
       {% if pode('admin') %}
         {{ item('/admin/usuarios', '🔐', 'Usuários') }}
         {{ item('/admin/setores', '🏢', 'Setores', True) }}

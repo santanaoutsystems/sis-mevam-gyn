@@ -3,7 +3,7 @@
 {% block conteudo %}
 <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
   <h1>Agenda</h1>
-  {% if pode('secretaria', 'admin') %}<a class="botao dourado" href="/eventos/novo">➕ Novo evento</a>{% endif %}
+  {% if pode('coordenacao', 'secretaria', 'admin') %}<a class="botao dourado" href="/eventos/novo">➕ Novo evento</a>{% endif %}
 </div>
 <div class="cartao" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap">
   <a class="botao secundario peq" href="?mes={{ anterior }}&visao={{ visao }}" aria-label="Mês anterior">‹</a>

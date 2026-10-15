@@ -225,6 +225,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--t
 /* Selos de status */
 .selo { display: inline-block; padding: .1rem .55rem; border-radius: 99px; font-size: .75rem; font-weight: 700; white-space: nowrap; text-decoration: none; }
 .selo.aguardando, .selo.admin { background: var(--aviso-fundo); color: var(--aviso-texto); }
+.selo.coordenacao { background: var(--superficie-2); color: var(--t-principal); border: 1px solid var(--borda-forte); }
 .selo.validado, .selo.secretaria { background: var(--info-fundo); color: var(--info-texto); }
 .selo.ativo, .selo.membro { background: var(--ok-fundo); color: var(--ok-texto); }
 .selo.inativo, .selo.anonimizado { background: var(--neutro-fundo); color: var(--neutro-texto); }

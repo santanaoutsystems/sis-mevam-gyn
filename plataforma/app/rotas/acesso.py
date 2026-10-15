@@ -163,7 +163,7 @@ async def primeiro_acesso(request: Request):
         u = c.execute(select(db.usuarios).where(db.usuarios.c.id == uid)).mappings().first()
         auditar(request, "PRIMEIRO_ACESSO", f"Usuário #{uid}", "Primeiro Administrador criado", usuario=dict(u), conexao=c)
     seguranca.iniciar_sessao(request, dict(u))
-    flash(request, "Administrador criado. Agora apague a variável CODIGO_PRIMEIRO_ACESSO no Render.")
+    flash(request, "Adm criado. Agora apague a variável CODIGO_PRIMEIRO_ACESSO no Render.")
     return ir("/inicio")
 
 
@@ -189,6 +189,10 @@ async def inicio(request: Request):
                                            .where(db.membros.c.status != "Anonimizado (LGPD)")).scalar()
             numeros["eventos_futuros"] = c.execute(select(func.count()).select_from(db.eventos)
                                                    .where(db.eventos.c.data_inicio >= hoje_iso)).scalar()
+        meus_setores = []
+        if u["perfil"] == "coordenacao":
+            from .agenda import escopo_setores
+            meus_setores = sorted(escopo_setores(c, u) or [])
         if u["perfil"] == "admin":
             numeros["usuarios"] = c.execute(select(func.count()).select_from(db.usuarios)).scalar()
         minha_ficha = None
@@ -196,7 +200,8 @@ async def inicio(request: Request):
             minha_ficha = c.execute(select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.status)
                                     .where(db.membros.c.id == u["membro_id"])).mappings().first()
     eventos_fmt = [{**e, "quando": datas.parse_data_hora_local(e["data_inicio"])} for e in proximos]
-    return render(request, "inicio.html", {"proximos": eventos_fmt, "numeros": numeros, "minha_ficha": minha_ficha})
+    return render(request, "inicio.html", {"proximos": eventos_fmt, "numeros": numeros, "minha_ficha": minha_ficha,
+                                           "meus_setores": meus_setores})
 
 
 rotas = [

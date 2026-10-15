@@ -7,7 +7,7 @@ Tabelas LEGADAS da Agenda (já existem no Supabase e têm dados reais):
        renomeamos colunas). Ver migracoes/001_unificacao.sql.
 
 Tabelas NOVAS da plataforma:
-    usuarios, membros, membro_setores, auditoria
+    usuarios, membros, membro_setores, auditoria, usuario_setores
 """
 
 from __future__ import annotations
@@ -95,7 +95,7 @@ usuarios = Table(
     Column("senha_hash", String, nullable=False),
     Column("salt", String, nullable=False),
     Column("iteracoes", Integer, nullable=False, default=600_000),
-    Column("perfil", String, nullable=False, default="membro"),  # membro | secretaria | admin
+    Column("perfil", String, nullable=False, default="membro"),  # membro | coordenacao | secretaria | admin
     Column("ativo", Boolean, nullable=False, default=True),
     Column("trocar_senha", Boolean, nullable=False, default=False),
     Column("membro_id", Integer, ForeignKey("membros.id", ondelete="SET NULL")),
@@ -160,6 +160,15 @@ membro_setores = Table(
     UniqueConstraint("membro_id", "departamento_id", name="uq_membro_setor"),
 )
 
+# Setores que cada usuário do perfil Coordenação pode gerenciar na agenda
+usuario_setores = Table(
+    "usuario_setores", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False),
+    Column("departamento_id", Integer, nullable=False),
+    UniqueConstraint("usuario_id", "departamento_id", name="uq_usuario_setor"),
+)
+
 auditoria = Table(
     "auditoria", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
@@ -172,8 +181,10 @@ auditoria = Table(
     Column("ip", String),
 )
 
-PERFIS = ("membro", "secretaria", "admin")
-PERFIS_ROTULO = {"membro": "Membro", "secretaria": "Secretaria", "admin": "Administrador"}
+PERFIS = ("membro", "coordenacao", "secretaria", "admin")
+PERFIS_ROTULO = {"membro": "Membro", "coordenacao": "Coordenação", "secretaria": "Secretaria", "admin": "Adm"}
+# Perfis que gerenciam a agenda. A Coordenação fica restrita aos seus setores (usuario_setores).
+PERFIS_AGENDA = ("coordenacao", "secretaria", "admin")
 
 STATUS_MEMBRO = ("Aguardando Análise", "Validado pela Secretaria", "Ativo", "Inativo", "Anonimizado (LGPD)")
 
@@ -235,3 +246,24 @@ def criar_tabelas_dev() -> None:
     """Somente desenvolvimento/testes (SQLite). Em produção use migracoes/*.sql."""
     if engine().dialect.name == "sqlite":
         metadata.create_all(engine())
+
+
+def aplicar_migracoes_aditivas() -> None:
+    """Aplica no Postgres as migrações aditivas e idempotentes que não exigem passo manual.
+
+    Hoje: migracoes/003_coordenacao.sql (perfil Coordenação + tabela usuario_setores).
+    Só cria/alarga; nunca remove dados. Se falhar, o app sobe mesmo assim e registra o erro.
+    """
+    import logging
+    import os
+    eng = engine()
+    if eng.dialect.name != "postgresql":
+        return
+    caminho = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes", "003_coordenacao.sql")
+    try:
+        with open(caminho, encoding="utf-8") as f:
+            sql = f.read()
+        with eng.begin() as c:
+            c.exec_driver_sql(sql)
+    except Exception:  # noqa: BLE001
+        logging.getLogger("mevam").exception("Falha ao aplicar a migração 003")

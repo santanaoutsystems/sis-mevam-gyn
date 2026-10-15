@@ -4,7 +4,8 @@
 {% block conteudo %}
 <h1>Usuários e perfis de acesso</h1>
 <p class="suave" style="margin-top:0">O perfil define o que cada pessoa vê ao entrar: <span class="selo membro">Membro</span> vê a agenda e a própria ficha,
-  <span class="selo secretaria">Secretaria</span> gerencia membros, eventos e inscrições, <span class="selo admin">Administrador</span> também gerencia usuários, setores e auditoria.</p>
+  <span class="selo coordenacao">Coordenação</span> gerencia eventos só dos setores definidos em <a href="/coordenacao">Coordenação</a>,
+  <span class="selo secretaria">Secretaria</span> gerencia membros, eventos e inscrições, <span class="selo admin">Adm</span> também gerencia usuários, setores e auditoria.</p>
 {% if senha_provisoria %}
 <div class="msg aviso"><b>Senha provisória de {{ senha_provisoria.nome }}</b> ({{ senha_provisoria.email }}):
   <b style="font-family:monospace;font-size:1.15rem">{{ senha_provisoria.senha }}</b><br>

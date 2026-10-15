@@ -13,7 +13,7 @@
     <div>👥 {{ e.vagas_txt }}</div>
   </div>
   {% if e.descricao %}<p>{{ e.descricao }}</p>{% endif %}
-  {% if pode('secretaria', 'admin') %}
+  {% if pode_gerir %}
   <div class="acoes">
     <a class="botao secundario peq" href="/eventos/{{ e.id }}/editar">✏️ Editar</a>
     <a class="botao secundario peq" href="/eventos/{{ e.id }}/relatorio?tipo=lista" target="_blank">🖨️ Lista de inscritos</a>
@@ -25,7 +25,7 @@
   {% endif %}
 </div>
 
-{% if pode('secretaria', 'admin') %}
+{% if pode_gerir %}
 <div class="grade c2 c4" id="financeiro">
   <div class="numero"><b>{{ fin.receita|moeda }}</b>Receita confirmada</div>
   <div class="numero"><b>{{ fin.despesa|moeda }}</b>Despesas</div>

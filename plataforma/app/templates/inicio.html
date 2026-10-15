@@ -22,6 +22,20 @@
   {% endif %}
 </div>
 {% else %}
+{% if pode('coordenacao') %}
+<div class="cartao">
+  <h2>Minha coordenação</h2>
+  {% if meus_setores %}
+    <p>Setores: {% for n in meus_setores %}<b>{{ n }}</b>{{ ', ' if not loop.last }}{% endfor %}</p>
+    <div class="acoes nao-imprimir" style="margin-bottom:0">
+      <a class="botao" href="/eventos/novo">➕ Novo evento</a>
+      <a class="botao secundario" href="/relatorios/periodo">🖨️ Relatório do período</a>
+    </div>
+  {% else %}
+    <p class="suave">Nenhum setor atribuído ainda. Peça à Secretaria ou ao Adm para definir os setores que você coordena.</p>
+  {% endif %}
+</div>
+{% endif %}
 <div class="cartao">
   <h2>Minha ficha</h2>
   {% if minha_ficha %}

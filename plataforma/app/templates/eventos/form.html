@@ -13,6 +13,7 @@
       {% for d in deptos %}<option value="{{ d.nome }}" {{ 'selected' if valores.get('departamento') == d.nome }}>{{ d.nome }}{% if d.responsavel %} · {{ d.responsavel }}{% endif %}</option>
       {% else %}<option value="Geral">Geral</option>{% endfor %}
     </select>
+    {% if erros.get('departamento') %}<div class="erro-campo">{{ erros.departamento }}</div>{% endif %}
   </div>
   <div class="grade c2">
     {{ ui.campo('data', 'Data', obrig=True, mascara='data', voz=True) }}
