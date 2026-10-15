@@ -793,6 +793,37 @@ def test_login_sem_ficha_informa_cpf_de_ficha_sem_login_e_e_ligado():
         assert c.execute(select(db.usuarios.c.membro_id).where(db.usuarios.c.email == "sec3@exemplo.com")).scalar() == mid
 
 
+def test_conflito_de_cpf_mostra_onde_esta_e_adm_resolve_pelos_usuarios():
+    cpf = gerar_cpf(555666777)
+    with db.engine().begin() as c:
+        mid = c.execute(insert(db.membros).values(nome_completo="Alessandra Dois", status="Ativo", filhos=[])).inserted_primary_key[0]
+        outra = c.execute(insert(db.membros).values(nome_completo="Outra Ficha", status="Ativo", filhos=[])).inserted_primary_key[0]
+    criar("membro", email="ale2@exemplo.com", membro_id=outra)  # ficha "outra" já tem login
+    with db.engine().begin() as c:
+        c.execute(db.usuarios.update().where(db.usuarios.c.email == "ale2@exemplo.com").values(cpf=cpf))
+    adm = logado("admin")
+    def editar_ficha():
+        pag = adm.get(f"/membros/{mid}/editar").text
+        dados = {**FICHA_OK, "nome_completo": "Alessandra Dois", "cpf": cpf, "csrf": csrf_de(pag)}
+        dados.pop("foto_3x4")
+        return adm.post(f"/membros/{mid}/editar", data=dados, follow_redirects=False)
+    r = editar_ficha()
+    assert r.status_code == 400 and "ale2@exemplo.com" in r.text and f"ficha #{outra}" in r.text
+    with db.engine().connect() as c:
+        uid = c.execute(select(db.usuarios.c.id).where(db.usuarios.c.email == "ale2@exemplo.com")).scalar()
+    assert "Ficha ligada" in adm.get("/admin/usuarios").text
+    r = post(adm, f"/admin/usuarios/{uid}", {"perfil": "membro", "ativo": "sim", "ficha": str(mid)}, pagina="/admin/usuarios")
+    assert r.status_code == 303
+    with db.engine().connect() as c:
+        assert c.execute(select(db.usuarios.c.membro_id).where(db.usuarios.c.id == uid)).scalar() == mid
+        assert c.execute(select(db.membros.c.cpf).where(db.membros.c.id == mid)).scalar() == cpf
+    assert editar_ficha().status_code == 303
+    # Apagar o CPF de um login
+    post(adm, f"/admin/usuarios/{uid}", {"perfil": "membro", "ativo": "sim", "ficha": str(mid), "apagar_cpf": "sim"}, pagina="/admin/usuarios")
+    with db.engine().connect() as c:
+        assert c.execute(select(db.usuarios.c.cpf).where(db.usuarios.c.id == uid)).scalar() is None
+
+
 def test_anonimizar_apaga_o_cpf():
     enviar_ficha(novo_cliente(), cpf="529.982.247-25")
     mid = membro_id_mais_recente()

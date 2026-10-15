@@ -42,7 +42,7 @@ async def usuarios(request: Request):
     busca = (request.query_params.get("q") or "").strip().lower()
     q = (select(db.usuarios.c.id, db.usuarios.c.nome, db.usuarios.c.email, db.usuarios.c.perfil,
                 db.usuarios.c.ativo, db.usuarios.c.ultimo_login, db.usuarios.c.trocar_senha,
-                db.usuarios.c.membro_id, db.membros.c.nome_completo.label("membro_nome"))
+                db.usuarios.c.membro_id, db.usuarios.c.cpf, db.membros.c.nome_completo.label("membro_nome"))
          .select_from(db.usuarios.outerjoin(db.membros, db.membros.c.id == db.usuarios.c.membro_id))
          .order_by(db.usuarios.c.nome))
     if busca:
@@ -94,11 +94,37 @@ async def alterar_usuario(request: Request):
         if uid == eu["id"] and perde_admin:
             flash(request, "Você não pode remover o seu próprio acesso de Adm.", "erro")
             return ir("/admin/usuarios")
-        c.execute(update(db.usuarios).where(db.usuarios.c.id == uid).values(perfil=perfil, ativo=ativo))
+        # Ficha ligada ao login (resolve CPF "em outro cadastro" quando login e ficha são da mesma pessoa)
+        valores = {"perfil": perfil, "ativo": ativo}
+        detalhes = [f"Perfil {alvo['perfil']} → {perfil}; ativo {alvo['ativo']} → {ativo}"]
+        if "ficha" in form:
+            texto = ficha.so_digitos(form.get("ficha") or "")
+            nova = int(texto) if texto else None
+            if nova != alvo["membro_id"]:
+                if nova is not None:
+                    m = c.execute(select(db.membros.c.id, db.membros.c.cpf).where(db.membros.c.id == nova)).first()
+                    outro = c.execute(select(db.usuarios.c.nome).where(db.usuarios.c.membro_id == nova,
+                                                                       db.usuarios.c.id != uid)).first()
+                    if not m:
+                        flash(request, f"Ficha #{nova} não existe.", "erro")
+                        return ir("/admin/usuarios")
+                    if outro:
+                        flash(request, f"A ficha #{nova} já está ligada ao login de {outro[0]}.", "erro")
+                        return ir("/admin/usuarios")
+                    if m[1] and alvo["cpf"] and m[1] != alvo["cpf"]:
+                        flash(request, f"O CPF da ficha #{nova} é diferente do CPF deste login. Confira se é a mesma pessoa.", "erro")
+                        return ir("/admin/usuarios")
+                    if alvo["cpf"] and not m[1]:
+                        c.execute(update(db.membros).where(db.membros.c.id == nova).values(cpf=alvo["cpf"]))
+                valores["membro_id"] = nova
+                detalhes.append(f"ficha {alvo['membro_id'] or '-'} → {nova or '-'}")
+        if form.get("apagar_cpf") == "sim" and alvo["cpf"]:
+            valores["cpf"] = None
+            detalhes.append("CPF do login apagado")
+        c.execute(update(db.usuarios).where(db.usuarios.c.id == uid).values(**valores))
         if perfil != "coordenacao":
             c.execute(delete(db.usuario_setores).where(db.usuario_setores.c.usuario_id == uid))
-        auditar(request, "USUARIO_ALTERADO", f"Usuário #{uid}",
-                f"Perfil {alvo['perfil']} → {perfil}; ativo {alvo['ativo']} → {ativo}", conexao=c)
+        auditar(request, "USUARIO_ALTERADO", f"Usuário #{uid}", "; ".join(detalhes), conexao=c)
     flash(request, "Usuário atualizado.")
     return ir("/admin/usuarios")
 

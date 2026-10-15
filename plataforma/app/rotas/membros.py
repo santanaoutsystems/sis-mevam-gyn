@@ -81,32 +81,46 @@ def _login_da_ficha(c, membro_id) -> bool:
         select(db.usuarios.c.id).where(db.usuarios.c.membro_id == membro_id)).first() is not None
 
 
-def _cpf_em_uso(c, cpf: str | None, membro_id=None, usuario_id=None) -> bool:
-    """CPF já pertence a outra pessoa?
+def _onde_esta_cpf(c, cpf: str | None, membro_id=None, usuario_id=None) -> dict | None:
+    """Onde o CPF já está em uso por outra pessoa (ficha ou login), ou None se está livre.
 
     Ficha sem login e login sem ficha com o mesmo CPF são a mesma pessoa (ex.: a Secretaria informou o CPF
     em "Meu CPF" e depois cadastrou a própria ficha): não é conflito; `_ligar_pelo_cpf` faz a ligação.
     """
     if not cpf:
-        return False
+        return None
     sem_ficha = usuario_id is not None and membro_id is None  # login sem ficha informando o próprio CPF
-    q = select(db.membros.c.id).where(db.membros.c.cpf == cpf)
+    q = select(db.membros.c.id, db.membros.c.nome_completo).where(db.membros.c.cpf == cpf)
     if membro_id is not None:
         q = q.where(db.membros.c.id != membro_id)
-    for (outra,) in c.execute(q):
+    for outra, nome in c.execute(q).all():
         if not (sem_ficha and not _login_da_ficha(c, outra)):
-            return True
-    q = select(db.usuarios.c.id, db.usuarios.c.membro_id).where(db.usuarios.c.cpf == cpf)
+            return {"tipo": "ficha", "id": outra, "nome": nome}
+    q = select(db.usuarios.c.id, db.usuarios.c.membro_id, db.usuarios.c.nome, db.usuarios.c.email).where(db.usuarios.c.cpf == cpf)
     if usuario_id is not None:
         q = q.where(db.usuarios.c.id != usuario_id)
     ficha_tem_login = _login_da_ficha(c, membro_id)
-    for _uid, uid_membro in c.execute(q):
+    for uid, uid_membro, nome, email in c.execute(q).all():
         if membro_id is not None and uid_membro == membro_id:
             continue  # o login desta mesma ficha
         if uid_membro is None and not sem_ficha and not ficha_tem_login:
             continue  # login sem ficha da mesma pessoa: será ligado a esta ficha
-        return True
-    return False
+        return {"tipo": "login", "id": uid, "nome": nome, "email": email, "membro_id": uid_membro}
+    return None
+
+
+def _cpf_em_uso(c, cpf: str | None, membro_id=None, usuario_id=None) -> bool:
+    return _onde_esta_cpf(c, cpf, membro_id, usuario_id) is not None
+
+
+def _conflito_para_equipe(onde: dict) -> str:
+    """Mensagem para Secretaria/Adm dizendo exatamente onde o CPF está, para poderem resolver."""
+    if onde["tipo"] == "ficha":
+        return (f"Este CPF já está na ficha #{onde['id']} ({onde['nome']}). Abra essa ficha em Membros: "
+                "se for cadastro repetido, corrija o CPF lá (ou o Adm exclui a ficha repetida).")
+    ligado = f", ligado à ficha #{onde['membro_id']}" if onde["membro_id"] else ", sem ficha ligada"
+    return (f"Este CPF está no login de {onde['nome']} ({onde['email']}{ligado}). Se for a mesma pessoa, "
+            "o Adm liga esse login a esta ficha em Usuários › Alterar; se não for, apague o CPF desse login lá.")
 
 
 def _ligar_pelo_cpf(c, cpf: str | None, membro_id=None, usuario_id=None) -> None:
@@ -307,8 +321,9 @@ async def editar(request: Request):
     dados, erros = ficha.validar(form, exigir_foto=False, exigir_lgpd=False, exigir_cpf=False)
     if not erros.get("cpf"):
         with db.engine().connect() as c:
-            if _cpf_em_uso(c, dados["cpf"], membro_id=mid):
-                erros["cpf"] = ERRO_CPF_REPETIDO
+            onde = _onde_esta_cpf(c, dados["cpf"], membro_id=mid)
+            if onde:
+                erros["cpf"] = _conflito_para_equipe(onde)
     if not dados["foto_3x4"]:
         dados.pop("foto_3x4")  # sem nova foto: mantém a atual
     if erros:

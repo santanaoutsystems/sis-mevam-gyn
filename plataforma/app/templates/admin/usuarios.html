@@ -29,7 +29,8 @@
     {% for u in linhas %}
       <tr>
         <td data-rotulo="Nome"><b>{{ u.nome }}</b>{% if not u.ativo %} <span class="selo inativo">Desativado</span>{% endif %}
-          {% if u.membro_id %}<br><a class="pequeno" href="/membros/{{ u.membro_id }}">Ficha #{{ u.membro_id }}</a>{% endif %}</td>
+          {% if u.membro_id %}<br><a class="pequeno" href="/membros/{{ u.membro_id }}">Ficha #{{ u.membro_id }}</a>{% endif %}
+          {% if u.cpf %}<br><span class="pequeno suave">CPF {{ u.cpf|cpf }}</span>{% endif %}</td>
         <td data-rotulo="E-mail">{{ u.email }}</td>
         <td data-rotulo="Perfil"><span class="selo {{ u.perfil }}">{{ PERFIS_ROTULO[u.perfil] }}</span></td>
         <td data-rotulo="Último acesso">{{ u.ultimo_login|data_hora_br or 'Nunca' }}{% if u.trocar_senha %}<br><span class="pequeno suave">senha provisória</span>{% endif %}</td>
@@ -39,6 +40,9 @@
               {{ ui.csrf_input() }}
               <select name="perfil">{% for p in PERFIS %}<option value="{{ p }}" {{ 'selected' if p == u.perfil }}>{{ PERFIS_ROTULO[p] }}</option>{% endfor %}</select>
               <label class="check"><input type="checkbox" name="ativo" value="sim" {{ 'checked' if u.ativo }}> Acesso ativo</label>
+              <label class="pequeno" for="f{{ u.id }}" style="display:block;margin-top:.4rem">Ficha ligada (nº do protocolo, vazio = nenhuma)</label>
+              <input id="f{{ u.id }}" name="ficha" value="{{ u.membro_id or '' }}" inputmode="numeric" style="max-width:9rem">
+              {% if u.cpf %}<label class="check"><input type="checkbox" name="apagar_cpf" value="sim"> Apagar o CPF deste login ({{ u.cpf|cpf }})</label>{% endif %}
               <button class="botao peq">Salvar</button>
             </form>
             <form method="post" action="/admin/usuarios/{{ u.id }}/senha" style="margin-top:.4rem" onsubmit="return confirm('Gerar nova senha provisória para {{ u.nome }}?')">
