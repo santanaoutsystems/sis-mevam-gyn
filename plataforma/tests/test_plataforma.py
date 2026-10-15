@@ -215,6 +215,7 @@ def test_fluxo_completo_validacao_credo_e_pdf():
     post(sec, f"/membros/{mid}/validar", {}, pagina=f"/membros/{mid}")
     detalhe = sec.get(f"/membros/{mid}").text
     assert "wa.me/5562999998888" in detalhe and f"/credo/{mid}?t={token}" in detalhe
+    assert "text=Paz%2C%20Maria%21" in detalhe and "Gra%C3%A7a" not in detalhe
 
     # Token errado não abre
     assert publico.get(f"/credo/{mid}?t=errado").status_code == 403

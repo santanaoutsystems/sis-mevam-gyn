@@ -438,7 +438,7 @@ def whatsapp_credo(m: dict) -> str:
     if numero and not numero.startswith("55"):
         numero = "55" + numero
     primeiro = (m.get("nome_completo") or "").split(" ")[0]
-    texto = (f"Graça e Paz, {primeiro}! Sua ficha foi analisada e validada pela Secretaria do MEVAM GYN. "
+    texto = (f"Paz, {primeiro}! Sua ficha foi analisada e validada pela Secretaria do MEVAM GYN. "
              f"Acesse o link para ler a Confissão de Fé e fazer sua rúbrica digital: {_link_credo(m['id'])}")
     return f"https://wa.me/{numero}?text={quote(texto)}"
 

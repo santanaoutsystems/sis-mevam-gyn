@@ -46,7 +46,7 @@ def alerta_evento(tipo: str, evento: dict, autor: str, motivo: str = "") -> None
     if not emails:
         return
     quando = datas.parse_data_hora_local(evento["data_inicio"])
-    corpo = (f"A Paz!\n\nEvento: {evento['titulo']}\n"
+    corpo = (f"Paz!\n\nEvento: {evento['titulo']}\n"
              f"Data/Hora: {quando.strftime('%d/%m/%Y às %H:%M') if quando else '-'}\n"
              f"Departamento: {evento.get('departamento') or 'Geral'}\n"
              f"Responsável pela ação: {autor}\n" + (f"Motivo: {motivo}\n" if motivo else "") +
