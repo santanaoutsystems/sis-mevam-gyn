@@ -450,3 +450,16 @@ def test_primeiro_acesso_cria_admin_uma_unica_vez(monkeypatch):
         u = cx.execute(select(db.usuarios).where(db.usuarios.c.email == "ricardo@mevam.test")).mappings().one()
     assert u["perfil"] == "admin" and not u["trocar_senha"]
     assert novo_cliente().get("/primeiro-acesso").status_code == 404  # já existe admin: página some
+
+
+def test_senha_provisoria_copiada_do_celular_funciona():
+    """Espaço no fim e travessão no lugar do hífen (comuns ao copiar do WhatsApp) não barram a senha provisória."""
+    with db.engine().begin() as cx:
+        from app.rotas.admin import criar_usuario
+        _, senha = criar_usuario(cx, "Maria Secretaria", "maria@mevam.test", "secretaria")
+    c = novo_cliente()
+    r = entrar(c, "maria@mevam.test", senha.replace("-", "–") + " ")
+    assert r.status_code == 303 and r.headers["location"] == "/trocar-senha"
+    # Senha definitiva não ganha essa tolerância
+    criar("membro", email="joao@mevam.test")
+    assert entrar(novo_cliente(), "joao@mevam.test", SENHA + " ").status_code == 401

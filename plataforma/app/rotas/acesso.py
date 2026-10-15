@@ -55,6 +55,10 @@ async def entrar(request: Request):
                             f"Tente após {datas.fmt_data_hora(bloqueio)}.",
                     "email": email, "proximo": proximo}, status_code=429)
 
+        # Senha provisória copiada do WhatsApp/celular costuma vir com espaço no fim ou com o hífen
+        # trocado por travessão. Só para quem ainda está com a senha provisória, tolera isso.
+        if u and u["trocar_senha"] and not seguranca.verificar_senha(senha, u["senha_hash"], u["salt"], u["iteracoes"]):
+            senha = senha.strip().replace("\u2013", "-").replace("\u2014", "-").replace("\u2011", "-")
         if not u or not u["ativo"] or not seguranca.verificar_senha(senha, u["senha_hash"], u["salt"], u["iteracoes"]):
             seguranca.registrar_falha_ip(ip)
             if u:
