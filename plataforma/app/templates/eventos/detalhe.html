@@ -30,7 +30,7 @@
   <div class="numero"><b>{{ fin.receita|moeda }}</b>Receita confirmada</div>
   <div class="numero"><b>{{ fin.despesa|moeda }}</b>Despesas</div>
   <div class="numero"><b>{{ fin.a_receber|moeda }}</b>A receber</div>
-  <div class="numero"><b style="color:{{ 'var(--sucesso)' if fin.resultado >= 0 else 'var(--perigo)' }}">{{ fin.resultado|moeda }}</b>Resultado</div>
+  <div class="numero"><b class="{{ 'texto-sucesso' if fin.resultado >= 0 else 'texto-perigo' }}">{{ fin.resultado|moeda }}</b>Resultado</div>
 </div>
 <p class="pequeno suave">Público: {% for t, q in fin.publico.items() %}{{ q }} {{ t.split(' ')[0] }}{{ ' · ' if not loop.last }}{% endfor %}
   · Pix {{ fin.por_forma['Pix']|moeda }} · Cartões {{ (fin.por_forma['Cartão de Crédito'] + fin.por_forma['Cartão de Débito'])|moeda }} · Dinheiro {{ fin.por_forma['Dinheiro']|moeda }}</p>

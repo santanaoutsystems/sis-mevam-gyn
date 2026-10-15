@@ -40,7 +40,7 @@
   <ul class="lista">
     {% for e in proximos %}
     <li><a class="linha" href="/eventos/{{ e.id }}">
-      <div style="text-align:center;min-width:52px"><b style="font-size:1.3rem;color:var(--destaque)">{{ e.quando.strftime('%d') if e.quando }}</b><br><span class="pequeno suave">{{ e.quando.strftime('%m/%Y') if e.quando }}</span></div>
+      <div style="text-align:center;min-width:52px"><b class="dia-destaque">{{ e.quando.strftime('%d') if e.quando }}</b><br><span class="pequeno suave">{{ e.quando.strftime('%m/%Y') if e.quando }}</span></div>
       <div><b>{{ e.titulo }}</b><br><span class="pequeno suave">{{ e.quando.strftime('%H:%M') if e.quando }} · {{ e.departamento or 'Geral' }}</span></div>
     </a></li>
     {% endfor %}

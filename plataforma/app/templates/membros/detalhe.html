@@ -38,7 +38,7 @@
       <button class="botao secundario" type="button" onclick="document.getElementById('qr').style.display='block'">▦ Mostrar QR Code</button>
       <form method="post" action="/membros/{{ m.id }}/link-enviado">{{ ui.csrf_input() }}<button class="botao secundario">Marcar como enviado</button></form>
     </div>
-    <div id="qr" style="display:none;margin-top:1rem;text-align:center"><div id="qrcode" style="display:inline-block;background:#fff;padding:10px;border-radius:10px"></div>
+    <div id="qr" style="display:none;margin-top:1rem;text-align:center"><div id="qrcode" class="papel"></div>
       <p class="pequeno suave">Peça para o membro apontar a câmera do celular.</p></div>
     <script>document.addEventListener("DOMContentLoaded",function(){ if(window.QRCode) new QRCode(document.getElementById("qrcode"),{text:"{{ link_credo }}",width:200,height:200,colorDark:"#022986"}); });</script>
   {% else %}

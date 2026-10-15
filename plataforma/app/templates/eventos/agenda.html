@@ -42,8 +42,8 @@
   <ul class="lista">
     {% for e in eventos %}
     <li><a class="linha" href="/eventos/{{ e.id }}">
-      <div style="text-align:center;min-width:56px;padding:.35rem;border-radius:12px;background:var(--marca-suave)">
-        <b style="font-family:Outfit;font-size:1.4rem;color:var(--marca)">{{ e.quando.strftime('%d') }}</b><br>
+      <div class="caixa-data">
+        <b class="dia-numero">{{ e.quando.strftime('%d') }}</b><br>
         <span class="pequeno suave">{{ e.dia_semana[:3] }}</span></div>
       <div style="flex:1"><b>{{ e.titulo }}</b><br>
         <span class="pequeno suave">🕒 {{ e.quando.strftime('%d/%m/%Y %H:%M') }} · 🏢 {{ e.departamento or 'Geral' }}{% if e.responsavel %} / {{ e.responsavel }}{% endif %}</span><br>

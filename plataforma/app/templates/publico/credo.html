@@ -13,7 +13,7 @@
     <div style="font-size:3rem">✅</div>
     <h2 style="border:0">Confissão de Fé assinada</h2>
     <p>Assinado por <b>{{ m.nome_assinante }}</b> em {{ m.data_assinatura|data_hora_br }}.</p>
-    <img src="{{ m.assinatura_rubrica }}" alt="Rúbrica" style="max-height:90px;max-width:100%;background:#fff;border-radius:8px">
+    <img src="{{ m.assinatura_rubrica }}" alt="Rúbrica" class="papel" style="max-height:90px;max-width:100%">
     <p class="pequeno suave">Código de autenticidade: {{ (m.hash_autenticidade or '')[:24] }}…</p>
     <a class="botao" href="/credo/{{ m.id }}/pdf?t={{ token }}" target="_blank">🖨️ Baixar minha ficha em PDF</a>
   </div>

@@ -407,3 +407,14 @@ def test_cabecalhos_de_seguranca_e_saude():
     assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
     pagina = novo_cliente().get("/entrar")
     assert "httponly" in pagina.headers["set-cookie"].lower()
+
+
+def test_botao_de_tema_em_todas_as_telas():
+    """Login, telas públicas e telas internas trazem o botão dia/noite e aplicam a escolha antes de pintar."""
+    for c, url in ((novo_cliente(), "/entrar"), (novo_cliente(), "/ficha"), (logado("membro"), "/inicio")):
+        html = c.get(url).text
+        assert 'class="botao-tema"' in html, url
+        assert 'localStorage.getItem("tema")' in html, url
+        assert "/static/js/tema.js" in html, url
+    css = novo_cliente().get("/static/css/app.css").text
+    assert 'html[data-tema="escuro"]' in css and "prefers-color-scheme: dark" in css
