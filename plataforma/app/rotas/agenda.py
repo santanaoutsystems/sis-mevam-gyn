@@ -224,7 +224,9 @@ async def detalhe(request: Request):
     lim = e.get("limite_vagas") or 0
     e["vagas_txt"] = "Livre acesso" if not lim else f"{max(lim - len(inscritos), 0)} vagas restantes de {lim}"
     ctx = {"e": e, "TIPOS_INGRESSO": TIPOS_INGRESSO, "FORMAS_PAGAMENTO": FORMAS_PAGAMENTO,
-           "STATUS_PAGAMENTO": STATUS_PAGAMENTO}
+           "STATUS_PAGAMENTO": STATUS_PAGAMENTO,
+           "recem_criado": request.session.pop("evento_criado", None) == str(e["id"]),
+           "inscrever_mais": request.session.pop("inscrever_mais", None) == str(e["id"])}
     with db.engine().connect() as c:
         ctx["pode_gerir"] = u["perfil"] in GESTAO and _pode_gerir(escopo_setores(c, u), e)
     if ctx["pode_gerir"]:
@@ -266,6 +268,7 @@ async def novo(request: Request):
                     f"{liberacao['conflitos']}. Motivo: {liberacao['motivo']}", conexao=c)
     notificacoes.alerta_evento("novo", dados, u["nome"])
     flash(request, "Evento salvo na agenda.")
+    request.session["evento_criado"] = str(eid)  # mostra o atalho "Cadastrar outro evento"
     return ir(f"/eventos/{eid}")
 
 
@@ -393,6 +396,7 @@ async def inscrever(request: Request):
         iid = c.execute(insert(db.inscricoes).values(evento_id=e["id"], **dados)).inserted_primary_key[0]
         auditar(request, "INSCRICAO_CRIADA", f"Inscrição #{iid} / Evento #{eid}", dados["nome"], conexao=c)
     flash(request, f"{dados['nome']} inscrito(a).")
+    request.session["inscrever_mais"] = str(eid)  # reabre o formulário vazio para a próxima inscrição
     return ir(f"/eventos/{eid}#inscricoes")
 
 

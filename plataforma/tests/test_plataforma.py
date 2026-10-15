@@ -676,3 +676,30 @@ def test_erro_interno_mostra_detalhe_so_para_adm(monkeypatch):
         r = cliente.get("/eventos/abc")
         assert r.status_code == 500 and "Algo deu errado" in r.text
         assert ("ValueError: falha simulada" in r.text) is ve
+
+
+def test_botao_voltar_e_cadastro_seguinte_limpo():
+    from app.web import voltar_para
+    assert voltar_para("/inicio") is None
+    assert voltar_para("/eventos/abc") == "/agenda" and voltar_para("/eventos/abc/editar") == "/eventos/abc"
+    assert voltar_para("/membros/7") == "/membros" and voltar_para("/admin/usuarios") == "/inicio"
+    sec = logado("secretaria")
+    assert "data-voltar" not in sec.get("/inicio").text
+    assert 'href="/agenda" data-voltar' in sec.get("/eventos/novo").text
+    r = criar_evento(sec)
+    eid = r.headers["location"].split("/")[-1]
+    html = sec.get(f"/eventos/{eid}").text
+    assert "Cadastrar outro evento" in html and 'href="/inicio" data-voltar' not in html
+    assert "Cadastrar outro evento" not in sec.get(f"/eventos/{eid}").text  # só logo após salvar
+    form = sec.get("/eventos/novo").text
+    assert 'value="Family Day"' not in form  # formulário novo vem vazio
+    post(sec, f"/eventos/{eid}/inscricoes", {"nome": "Ana Souza", "lgpd": "sim"}, pagina=f"/eventos/{eid}")
+    html = sec.get(f"/eventos/{eid}").text
+    assert "<details open>" in html.replace("  ", " ") or "details open" in html
+    assert 'autofocus' in html and 'value="Ana Souza"' not in html.split('id="i_nome"')[1][:200]
+    # Ficha preenchida pela Secretaria não fica ligada ao login dela, e dá para preencher outra
+    r = enviar_ficha(sec)
+    assert r.headers["location"] == "/ficha/recebida"
+    assert "Preencher outra ficha" in sec.get("/ficha/recebida").text
+    with db.engine().connect() as c:
+        assert c.execute(select(db.usuarios.c.membro_id).where(db.usuarios.c.id == sec.usuario["id"])).scalar() is None

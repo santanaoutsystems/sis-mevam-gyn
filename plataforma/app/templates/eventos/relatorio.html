@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 {% block titulo %}Relatório · {{ e.titulo }}{% endblock %}
 {% block conteudo %}
-<div class="acoes nao-imprimir"><button class="botao" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
-  <a class="botao secundario" href="/eventos/{{ e.id }}">Voltar</a></div>
+<div class="acoes nao-imprimir"><button class="botao" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button></div>
 <div class="cartao">
   <div style="display:flex;gap:1rem;align-items:center"><img src="/static/img/logo_round.jpg" alt="" style="width:60px;border-radius:50%">
     <div><h1 style="margin:0">MINISTÉRIO MEVAM GYN</h1>

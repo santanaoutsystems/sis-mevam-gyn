@@ -56,6 +56,7 @@
       <span class="versao">versão {{ versao }}</span>
     </nav>
     <main class="conteudo" id="conteudo" tabindex="-1">
+      {% if voltar_para %}<a class="botao-voltar" href="{{ voltar_para }}" data-voltar>← Voltar</a>{% endif %}
       {% for m in mensagens %}<div class="msg {{ m.tipo }}" role="status">{{ m.texto }}</div>{% endfor %}
       {% block conteudo %}{% endblock %}
     </main>

@@ -28,6 +28,20 @@ def flash(request: Request, mensagem: str, tipo: str = "sucesso") -> None:
     request.session.setdefault("flash", []).append({"tipo": tipo, "texto": mensagem})
 
 
+def voltar_para(caminho: str) -> str | None:
+    """Tela "anterior" lógica, usada pelo botão ← Voltar quando não há histórico de navegação."""
+    partes = [p for p in caminho.strip("/").split("/") if p]
+    if not partes or caminho in ("/inicio", "/entrar", "/"):
+        return None
+    if partes[0] == "eventos":
+        if len(partes) >= 3:
+            return f"/eventos/{partes[1]}"
+        return "/agenda"
+    if partes[0] == "membros" and len(partes) >= 2:
+        return f"/membros/{partes[1]}" if len(partes) >= 3 else "/membros"
+    return "/inicio"
+
+
 def render(request: Request, nome: str, contexto: dict | None = None, status_code: int = 200):
     usuario = seguranca.usuario_atual(request)
     ctx = {
@@ -38,6 +52,7 @@ def render(request: Request, nome: str, contexto: dict | None = None, status_cod
         "pode": lambda *p: seguranca.pode(usuario, *p),
         "inatividade": seguranca.limite_inatividade(usuario),
         "versao": config.VERSAO,
+        "voltar_para": voltar_para(request.url.path),
     }
     ctx.update(contexto or {})
     return templates.TemplateResponse(request, nome, ctx, status_code=status_code)

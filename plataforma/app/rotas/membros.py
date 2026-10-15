@@ -125,7 +125,8 @@ async def ficha_publica(request: Request):
             origem="novo",
             criado_em=agora, atualizado_em=agora,
         )).inserted_primary_key[0]
-        if usuario and not usuario["membro_id"]:
+        # Liga a ficha ao login só quando é a própria pessoa (mesmo e-mail); a Secretaria pode cadastrar várias fichas seguidas
+        if usuario and not usuario["membro_id"] and (dados.get("email") or "").lower() == (usuario.get("email") or "").lower():
             c.execute(update(db.usuarios).where(db.usuarios.c.id == usuario["id"]).values(membro_id=novo_id))
         auditar(request, "CADASTRO_MEMBRO", f"Membro #{novo_id}", "Pré-cadastro enviado para análise", conexao=c)
 

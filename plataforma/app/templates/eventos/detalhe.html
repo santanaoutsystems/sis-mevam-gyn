@@ -2,6 +2,12 @@
 {% import "parciais/ui.html" as ui with context %}
 {% block titulo %}{{ e.titulo }}{% endblock %}
 {% block conteudo %}
+{% if recem_criado and pode_gerir %}
+<div class="cartao acoes" style="justify-content:space-between;align-items:center">
+  <span>✅ Evento cadastrado. Quer lançar mais um?</span>
+  <a class="botao dourado" href="/eventos/novo">➕ Cadastrar outro evento</a>
+</div>
+{% endif %}
 <div class="cartao">
   <span class="pequeno suave">Evento #{{ e.id }}</span>
   <h1>{{ e.titulo }}</h1>
@@ -37,12 +43,12 @@
 
 <div class="cartao" id="inscricoes">
   <h2>Inscrições ({{ fin.total_inscritos }})</h2>
-  <details {{ 'open' if not inscritos }}>
+  <details {{ 'open' if (not inscritos or inscrever_mais) }}>
     <summary class="botao peq" style="display:inline-flex">➕ Nova inscrição</summary>
     <form method="post" action="/eventos/{{ e.id }}/inscricoes" style="margin-top:.75rem">
       {{ ui.csrf_input() }}
       <div class="grade c2">
-        <div><label for="i_nome">Nome completo <span class="obrig">*</span></label><input id="i_nome" name="nome" required data-voz></div>
+        <div><label for="i_nome">Nome completo <span class="obrig">*</span></label><input id="i_nome" name="nome" required data-voz {{ 'autofocus' if inscrever_mais }}></div>
         <div><label for="i_tel">Telefone</label><input id="i_tel" name="telefone" data-mascara="telefone"></div>
         <div><label for="i_tipo">Tipo de ingresso</label><select id="i_tipo" name="tipo_ingresso">{% for t in TIPOS_INGRESSO %}<option>{{ t }}</option>{% endfor %}</select></div>
         <div><label for="i_forma">Pagamento</label><select id="i_forma" name="forma_pagamento">{% for f in FORMAS_PAGAMENTO %}<option>{{ f }}</option>{% endfor %}</select></div>

@@ -106,3 +106,24 @@
     if (!document.hidden && Date.now() - ultimoUso >= limite * 1000) location.href = "/entrar?expirou=1";
   });
 })();
+
+/* Botão "← Voltar": volta à tela anterior do histórico; se ela for um formulário já enviado
+   (ou não houver histórico), vai para a tela "mãe" indicada no link. */
+(function () {
+  document.addEventListener("click", function (ev) {
+    var a = ev.target.closest && ev.target.closest("a[data-voltar]");
+    if (!a) return;
+    var ref = document.referrer;
+    if (!ref || ref.indexOf(location.origin + "/") !== 0 || history.length < 2) return;
+    var caminho = ref.slice(location.origin.length).split(/[?#]/)[0];
+    if (caminho === location.pathname || /\/(novo|editar|adicionar)$/.test(caminho) || caminho === "/ficha" ||
+        caminho === "/entrar" || caminho === "/trocar-senha" || caminho === "/primeiro-acesso") return;
+    ev.preventDefault();
+    history.back();
+  });
+  /* Ao voltar para uma página guardada pelo navegador, formulários aparecem limpos. */
+  window.addEventListener("pageshow", function (ev) {
+    if (!ev.persisted) return;
+    document.querySelectorAll("form[method=post], form[method=POST]").forEach(function (f) { f.reset(); });
+  });
+})();
