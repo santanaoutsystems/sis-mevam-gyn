@@ -13,16 +13,19 @@ import csv
 import json
 import os
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import psycopg
 
 
 def serial(v):
-    if isinstance(v, (datetime, date)):
+    if isinstance(v, (datetime, date, time)):
         return v.isoformat()
+    if isinstance(v, UUID):
+        return str(v)
     if isinstance(v, Decimal):
         return float(v)
     return v
@@ -46,7 +49,7 @@ def main():
             nomes = [d.name for d in cur.description]
             registros = [dict(zip(nomes, map(serial, r))) for r in cur.fetchall()]
             with open(os.path.join(pasta, f"{t}.json"), "w", encoding="utf-8") as f:
-                json.dump(registros, f, ensure_ascii=False, indent=1)
+                json.dump(registros, f, ensure_ascii=False, indent=1, default=str)
             with open(os.path.join(pasta, f"{t}.csv"), "w", encoding="utf-8-sig", newline="") as f:
                 w = csv.DictWriter(f, fieldnames=nomes, delimiter=";")
                 w.writeheader()
