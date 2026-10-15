@@ -179,6 +179,13 @@ input[type=text], input[type=email], input[type=password], input[type=tel], inpu
   border: 1.5px solid var(--borda-forte); border-radius: 12px; background: var(--superficie); color: var(--t-principal);
   font-family: inherit; transition: border-color .15s, box-shadow .15s;
 }
+.campo-senha { position: relative; display: block; }
+.campo-senha input { padding-right: 3rem; }
+.ver-senha { position: absolute; top: 50%; right: .25rem; transform: translateY(-50%); width: 44px; height: 44px;
+  display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 0;
+  border-radius: 8px; color: var(--t-suave); cursor: pointer; padding: 0; }
+.ver-senha:hover { color: var(--t-principal); }
+.ver-senha:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--foco); color: var(--t-principal); }
 input::placeholder, textarea::placeholder { color: var(--t-suave); opacity: .85; }
 select option { background: var(--superficie); color: var(--t-principal); }
 textarea { min-height: 90px; }
