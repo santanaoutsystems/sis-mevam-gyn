@@ -16,6 +16,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse
 from starlette.routing import Mount, Route
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.staticfiles import StaticFiles
 
 from . import config, datas, db
@@ -25,8 +26,8 @@ from .web import BASE, render
 CSP = ("default-src 'self'; "
        "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
        "worker-src 'self' blob: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
-       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-       "font-src 'self' https://fonts.gstatic.com; "
+       "style-src 'self' 'unsafe-inline'; "
+       "font-src 'self'; "
        "img-src 'self' data: blob:; "
        "connect-src 'self' https://viacep.com.br https://cdn.jsdelivr.net https://tessdata.projectnaptha.com data: blob:; "
        "frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
@@ -42,6 +43,10 @@ class CabecalhosSeguranca(BaseHTTPMiddleware):
         resp.headers.setdefault("Permissions-Policy", "camera=(self), microphone=(self), geolocation=()")
         if config.COOKIE_SEGURO:
             resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        if request.url.path.startswith(("/static/fonts/", "/static/img/")):
+            resp.headers.setdefault("Cache-Control", "public, max-age=2592000")  # 30 dias: não mudam
+        elif request.url.path.startswith("/static/"):
+            resp.headers.setdefault("Cache-Control", "no-cache")  # CSS/JS: confere versão a cada visita (ETag)
         if request.url.path.startswith(("/membros", "/minha-ficha", "/admin", "/credo")):
             resp.headers.setdefault("Cache-Control", "no-store")
         return resp
@@ -80,6 +85,7 @@ rotas = [
 ]
 
 middleware = [
+    Middleware(GZipMiddleware, minimum_size=800),
     Middleware(CabecalhosSeguranca),
     Middleware(SessionMiddleware, secret_key=config.SECRET_KEY, session_cookie="mevam_sessao",
                max_age=config.SESSAO_MAX_SEGUNDOS, same_site="lax", https_only=config.COOKIE_SEGURO),

@@ -14,9 +14,9 @@
   {% for s in STATUS %}<a class="selo {{ 'validado' if status == s else 'inativo' }}" href="/membros?status={{ s|urlencode }}">{{ s }} ({{ contagem.get(s, 0) }})</a>{% endfor %}
 </div>
 <form class="cartao" method="get" style="display:grid;gap:.5rem;grid-template-columns:1fr auto">
-  <input type="search" name="q" value="{{ busca }}" placeholder="Buscar por nome, e-mail, WhatsApp ou bairro" data-voz>
+  <input type="search" name="q" value="{{ busca }}" placeholder="Buscar por nome, e-mail, WhatsApp ou bairro" aria-label="Buscar membros" data-voz>
   <input type="hidden" name="status" value="{{ status }}">
-  <select name="setor" style="grid-column:1"><option value="">Todos os setores</option>
+  <select name="setor" style="grid-column:1" aria-label="Filtrar por setor"><option value="">Todos os setores</option>
     {% for d in deptos %}<option value="{{ d.id }}" {{ 'selected' if setor == d.id|string }}>{{ d.nome }}</option>{% endfor %}</select>
   <button class="botao" type="submit">Buscar</button>
 </form>

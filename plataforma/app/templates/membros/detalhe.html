@@ -61,7 +61,7 @@
       {% set funcao_atual = (setores|selectattr('departamento_id','equalto',d.id)|map(attribute='funcao')|first) or 'Voluntário' %}
       <div class="opcoes" style="align-items:center">
         <label style="flex:1"><input type="checkbox" name="departamento_id" value="{{ d.id }}" {{ 'checked' if d.id in meus }}> {{ d.nome }}</label>
-        <select name="funcao_{{ d.id }}" style="width:auto">{% for f in ['Voluntário','Líder','Apoio'] %}<option {{ 'selected' if f == funcao_atual }}>{{ f }}</option>{% endfor %}</select>
+        <select name="funcao_{{ d.id }}" style="width:auto" aria-label="Função em {{ d.nome }}">{% for f in ['Voluntário','Líder','Apoio'] %}<option {{ 'selected' if f == funcao_atual }}>{{ f }}</option>{% endfor %}</select>
       </div>
     {% else %}<p class="suave">Nenhum setor cadastrado.</p>{% endfor %}
     </div>
@@ -70,7 +70,7 @@
 
   <h3>Status</h3>
   <form method="post" action="/membros/{{ m.id }}/status" class="com-acao">{{ ui.csrf_input() }}
-    <select name="status">{% for s in ['Ativo','Inativo','Validado pela Secretaria','Aguardando Análise'] %}<option {{ 'selected' if s == m.status }}>{{ s }}</option>{% endfor %}</select>
+    <select name="status" aria-label="Situação da ficha">{% for s in ['Ativo','Inativo','Validado pela Secretaria','Aguardando Análise'] %}<option {{ 'selected' if s == m.status }}>{{ s }}</option>{% endfor %}</select>
     <button class="botao secundario">Alterar</button>
   </form>
 </div>

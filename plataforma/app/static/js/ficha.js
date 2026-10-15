@@ -115,18 +115,31 @@
 
   // ---------------- Leitura de documento (OCR) ----------------
   const docInput = $("#docOcr");
-  if (docInput && typeof OcrEngine !== "undefined") {
-    if (window.pdfjsLib) {
+  // As bibliotecas de leitura (vários MB) só são baixadas quando alguém escolhe um documento,
+  // assim a ficha abre rápido mesmo no 4G.
+  const carregarScript = (src) => new Promise((ok, erro) => {
+    if (document.querySelector(`script[src="${src}"]`)) return ok();
+    const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = erro;
+    document.head.appendChild(s);
+  });
+  const carregarLeitura = async (pdf) => {
+    if (typeof Tesseract === "undefined") await carregarScript("https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js");
+    if (pdf && !window.pdfjsLib) {
+      await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
       pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
     }
+  };
+  if (docInput && typeof OcrEngine !== "undefined") {
     const motor = new OcrEngine();
     const barra = $("#ocrBarra"), status = $("#ocrStatus");
     const mapaSexo = { "Masc.": "Masculino", "Fem.": "Feminino" };
     docInput.addEventListener("change", async () => {
       const arquivo = docInput.files[0];
       if (!arquivo) return;
-      status.textContent = "Lendo o documento...";
+      status.textContent = "Preparando a leitura do documento...";
       try {
+        await carregarLeitura(arquivo.name.toLowerCase().endsWith(".pdf"));
+        status.textContent = "Lendo o documento...";
         const r = await motor.processFile(arquivo, (p, txt) => { barra.style.width = p + "%"; status.textContent = txt; });
         let preenchidos = 0;
         for (const [campo, valor] of Object.entries(r)) {

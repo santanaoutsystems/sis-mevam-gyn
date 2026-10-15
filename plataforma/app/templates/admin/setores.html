@@ -16,8 +16,8 @@
     <li>
       <form method="post" action="/admin/setores/salvar" class="grade c3" style="align-items:end">
         {{ ui.csrf_input() }}<input type="hidden" name="id" value="{{ s.id }}">
-        <div><label>Setor ({{ s.qtd }} membro{{ 's' if s.qtd != 1 }})</label><input name="nome" value="{{ s.nome }}" required></div>
-        <div><label>Responsável</label><input name="responsavel" value="{{ s.responsavel or '' }}"></div>
+        <div><label for="nome_{{ s.id }}">Setor ({{ s.qtd }} membro{{ 's' if s.qtd != 1 }})</label><input id="nome_{{ s.id }}" name="nome" value="{{ s.nome }}" required></div>
+        <div><label for="resp_{{ s.id }}">Responsável</label><input id="resp_{{ s.id }}" name="responsavel" value="{{ s.responsavel or '' }}"></div>
         <div class="acoes" style="margin:0"><button class="botao secundario peq">Salvar</button>
           <button class="botao perigo peq" formaction="/admin/setores/{{ s.id }}/excluir" onclick="return confirm('Excluir o setor {{ s.nome }}?')">Excluir</button></div>
       </form>

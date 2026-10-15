@@ -7,6 +7,16 @@
    tema claro e outro para o escuro, escolhidos para manter contraste WCAG AA (4,5:1)
    entre texto e fundo. Nunca use cor fixa em texto: use os tokens --t-*.
    O tema segue o aparelho, ou a escolha do botão ☀️/🌙 (html[data-tema]). */
+/* Fontes servidas pelo próprio sistema (sem chamada ao Google: mais rápido e sem enviar o IP do visitante a terceiros). Licença OFL. */
+@font-face { font-family: "Plus Jakarta Sans"; font-style: normal; font-display: swap; font-weight: 200 800;
+  src: url(/static/fonts/plus-jakarta-sans-latin-wght-normal.woff2) format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: "Plus Jakarta Sans"; font-style: normal; font-display: swap; font-weight: 200 800;
+  src: url(/static/fonts/plus-jakarta-sans-latin-ext-wght-normal.woff2) format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "Outfit"; font-style: normal; font-display: swap; font-weight: 100 900;
+  src: url(/static/fonts/outfit-latin-wght-normal.woff2) format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: "Outfit"; font-style: normal; font-display: swap; font-weight: 100 900;
+  src: url(/static/fonts/outfit-latin-ext-wght-normal.woff2) format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+
 
 :root {
   /* Marca (fixas: usadas em fundos de botões, cabeçalhos de tabela e selos de identidade) */
@@ -277,6 +287,35 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--t
   background: rgba(255,255,255,.15); color: #fff; border-color: rgba(255,255,255,.35); }
 
 /* Impressão de relatórios: sempre claro, independente do tema */
+/* ---------- Acessibilidade ---------- */
+/* Atalho de teclado: aparece só ao receber foco (Tab) */
+.pular { position: absolute; left: .5rem; top: -100px; z-index: 100; background: var(--superficie); color: var(--t-link);
+  border: 2px solid var(--t-link); border-radius: 10px; padding: .6rem 1rem; font-weight: 700; }
+.pular:focus { top: calc(.5rem + env(safe-area-inset-top)); }
+main:focus { outline: none; }
+/* Tabelas largas rolam dentro do próprio quadro, sem empurrar a página */
+.rolagem { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* Telas de toque: alvos com pelo menos 44 x 44 px (WCAG 2.5.5) */
+@media (pointer: coarse) {
+  .botao.peq, .topo form button, .botao-tema, summary.botao { min-height: 44px; min-width: 44px; justify-content: center; }
+  .botao-tema { min-width: 44px; }
+  summary { min-height: 44px; display: flex; align-items: center; }
+  summary.botao { display: inline-flex; }
+  .check, .opcoes label { min-height: 44px; align-items: center; }
+  a.selo { padding: .8rem .85rem; }
+}
+/* Telas muito estreitas (320 px ou zoom de 400%): cabeçalho cabe sem rolagem lateral */
+@media (max-width: 380px) {
+  .topo { gap: .4rem; padding-left: .6rem; padding-right: .6rem; }
+  .topo img { width: 34px; height: 34px; }
+  .topo .nome-app { font-size: .85rem; }
+}
+@media (max-width: 340px) { .topo .nome-app { display: none; } }
+/* Quem pede menos movimento no aparelho não vê animações */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
+
 @media print {
   :root, html[data-tema] { --fundo: #fff; --superficie: #fff; --t-principal: #000; --t-suave: #333; --t-titulo: #1e3a8a; --borda: #ccc; --linha-par: #f3f4f6; }
   .topo, .nav, .nao-imprimir, .acoes, .botao-tema { display: none !important; }

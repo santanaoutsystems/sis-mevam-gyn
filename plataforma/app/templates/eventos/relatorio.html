@@ -10,7 +10,7 @@
     <span class="pequeno suave">Evento em {{ e.quando.strftime('%d/%m/%Y às %H:%M') if e.quando }} · Emitido por {{ usuario.nome }} em {{ emitido.strftime('%d/%m/%Y às %H:%M') }}</span></div></div>
 
   {% if tipo == 'financeiro' %}
-  <table class="tabela" style="margin-top:1rem">
+  <div class="rolagem" tabindex="0" role="region" aria-label="Tabela do relatório"><table class="tabela" style="margin-top:1rem">
     <tbody>
       {% for f, v in fin.por_forma.items() %}<tr><td>Receita · {{ f }}</td><td style="text-align:right">{{ v|moeda }}</td></tr>{% endfor %}
       <tr><td><b>Receita total</b></td><td style="text-align:right"><b>{{ fin.receita|moeda }}</b></td></tr>
@@ -19,14 +19,14 @@
       <tr><td><b>Resultado</b></td><td style="text-align:right"><b>{{ fin.resultado|moeda }}</b></td></tr>
       <tr><td>A receber</td><td style="text-align:right">{{ fin.a_receber|moeda }}</td></tr>
     </tbody>
-  </table>
+  </table></div>
   {% else %}
-  <table class="tabela" style="margin-top:1rem">
+  <div class="rolagem" tabindex="0" role="region" aria-label="Tabela do relatório"><table class="tabela" style="margin-top:1rem">
     <thead><tr><th>#</th><th>Nome</th><th>Telefone</th><th>Ingresso</th><th>Pagamento</th><th>Valor</th><th>Status</th></tr></thead>
     <tbody>{% for i in inscritos %}<tr><td>{{ loop.index }}</td><td>{{ i.nome }}</td><td>{{ i.telefone or '' }}</td><td>{{ i.tipo_ingresso }}</td>
       <td>{{ i.forma_pagamento }}</td><td>{{ i.valor_pago|moeda }}</td><td>{{ i.status_pagamento }}</td></tr>
     {% else %}<tr><td colspan="7">Nenhum registro.</td></tr>{% endfor %}</tbody>
-  </table>
+  </table></div>
   <p><b>Total:</b> {{ inscritos|length }} participante(s)</p>
   {% endif %}
 </div>

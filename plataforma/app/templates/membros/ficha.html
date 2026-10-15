@@ -2,8 +2,6 @@
 {% import "parciais/ui.html" as ui with context %}
 {% block titulo %}{{ 'Editar ficha' if modo == 'editar' else 'Ficha de Membro' }}{% endblock %}
 {% block cabeca %}
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
 {% endblock %}
 
 {% macro formulario() %}
@@ -22,7 +20,7 @@
   <input type="hidden" name="ocr_documento_nome" value="{{ valores.get('ocr_documento_nome') or '' }}">
 
   <!-- Etapa 1 -->
-  <section class="etapa cartao">
+  <section class="etapa cartao atual">
     <h2>1. Dados pessoais</h2>
     <div class="ocr-caixa nao-imprimir">
       <b>📄 Tem a ficha em papel ou um documento?</b>
@@ -55,7 +53,7 @@
     {{ ui.radios('sexo', 'Sexo', SEXOS, obrig=True) }}
     <div class="grade c2">
       {{ ui.selecao('estado_civil', 'Estado civil', ESTADOS_CIVIS, obrig=True) }}
-      <div id="grupoConjuge">{{ ui.campo('conjuge', 'Nome do cônjuge', voz=True) }}</div>
+      <div id="grupoConjuge"{% if valores.get('estado_civil') not in ('Casado(a)', 'União Estável') %} style="display:none"{% endif %}>{{ ui.campo('conjuge', 'Nome do cônjuge', voz=True) }}</div>
     </div>
     <h3>Filhos</h3>
     <div id="filhos"></div>
@@ -89,9 +87,9 @@
   <section class="etapa cartao">
     <h2>3. Vida cristã</h2>
     {{ ui.radios('batizado', 'Batizado(a) nas águas?', SIM_NAO, obrig=True) }}
-    <div id="grupoBatismo">{{ ui.campo('data_batismo', 'Data do batismo', mascara='data', voz=True) }}</div>
+    <div id="grupoBatismo"{% if valores.get('batizado') != 'Sim' %} style="display:none"{% endif %}>{{ ui.campo('data_batismo', 'Data do batismo', mascara='data', voz=True) }}</div>
     {{ ui.radios('congregava_antes', 'Congregava em outra igreja antes?', SIM_NAO, obrig=True) }}
-    <div id="grupoCongregava">{{ ui.campo('onde_congregava', 'Igreja anterior', voz=True) }}</div>
+    <div id="grupoCongregava"{% if valores.get('congregava_antes') != 'Sim' %} style="display:none"{% endif %}>{{ ui.campo('onde_congregava', 'Igreja anterior', voz=True) }}</div>
     {{ ui.campo('area_ministerial', 'Áreas em que já serviu ou deseja servir', voz=True, dica='Ex: Louvor, Mídia, Infantil') }}
     {{ ui.campo('interesse_batismo_familia', 'Alguém da família deseja se batizar?', voz=True, dica="Ex: Sim, meu filho / Não") }}
     {% if modo == 'editar' %}
@@ -116,9 +114,9 @@
   {% endif %}
 
   <div class="acoes" style="justify-content:space-between">
-    <button type="button" class="botao secundario" id="btnVoltar">← Voltar</button>
+    <button type="button" class="botao secundario" id="btnVoltar" style="visibility:hidden">← Voltar</button>
     <button type="button" class="botao" id="btnAvancar">Continuar →</button>
-    {% if modo != 'editar' %}<button type="submit" class="botao dourado" id="btnEnviar">💾 Enviar ficha para análise</button>{% endif %}
+    {% if modo != 'editar' %}<button type="submit" class="botao dourado" id="btnEnviar" style="display:none">💾 Enviar ficha para análise</button>{% endif %}
   </div>
 </form>
 {% endmacro %}
