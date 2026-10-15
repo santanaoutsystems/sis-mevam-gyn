@@ -19,7 +19,8 @@
     {% if setores %}<p class="pequeno">Setores: {% for s in setores %}<span class="selo validado">{{ s.nome }} · {{ s.funcao }}</span> {% endfor %}</p>{% endif %}
     <div class="acoes">
       <a class="botao secundario peq" href="/membros/{{ m.id }}/pdf" target="_blank">🖨️ PDF da ficha</a>
-      {% if not propria and m.status != 'Anonimizado (LGPD)' %}<a class="botao secundario peq" href="/membros/{{ m.id }}/editar">✏️ Editar</a>{% endif %}
+      {% if not propria and m.status != 'Anonimizado (LGPD)' %}<a class="botao secundario peq" href="/membros/{{ m.id }}/editar">✏️ Editar</a>
+      <a class="botao secundario peq" href="/regularizacao/membro/{{ m.id }}">📋 Regularização</a>{% endif %}
     </div>
   </div>
 </div>

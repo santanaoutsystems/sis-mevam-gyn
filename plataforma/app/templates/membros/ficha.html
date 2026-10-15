@@ -1,15 +1,17 @@
 {% extends "base.html" %}
 {% import "parciais/ui.html" as ui with context %}
-{% block titulo %}{{ 'Editar ficha' if modo == 'editar' else 'Ficha de Membro' }}{% endblock %}
+{% block titulo %}{{ 'Editar ficha' if modo == 'editar' else ('Atualização cadastral' if modo == 'regularizar' else 'Ficha de Membro') }}{% endblock %}
 {% block cabeca %}
 {% endblock %}
 
 {% macro formulario() %}
-<h1>{{ 'Editar ficha #' ~ m.id if modo == 'editar' else 'Ficha de Membro' }}</h1>
+<h1>{{ 'Editar ficha #' ~ m.id if modo == 'editar' else ('Atualização cadastral' if modo == 'regularizar' else 'Ficha de Membro') }}</h1>
 <p class="suave" style="margin-top:0">
   {% if modo == 'editar' %}As alterações ficam registradas na auditoria.
+  {% elif modo == 'regularizar' %}Paz, {{ m.nome_completo.split(' ')[0] }}! Confira os dados da sua ficha antiga e complete o que falta.
   {% else %}Preencha seus dados. A Secretaria analisa a ficha e depois envia o link da Confissão de Fé.{% endif %}
 </p>
+{% if modo == 'regularizar' and faltas %}<div class="msg aviso"><b>Falta completar:</b> {{ faltas|join(', ') }}.</div>{% endif %}
 {% if erros %}<div class="msg erro">Confira os campos destacados ({{ erros|length }}).</div>{% endif %}
 <div class="etapas" aria-hidden="true"><span></span><span></span><span></span>{% if modo != 'editar' %}<span></span>{% endif %}</div>
 
@@ -117,7 +119,7 @@
   <div class="acoes" style="justify-content:space-between">
     <button type="button" class="botao secundario" id="btnVoltar" style="visibility:hidden">← Voltar</button>
     <button type="button" class="botao" id="btnAvancar">Continuar →</button>
-    {% if modo != 'editar' %}<button type="submit" class="botao dourado" id="btnEnviar" style="display:none">💾 Enviar ficha para análise</button>{% endif %}
+    {% if modo != 'editar' %}<button type="submit" class="botao dourado" id="btnEnviar" style="display:none">{{ '💾 Salvar meus dados' if modo == 'regularizar' else '💾 Enviar ficha para análise' }}</button>{% endif %}
   </div>
 </form>
 {% endmacro %}

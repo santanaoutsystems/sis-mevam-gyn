@@ -38,6 +38,8 @@ def voltar_para(caminho: str) -> str | None:
         if len(partes) >= 3:
             return f"/eventos/{partes[1]}"
         return "/agenda"
+    if partes[0] == "regularizacao" and len(partes) >= 2:
+        return f"/regularizacao/membro/{partes[2]}" if len(partes) >= 4 else "/regularizacao"
     if partes[0] == "membros" and len(partes) >= 2:
         return f"/membros/{partes[1]}" if len(partes) >= 3 else "/membros"
     return "/inicio"

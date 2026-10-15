@@ -148,7 +148,11 @@ membros = Table(
     Column("data_validacao", DateTime(timezone=True)),
     Column("link_credo_enviado", Boolean, nullable=False, default=False),
     Column("observacoes", Text),
-    Column("origem", String),  # 'novo' ou 'membros_app:membros#ID'
+    Column("origem", String),  # 'novo', 'ficha_impressa' ou 'membros_app:membros#ID'
+    # Ficha impressa original escaneada (data URL de imagem ou PDF), para auditoria
+    Column("ficha_escaneada", Text),
+    Column("ficha_escaneada_em", DateTime(timezone=True)),
+    Column("ficha_escaneada_por", String),
     Column("criado_em", DateTime(timezone=True), server_default=func.now()),
     Column("atualizado_em", DateTime(timezone=True), server_default=func.now()),
 )
@@ -196,6 +200,22 @@ PERFIS = ("membro", "coordenacao", "secretaria", "admin")
 PERFIS_ROTULO = {"membro": "Membro", "coordenacao": "Coordenação", "secretaria": "Secretaria", "admin": "Adm"}
 # Perfis que gerenciam a agenda. A Coordenação fica restrita aos seus setores (usuario_setores).
 PERFIS_AGENDA = ("coordenacao", "secretaria", "admin")
+
+# Links exclusivos de atualização cadastral (fichas impressas antigas)
+regularizacoes = Table(
+    "regularizacoes", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("membro_id", Integer, ForeignKey("membros.id", ondelete="CASCADE"), nullable=False),
+    Column("segredo", String(64), nullable=False),  # com a SECRET_KEY gera o token do link
+    Column("criado_em", DateTime(timezone=True), server_default=func.now()),
+    Column("criado_por", String),
+    Column("expira_em", DateTime(timezone=True), nullable=False),
+    Column("enviado_em", DateTime(timezone=True)),
+    Column("canais", String),  # ex.: "email, whatsapp"
+    Column("concluido_em", DateTime(timezone=True)),
+    Column("revogado", Boolean, nullable=False, default=False),
+    Column("desfecho", String),  # quem não atualizou no prazo: em_analise | inativado
+)
 
 STATUS_MEMBRO = ("Aguardando Análise", "Validado pela Secretaria", "Ativo", "Inativo", "Anonimizado (LGPD)")
 
@@ -278,7 +298,8 @@ def aplicar_migracoes_aditivas() -> None:
     """Aplica no Postgres as migrações aditivas e idempotentes que não exigem passo manual.
 
     Hoje: 003 (Coordenação), 004 (id de setor como texto) e 005 (colunas que faltam na Agenda legada)
-    e 006 (CPF em membros e usuários).
+    006 (CPF em membros e usuários)
+    e 007 (regularização de fichas antigas).
     Só cria/alarga; nunca remove dados. Se falhar, o app sobe mesmo assim e registra o erro.
     """
     import logging
@@ -287,7 +308,7 @@ def aplicar_migracoes_aditivas() -> None:
     if eng.dialect.name != "postgresql":
         return
     pasta = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes")
-    for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql"):
+    for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql", "007_regularizacao.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()

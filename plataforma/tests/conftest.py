@@ -10,6 +10,7 @@ _tmp = tempfile.mkdtemp()
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or f"sqlite:///{_tmp}/teste.db"
 os.environ["SECRET_KEY"] = "chave-de-teste-nao-usar-em-producao"
 os.environ["AMBIENTE"] = "desenvolvimento"
+os.environ["ENVIO_SINCRONO"] = "1"
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from sqlalchemy import delete, text  # noqa: E402

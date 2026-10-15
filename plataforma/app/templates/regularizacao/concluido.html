@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block titulo %}Cadastro atualizado{% endblock %}
+{% macro corpo() %}
+<div class="cartao" style="max-width:560px;text-align:center">
+  <h1>Obrigado, {{ nome }}! 🙌</h1>
+  <p>Seu cadastro no MEVAM GYN foi atualizado com sucesso.</p>
+  <p class="suave">Se precisar corrigir algo, fale com a Secretaria.</p>
+</div>
+{% endmacro %}
+{% block conteudo %}{{ corpo() }}{% endblock %}
+{% block publico %}{{ corpo() }}{% endblock %}

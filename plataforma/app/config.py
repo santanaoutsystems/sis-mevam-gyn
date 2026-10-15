@@ -48,7 +48,7 @@ if not SECRET_KEY:
 FUSO_HORARIO = "America/Sao_Paulo"
 URL_BASE = os.getenv("URL_BASE", "http://localhost:8000").rstrip("/")
 
-VERSAO = "2.3.0"
+VERSAO = "2.4.0"
 
 # Sessão
 # Sem uso por este tempo, o acesso é bloqueado e é preciso entrar de novo.
@@ -67,6 +67,16 @@ SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORTA = int(os.getenv("SMTP_PORTA", "587"))
 SMTP_USUARIO = os.getenv("SMTP_USUARIO", "")
 SMTP_SENHA = os.getenv("SMTP_SENHA", "")
+
+# WhatsApp automático (opcional) pela Evolution API. Sem estas variáveis, o envio é manual (wa.me).
+EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "").rstrip("/")
+EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY", "")
+EVOLUTION_INSTANCIA = os.getenv("EVOLUTION_INSTANCIA", "")
+
+# Regularização de fichas antigas: prazo padrão do link exclusivo
+REGULARIZACAO_PRAZO_DIAS = int(os.getenv("REGULARIZACAO_PRAZO_DIAS", "30"))
+# Testes: disparos sem thread em segundo plano
+ENVIO_SINCRONO = os.getenv("ENVIO_SINCRONO", "") == "1"
 
 # Primeiro acesso: cria o 1º Administrador pela página /primeiro-acesso (o Render gratuito não tem terminal).
 # Só funciona enquanto não existir nenhum Administrador e exige este código. Apague a variável depois do uso.

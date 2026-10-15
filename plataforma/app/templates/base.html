@@ -30,7 +30,7 @@
   <div class="layout">
     {# Ferramentas de cada perfil. No celular: as 4 primeiras na barra e o resto em "Mais". #}
     {% set f = [('/inicio', '🏠', 'Início'), ('/agenda', '📅', 'Agenda')] %}
-    {% if pode('secretaria', 'admin') %}{% set f = f + [('/membros', '👥', 'Membros'), ('/coordenacao', '🧭', 'Coordenação')] %}{% endif %}
+    {% if pode('secretaria', 'admin') %}{% set f = f + [('/membros', '👥', 'Membros'), ('/coordenacao', '🧭', 'Coordenação'), ('/regularizacao', '📋', 'Regularização')] %}{% endif %}
     {% if pode('coordenacao') %}{% set f = f + [('/eventos/novo', '➕', 'Novo evento')] %}{% endif %}
     {% if pode('coordenacao', 'secretaria', 'admin') %}{% set f = f + [('/relatorios/periodo', '🖨️', 'Relatórios')] %}{% endif %}
     {% if pode('admin') %}{% set f = f + [('/admin/usuarios', '🔐', 'Usuários'), ('/admin/setores', '🏢', 'Setores'), ('/admin/auditoria', '🔍', 'Auditoria')] %}{% endif %}

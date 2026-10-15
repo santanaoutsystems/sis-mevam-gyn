@@ -193,7 +193,7 @@ pre, summary, details, p, li, td, th, label, span, div { color: inherit; }
 /* Formulários */
 label { display: block; font-weight: 600; font-size: .9rem; margin: .7rem 0 .25rem; color: var(--t-principal); }
 label .obrig { color: var(--t-perigo); }
-input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input:not([type]), select, textarea {
+input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=number], input:not([type]), select, textarea {
   width: 100%; min-height: var(--toque); padding: .6rem .75rem; font-size: 16px; /* evita zoom no iPhone */
   border: 1.5px solid var(--borda-forte); border-radius: 12px; background: var(--superficie); color: var(--t-principal);
   font-family: inherit; transition: border-color .15s, box-shadow .15s;

@@ -770,3 +770,156 @@ def test_anonimizar_apaga_o_cpf():
     post(adm, f"/membros/{mid}/anonimizar", {"motivo": "Pedido do titular por escrito"}, pagina=f"/membros/{mid}")
     with db.engine().connect() as c:
         assert c.execute(select(db.membros.c.cpf).where(db.membros.c.id == mid)).scalar() is None
+
+
+# ---------------------------------------------------------------------------
+# Regularização de fichas antigas
+# ---------------------------------------------------------------------------
+def _png() -> bytes:
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (2600, 1800), (240, 240, 240)).save(buf, "PNG")
+    return buf.getvalue()
+
+
+def _ficha_antiga(nome="Jose Antigo Pereira", **extra) -> int:
+    with db.engine().begin() as c:
+        return c.execute(insert(db.membros).values(
+            nome_completo=nome, status="Ativo", origem=f"ficha_impressa:{nome}", whatsapp="(62) 9 9999-7777",
+            email="jose@exemplo.com", filhos=[], **extra)).inserted_primary_key[0]
+
+
+def _link(mid):
+    from app.rotas import regularizacao
+    with db.engine().connect() as c:
+        reg = dict(c.execute(select(db.regularizacoes).where(db.regularizacoes.c.membro_id == mid)
+                             .order_by(db.regularizacoes.c.id.desc())).mappings().first())
+    return reg, regularizacao.link_de(reg).replace("http://localhost:8000", "")
+
+
+def test_regularizacao_so_para_secretaria_e_adm():
+    assert logado("secretaria").get("/regularizacao").status_code == 200
+    assert logado("admin", email="adm2@exemplo.com").get("/regularizacao").status_code == 200
+    for perfil in ("membro", "coordenacao"):
+        r = logado(perfil).get("/regularizacao", follow_redirects=False)
+        assert r.status_code in (302, 303, 403)
+
+
+def test_cadastrar_ficha_antiga_com_escaneamento():
+    sec = logado("secretaria")
+    r = post(sec, "/regularizacao/nova", {"nome_completo": "jose antigo pereira", "whatsapp": "62999997777",
+                                          "email": "", "data_nascimento": "", "cpf": "", "proxima": "nao"},
+             pagina="/regularizacao/nova", files={"escaneada": ("ficha.png", _png(), "image/png")})
+    assert r.status_code == 303
+    mid = membro_id_mais_recente()
+    with db.engine().connect() as c:
+        m = c.execute(select(db.membros).where(db.membros.c.id == mid)).mappings().first()
+    assert m["origem"].startswith("ficha_impressa:") and m["nome_completo"] == "Jose Antigo Pereira"
+    assert m["ficha_escaneada"].startswith("data:image/jpeg;base64,")
+    painel = sec.get("/regularizacao").text
+    assert "Jose Antigo Pereira" in painel and "CPF" in painel and "Foto 3x4" in painel
+    img = sec.get(f"/regularizacao/membro/{mid}/escaneada")
+    assert img.status_code == 200 and img.headers["content-type"] == "image/jpeg"
+    from PIL import Image
+    import io
+    assert max(Image.open(io.BytesIO(img.content)).size) <= 2000  # foto grande reduzida
+    assert logado("membro").get(f"/regularizacao/membro/{mid}/escaneada", follow_redirects=False).status_code != 200
+
+
+def test_link_exclusivo_atualiza_o_mesmo_registro():
+    mid = _ficha_antiga()
+    sec = logado("secretaria")
+    assert post(sec, "/regularizacao/gerar", {"membro_id": str(mid), "prazo": "30", "enviar": "nao"},
+                pagina="/regularizacao").status_code == 303
+    reg, caminho = _link(mid)
+    visitante = novo_cliente()
+    pagina = visitante.get(caminho)
+    assert pagina.status_code == 200 and "Atualização cadastral" in pagina.text and "Falta completar" in pagina.text
+    assert visitante.get(f"/atualizar/{reg['id']}?t=errado").status_code == 403
+    with db.engine().connect() as c:
+        total = c.execute(select(db.membros.c.id)).all()
+    dados = {**FICHA_OK, "nome_completo": "Jose Antigo Pereira", "cpf": "529.982.247-25", "csrf": csrf_de(pagina.text)}
+    r = visitante.post(caminho, data=dados, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/atualizar/concluido"
+    assert "Obrigado, Jose" in visitante.get("/atualizar/concluido").text
+    with db.engine().connect() as c:
+        assert len(c.execute(select(db.membros.c.id)).all()) == len(total)  # não duplicou
+        m = c.execute(select(db.membros).where(db.membros.c.id == mid)).mappings().first()
+        reg2 = c.execute(select(db.regularizacoes).where(db.regularizacoes.c.id == reg["id"])).mappings().first()
+    assert m["cpf"] == "52998224725" and m["foto_3x4"] and m["lgpd_consentimento"] and m["origem"].startswith("ficha_impressa")
+    assert reg2["concluido_em"] is not None
+    assert "já foram atualizados" in novo_cliente().get(caminho).text
+    assert "Jose Antigo Pereira" in sec.get("/regularizacao?aba=concluidos").text
+
+
+def test_link_novo_cancela_o_anterior_e_whatsapp_manual():
+    mid = _ficha_antiga()
+    sec = logado("secretaria")
+    post(sec, "/regularizacao/gerar", {"membro_id": str(mid), "prazo": "10", "enviar": "nao"}, pagina="/regularizacao")
+    antigo, caminho_antigo = _link(mid)
+    post(sec, "/regularizacao/gerar", {"membro_id": str(mid), "prazo": "10", "enviar": "nao"}, pagina="/regularizacao")
+    novo, caminho_novo = _link(mid)
+    assert "substituído" in novo_cliente().get(caminho_antigo).text
+    r = post(sec, f"/regularizacao/link/{novo['id']}/whatsapp", {}, pagina=f"/regularizacao/membro/{mid}")
+    assert r.status_code == 303 and r.headers["location"].startswith("https://wa.me/5562999997777?text=Paz%2C%20Jose")
+    with db.engine().connect() as c:
+        assert c.execute(select(db.regularizacoes.c.canais).where(db.regularizacoes.c.id == novo["id"])).scalar() == "whatsapp"
+
+
+def test_envio_automatico_registra_sucesso_e_falha(monkeypatch):
+    from app import envios
+    enviados = []
+    monkeypatch.setattr(envios, "email_configurado", lambda: True)
+    monkeypatch.setattr(envios, "whatsapp_configurado", lambda: True)
+    monkeypatch.setattr(envios, "enviar_email", lambda d, a, t: enviados.append((d, t)) or None)
+    monkeypatch.setattr(envios, "enviar_whatsapp", lambda n, t: "HTTP 500")
+    mid = _ficha_antiga()
+    sec = logado("secretaria")
+    post(sec, "/regularizacao/gerar", {"membro_id": str(mid), "prazo": "30", "enviar": "sim"}, pagina="/regularizacao")
+    reg, caminho = _link(mid)
+    assert reg["canais"] == "email" and enviados[0][0] == "jose@exemplo.com" and caminho.split("?")[0] in enviados[0][1]
+    with db.engine().connect() as c:
+        acoes = [r[0] for r in c.execute(select(db.auditoria.c.acao))]
+    assert "FALHA_ENVIO_REGULARIZACAO" in acoes and "REGULARIZACAO_ENVIO" in acoes
+
+
+def test_vencidos_analise_e_inativacao():
+    from datetime import timedelta
+    mid = _ficha_antiga()
+    with db.engine().begin() as c:
+        c.execute(insert(db.regularizacoes).values(membro_id=mid, segredo="x" * 20, criado_por="Teste",
+                                                   expira_em=datas.agora_utc() - timedelta(days=1)))
+    reg, caminho = _link(mid)
+    assert "prazo deste link terminou" in novo_cliente().get(caminho).text
+    sec = logado("secretaria")
+    assert "Jose Antigo Pereira" in sec.get("/regularizacao?aba=vencidos").text
+    r = post(sec, "/regularizacao/desfecho", {"membro_id": str(mid), "acao": "inativar", "motivo": ""},
+             pagina="/regularizacao?aba=vencidos")
+    with db.engine().connect() as c:
+        assert c.execute(select(db.membros.c.status).where(db.membros.c.id == mid)).scalar() == "Ativo"
+    post(sec, "/regularizacao/desfecho", {"membro_id": str(mid), "acao": "em_analise", "motivo": ""},
+         pagina="/regularizacao?aba=vencidos")
+    assert "Em análise" in sec.get("/regularizacao?aba=vencidos").text
+    post(sec, "/regularizacao/desfecho", {"membro_id": str(mid), "acao": "inativar", "motivo": "Mudou de cidade"},
+         pagina="/regularizacao?aba=vencidos")
+    with db.engine().connect() as c:
+        assert c.execute(select(db.membros.c.status).where(db.membros.c.id == mid)).scalar() == "Inativo"
+        assert c.execute(select(db.regularizacoes.c.desfecho).where(db.regularizacoes.c.id == reg["id"])).scalar() == "inativado"
+
+
+def test_importar_planilha_sem_duplicar():
+    sec = logado("secretaria")
+    cpf = gerar_cpf(111222333)
+    csv_txt = ("nome;whatsapp;email;nascimento;cpf\n"
+               f"maria antiga lima;62988887777;maria@exemplo.com;01/02/1960;{cpf}\n"
+               "Maria Antiga Lima;;;01/02/1960;\n"
+               "pedro sem dados;;;;\n")
+    r = post(sec, "/regularizacao/importar", {}, pagina="/regularizacao",
+             files={"arquivo": ("fichas.csv", csv_txt.encode("utf-8"), "text/csv")})
+    assert r.status_code == 303
+    with db.engine().connect() as c:
+        nomes = sorted(x[0] for x in c.execute(select(db.membros.c.nome_completo).where(db.membros.c.origem.like("ficha_impressa:%"))))
+        assert c.execute(select(db.membros.c.cpf).where(db.membros.c.nome_completo == "Maria Antiga Lima")).scalar() == cpf
+    assert nomes == ["Maria Antiga Lima", "Pedro Sem Dados"]
+    assert "2 fichas criadas, 1 já existiam" in sec.get("/regularizacao").text

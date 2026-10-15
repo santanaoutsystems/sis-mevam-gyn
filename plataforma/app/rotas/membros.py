@@ -380,12 +380,13 @@ async def anonimizar(request: Request):
                                 "email", "telefone", "whatsapp", "formacao_academica", "profissao", "empresa",
                                 "data_batismo", "onde_congregava", "interesse_batismo_familia",
                                 "assinatura_rubrica", "foto_3x4", "ocr_documento_nome", "lgpd_ip_origem",
-                                "nome_assinante", "observacoes", "cpf")}
+                                "nome_assinante", "observacoes", "cpf", "ficha_escaneada")}
     with db.engine().begin() as c:
         c.execute(update(db.membros).where(db.membros.c.id == mid).values(
             **vazios, nome_completo=f"Titular Anonimizado #{mid}", filhos=[],
             status="Anonimizado (LGPD)", status_lgpd="Anonimizado", atualizado_em=datas.agora_utc()))
         c.execute(delete(db.membro_setores).where(db.membro_setores.c.membro_id == mid))
+        c.execute(update(db.regularizacoes).where(db.regularizacoes.c.membro_id == mid).values(revogado=True))
         c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == mid).values(membro_id=None, cpf=None))
         auditar(request, "ANONIMIZACAO_LGPD", f"Membro #{mid}", motivo, conexao=c)
     flash(request, "Dados pessoais anonimizados conforme a LGPD.")
@@ -405,6 +406,7 @@ async def excluir(request: Request):
             return ir(f"/membros/{mid}")
         c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == mid).values(membro_id=None))
         c.execute(delete(db.membro_setores).where(db.membro_setores.c.membro_id == mid))
+        c.execute(delete(db.regularizacoes).where(db.regularizacoes.c.membro_id == mid))
         c.execute(delete(db.membros).where(db.membros.c.id == mid))
         auditar(request, "EXCLUSAO_MEMBRO", f"Membro #{mid}", f"Nome: {m['nome_completo']}", conexao=c)
     flash(request, f"Ficha #{mid} excluída.")
