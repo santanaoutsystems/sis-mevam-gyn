@@ -42,8 +42,8 @@ def _valor_ingresso(base: float, tipo: str) -> float:
     return float(base or 0)
 
 
-def _evento(c, eid: int) -> dict | None:
-    r = c.execute(select(db.eventos).where(db.eventos.c.id == eid)).mappings().first()
+def _evento(c, eid) -> dict | None:
+    r = c.execute(select(db.eventos).where(db.texto(db.eventos.c.id) == str(eid))).mappings().first()
     if not r:
         return None
     e = dict(r)
@@ -144,7 +144,7 @@ def _conflitos(c, data_iso: str, ignorar_id: int | None = None) -> list[dict]:
     achados = []
     for r in c.execute(q).mappings():
         quando = datas.parse_data_hora_local(r["data_inicio"])
-        if r["id"] != ignorar_id and quando and abs(quando - alvo) < INTERVALO_MINIMO:
+        if str(r["id"]) != str(ignorar_id) and quando and abs(quando - alvo) < INTERVALO_MINIMO:
             achados.append({**r, "quando": quando})
     return sorted(achados, key=lambda e: e["quando"])
 
@@ -217,9 +217,9 @@ async def detalhe(request: Request):
         e = _evento(c, eid)
         if not e:
             return render(request, "erro.html", {"titulo": "Não encontrado", "mensagem": "Evento não encontrado."}, 404)
-        inscritos = [dict(r) for r in c.execute(select(db.inscricoes).where(db.inscricoes.c.evento_id == eid)
+        inscritos = [dict(r) for r in c.execute(select(db.inscricoes).where(db.texto(db.inscricoes.c.evento_id) == str(eid))
                                                 .order_by(db.inscricoes.c.nome)).mappings()]
-        custos = [dict(r) for r in c.execute(select(db.custos_evento).where(db.custos_evento.c.evento_id == eid)
+        custos = [dict(r) for r in c.execute(select(db.custos_evento).where(db.texto(db.custos_evento.c.evento_id) == str(eid))
                                              .order_by(db.custos_evento.c.id)).mappings()]
     lim = e.get("limite_vagas") or 0
     e["vagas_txt"] = "Livre acesso" if not lim else f"{max(lim - len(inscritos), 0)} vagas restantes de {lim}"
@@ -305,7 +305,7 @@ async def editar(request: Request):
             historico += f"\n[{carimbo}] Conflito de horário liberado ({liberacao['conflitos']}). Motivo: {liberacao['motivo']}"
             auditar(request, "CONFLITO_LIBERADO", f"Evento #{eid}",
                     f"{liberacao['conflitos']}. Motivo: {liberacao['motivo']}", conexao=c)
-        c.execute(update(db.eventos).where(db.eventos.c.id == eid).values(
+        c.execute(update(db.eventos).where(db.texto(db.eventos.c.id) == str(eid)).values(
             **{**dados, "data_inicio": db.data_evento(dados["data_inicio"])},
             criado_por=carimbo, historico_alteracoes=historico))
         auditar(request, "EVENTO_ATUALIZADO", f"Evento #{eid}", justificativa, conexao=c)
@@ -330,14 +330,14 @@ async def excluir(request: Request):
             flash(request, "Informe a justificativa para excluir o evento.", "erro")
             return ir(f"/eventos/{eid}")
         tem_dados = c.execute(select(func.count()).select_from(db.inscricoes)
-                              .where(db.inscricoes.c.evento_id == eid)).scalar() or \
+                              .where(db.texto(db.inscricoes.c.evento_id) == str(eid))).scalar() or \
             c.execute(select(func.count()).select_from(db.custos_evento)
-                      .where(db.custos_evento.c.evento_id == eid)).scalar()
+                      .where(db.texto(db.custos_evento.c.evento_id) == str(eid))).scalar()
         if tem_dados:
             flash(request, "Este evento tem inscrições ou custos lançados. Para não perder esses dados, "
                            "remova-os antes ou mantenha o evento.", "erro")
             return ir(f"/eventos/{eid}")
-        c.execute(delete(db.eventos).where(db.eventos.c.id == eid))
+        c.execute(delete(db.eventos).where(db.texto(db.eventos.c.id) == str(eid)))
         auditar(request, "EVENTO_EXCLUIDO", f"Evento #{eid}", f"{e['titulo']}. Motivo: {justificativa}", conexao=c)
     notificacoes.alerta_evento("cancelado", e, u["nome"], justificativa)
     flash(request, "Evento excluído e registrado na auditoria.")
@@ -381,7 +381,7 @@ async def inscrever(request: Request):
         lim = e.get("limite_vagas") or 0
         if lim:
             ocupadas = c.execute(select(func.count()).select_from(db.inscricoes)
-                                 .where(db.inscricoes.c.evento_id == eid)).scalar()
+                                 .where(db.texto(db.inscricoes.c.evento_id) == str(eid))).scalar()
             if ocupadas >= lim:
                 erros["vagas"] = "Não há mais vagas neste evento."
         if erros:
@@ -390,7 +390,7 @@ async def inscrever(request: Request):
             return ir(f"/eventos/{eid}#inscricoes")
         u = seguranca.usuario_atual(request)
         dados["observacoes"] = f"[{_carimbo(u)}] Inscrição registrada com consentimento LGPD."
-        iid = c.execute(insert(db.inscricoes).values(evento_id=eid, **dados)).inserted_primary_key[0]
+        iid = c.execute(insert(db.inscricoes).values(evento_id=e["id"], **dados)).inserted_primary_key[0]
         auditar(request, "INSCRICAO_CRIADA", f"Inscrição #{iid} / Evento #{eid}", dados["nome"], conexao=c)
     flash(request, f"{dados['nome']} inscrito(a).")
     return ir(f"/eventos/{eid}#inscricoes")
@@ -402,7 +402,7 @@ async def editar_inscricao(request: Request):
     form = await request.form()
     justificativa = (form.get("justificativa") or "").strip()
     with db.engine().begin() as c:
-        atual = c.execute(select(db.inscricoes).where(db.inscricoes.c.id == iid)).mappings().first()
+        atual = c.execute(select(db.inscricoes).where(db.texto(db.inscricoes.c.id) == str(iid))).mappings().first()
         if not atual:
             return ir("/agenda")
         eid = atual["evento_id"]
@@ -420,7 +420,7 @@ async def editar_inscricao(request: Request):
         u = seguranca.usuario_atual(request)
         dados.pop("membro_id")
         dados["observacoes"] = f"{atual.get('observacoes') or ''}\n[{_carimbo(u)}] {justificativa}".strip()
-        c.execute(update(db.inscricoes).where(db.inscricoes.c.id == iid).values(**dados))
+        c.execute(update(db.inscricoes).where(db.texto(db.inscricoes.c.id) == str(iid)).values(**dados))
         auditar(request, "INSCRICAO_ATUALIZADA", f"Inscrição #{iid}", justificativa, conexao=c)
     flash(request, "Inscrição atualizada.")
     return ir(f"/eventos/{eid}#inscricoes")
@@ -432,7 +432,7 @@ async def excluir_inscricao(request: Request):
     form = await request.form()
     justificativa = (form.get("justificativa") or "").strip()
     with db.engine().begin() as c:
-        atual = c.execute(select(db.inscricoes).where(db.inscricoes.c.id == iid)).mappings().first()
+        atual = c.execute(select(db.inscricoes).where(db.texto(db.inscricoes.c.id) == str(iid))).mappings().first()
         if not atual:
             return ir("/agenda")
         if not _pode_gerir(escopo_setores(c, seguranca.usuario_atual(request)), _evento(c, atual["evento_id"])):
@@ -440,7 +440,7 @@ async def excluir_inscricao(request: Request):
         if len(justificativa) < 5:
             flash(request, "A justificativa é obrigatória para excluir a inscrição.", "erro")
             return ir(f"/eventos/{atual['evento_id']}#inscricoes")
-        c.execute(delete(db.inscricoes).where(db.inscricoes.c.id == iid))
+        c.execute(delete(db.inscricoes).where(db.texto(db.inscricoes.c.id) == str(iid)))
         auditar(request, "INSCRICAO_EXCLUIDA", f"Inscrição #{iid}", f"{atual['nome']}. Motivo: {justificativa}", conexao=c)
     flash(request, "Inscrição excluída.")
     return ir(f"/eventos/{atual['evento_id']}#inscricoes")
@@ -459,9 +459,12 @@ async def lancar_custo(request: Request):
         flash(request, "Informe descrição e valor da despesa.", "erro")
         return ir(f"/eventos/{eid}#financeiro")
     with db.engine().begin() as c:
-        if not _pode_gerir(escopo_setores(c, seguranca.usuario_atual(request)), _evento(c, eid)):
+        e = _evento(c, eid)
+        if not e:
+            return ir("/agenda")
+        if not _pode_gerir(escopo_setores(c, seguranca.usuario_atual(request)), e):
             return _fora_do_setor(request)
-        cid = c.execute(insert(db.custos_evento).values(evento_id=eid, descricao=descricao, valor=valor)).inserted_primary_key[0]
+        cid = c.execute(insert(db.custos_evento).values(evento_id=e["id"], descricao=descricao, valor=valor)).inserted_primary_key[0]
         auditar(request, "CUSTO_LANCADO", f"Custo #{cid} / Evento #{eid}", f"{descricao}: {valor:.2f}", conexao=c)
     flash(request, "Despesa lançada.")
     return ir(f"/eventos/{eid}#financeiro")
@@ -471,12 +474,12 @@ async def lancar_custo(request: Request):
 async def excluir_custo(request: Request):
     cid = request.path_params["cid"]
     with db.engine().begin() as c:
-        atual = c.execute(select(db.custos_evento).where(db.custos_evento.c.id == cid)).mappings().first()
+        atual = c.execute(select(db.custos_evento).where(db.texto(db.custos_evento.c.id) == str(cid))).mappings().first()
         if not atual:
             return ir("/agenda")
         if not _pode_gerir(escopo_setores(c, seguranca.usuario_atual(request)), _evento(c, atual["evento_id"])):
             return _fora_do_setor(request)
-        c.execute(delete(db.custos_evento).where(db.custos_evento.c.id == cid))
+        c.execute(delete(db.custos_evento).where(db.texto(db.custos_evento.c.id) == str(cid)))
         auditar(request, "CUSTO_EXCLUIDO", f"Custo #{cid}", f"{atual['descricao']}: {atual['valor']}", conexao=c)
     flash(request, "Despesa removida.")
     return ir(f"/eventos/{atual['evento_id']}#financeiro")
@@ -495,9 +498,9 @@ async def relatorio_evento(request: Request):
             return ir("/agenda")
         if not _pode_gerir(escopo_setores(c, seguranca.usuario_atual(request)), e):
             return _fora_do_setor(request)
-        inscritos = [dict(r) for r in c.execute(select(db.inscricoes).where(db.inscricoes.c.evento_id == eid)
+        inscritos = [dict(r) for r in c.execute(select(db.inscricoes).where(db.texto(db.inscricoes.c.evento_id) == str(eid))
                                                 .order_by(db.inscricoes.c.nome)).mappings()]
-        custos = [dict(r) for r in c.execute(select(db.custos_evento).where(db.custos_evento.c.evento_id == eid)).mappings()]
+        custos = [dict(r) for r in c.execute(select(db.custos_evento).where(db.texto(db.custos_evento.c.evento_id) == str(eid))).mappings()]
     if tipo == "inadimplentes":
         inscritos = [i for i in inscritos if i.get("status_pagamento") == "Pendente"]
     auditar(request, "RELATORIO_EVENTO", f"Evento #{eid}", tipo)
@@ -526,14 +529,14 @@ async def relatorio_periodo(request: Request):
 rotas = [
     Route("/agenda", agenda),
     Route("/eventos/novo", novo, methods=["GET", "POST"]),
-    Route("/eventos/{id:int}", detalhe),
-    Route("/eventos/{id:int}/editar", editar, methods=["GET", "POST"]),
-    Route("/eventos/{id:int}/excluir", excluir, methods=["POST"]),
-    Route("/eventos/{id:int}/inscricoes", inscrever, methods=["POST"]),
-    Route("/inscricoes/{iid:int}/editar", editar_inscricao, methods=["POST"]),
-    Route("/inscricoes/{iid:int}/excluir", excluir_inscricao, methods=["POST"]),
-    Route("/eventos/{id:int}/custos", lancar_custo, methods=["POST"]),
-    Route("/custos/{cid:int}/excluir", excluir_custo, methods=["POST"]),
-    Route("/eventos/{id:int}/relatorio", relatorio_evento),
+    Route("/eventos/{id}", detalhe),
+    Route("/eventos/{id}/editar", editar, methods=["GET", "POST"]),
+    Route("/eventos/{id}/excluir", excluir, methods=["POST"]),
+    Route("/eventos/{id}/inscricoes", inscrever, methods=["POST"]),
+    Route("/inscricoes/{iid}/editar", editar_inscricao, methods=["POST"]),
+    Route("/inscricoes/{iid}/excluir", excluir_inscricao, methods=["POST"]),
+    Route("/eventos/{id}/custos", lancar_custo, methods=["POST"]),
+    Route("/custos/{cid}/excluir", excluir_custo, methods=["POST"]),
+    Route("/eventos/{id}/relatorio", relatorio_evento),
     Route("/relatorios/periodo", relatorio_periodo),
 ]

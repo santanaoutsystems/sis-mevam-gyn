@@ -16,7 +16,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     JSON, Boolean, Column, cast, Date, DateTime, Float, ForeignKey, Integer, MetaData,
-    String, Table, Text, UniqueConstraint, create_engine, func,
+    String, Table, Text, UniqueConstraint, Uuid, FetchedValue, create_engine, func,
 )
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
@@ -185,6 +185,11 @@ auditoria = Table(
 # Id do setor sempre comparado como texto (funciona com id numérico ou UUID na tabela legada)
 DEP_ID = cast(departamentos.c.id, String)
 
+
+def texto(coluna):
+    """Compara ids como texto: nas tabelas legadas do Supabase o id pode ser uuid em vez de número."""
+    return cast(coluna, String)
+
 PERFIS = ("membro", "coordenacao", "secretaria", "admin")
 PERFIS_ROTULO = {"membro": "Membro", "coordenacao": "Coordenação", "secretaria": "Secretaria", "admin": "Adm"}
 # Perfis que gerenciam a agenda. A Coordenação fica restrita aos seus setores (usuario_setores).
@@ -206,6 +211,21 @@ def _detectar_tipos(eng: Engine) -> None:
         tipo = c.execute(text(
             "select data_type from information_schema.columns "
             "where table_schema='public' and table_name='eventos' and column_name='data_inicio'")).scalar()
+        tipos_id = dict(c.execute(text(
+            "select table_name || '.' || column_name, data_type from information_schema.columns "
+            "where table_schema='public' and table_name in ('eventos', 'inscricoes', 'custos_evento') "
+            "and column_name in ('id', 'evento_id')")).all())
+    # Ids legados da Agenda podem ser uuid (ou texto) no Supabase, e não número.
+    for nome, tipo_id in tipos_id.items():
+        tabela, coluna = nome.split(".")
+        col = metadata.tables[tabela].c[coluna]
+        if tipo_id not in ("uuid", "text", "character varying"):
+            continue
+        col.type = Uuid(as_uuid=False) if tipo_id == "uuid" else String()
+        if col.primary_key:
+            # Gerado pelo banco (gen_random_uuid()), não por sequência numérica
+            col.autoincrement = False
+            col.server_default = FetchedValue()
     if tipo and tipo.startswith("timestamp"):
         com_fuso = "with time zone" in tipo and "without" not in tipo
         _DATA_EVENTO["modo"] = "timestamptz" if com_fuso else "timestamp"

@@ -340,9 +340,9 @@ def test_menos_de_2_horas_e_conflito_e_so_secretaria_ou_adm_liberam():
     r = criar_evento(sec, titulo="Culto Jovem", departamento="Jovens", hora="10:30", liberar_conflito="sim",
                      motivo_liberacao="Salas separadas, sem som")
     assert r.status_code == 303
-    eid = int(r.headers["location"].split("/")[-1])
+    eid = r.headers["location"].split("/")[-1]
     with db.engine().connect() as c:
-        hist = c.execute(select(db.eventos.c.historico_alteracoes).where(db.eventos.c.id == eid)).scalar()
+        hist = c.execute(select(db.eventos.c.historico_alteracoes).where(db.texto(db.eventos.c.id) == eid)).scalar()
         acoes = c.execute(select(db.auditoria.c.acao)).scalars().all()
     assert "Conflito de horário liberado" in hist and "CONFLITO_LIBERADO" in acoes
     # Coordenação não libera
@@ -368,7 +368,7 @@ def test_menu_do_celular_mostra_todas_as_ferramentas_do_perfil():
 
 def test_inscricoes_vagas_valores_e_financeiro():
     sec = logado("secretaria")
-    eid = int(criar_evento(sec).headers["location"].split("/")[-1])
+    eid = criar_evento(sec).headers["location"].split("/")[-1]
     pag = f"/eventos/{eid}"
     post(sec, f"{pag}/inscricoes", {"nome": "ana", "tipo_ingresso": "Inteira", "forma_pagamento": "Pix",
                                     "status_pagamento": "Confirmado", "lgpd": "sim"}, pagina=pag)
@@ -387,7 +387,7 @@ def test_inscricoes_vagas_valores_e_financeiro():
 
 def test_inscricao_exige_consentimento_lgpd():
     sec = logado("secretaria")
-    eid = int(criar_evento(sec).headers["location"].split("/")[-1])
+    eid = criar_evento(sec).headers["location"].split("/")[-1]
     post(sec, f"/eventos/{eid}/inscricoes", {"nome": "ana", "tipo_ingresso": "Inteira"}, pagina=f"/eventos/{eid}")
     with db.engine().connect() as c:
         assert c.execute(select(db.inscricoes)).first() is None
@@ -395,7 +395,7 @@ def test_inscricao_exige_consentimento_lgpd():
 
 def test_evento_com_inscricoes_nao_e_excluido():
     sec = logado("secretaria")
-    eid = int(criar_evento(sec).headers["location"].split("/")[-1])
+    eid = criar_evento(sec).headers["location"].split("/")[-1]
     post(sec, f"/eventos/{eid}/inscricoes", {"nome": "ana", "tipo_ingresso": "Inteira", "lgpd": "sim"}, pagina=f"/eventos/{eid}")
     post(sec, f"/eventos/{eid}/excluir", {"justificativa": "Chuva forte"}, pagina=f"/eventos/{eid}")
     with db.engine().connect() as c:
@@ -404,7 +404,7 @@ def test_evento_com_inscricoes_nao_e_excluido():
 
 def test_editar_evento_exige_justificativa_e_registra_historico():
     sec = logado("secretaria")
-    eid = int(criar_evento(sec).headers["location"].split("/")[-1])
+    eid = criar_evento(sec).headers["location"].split("/")[-1]
     r = post(sec, f"/eventos/{eid}/editar", {**EVENTO, "hora": "10:00"}, pagina=f"/eventos/{eid}/editar")
     assert r.status_code == 400
     post(sec, f"/eventos/{eid}/editar", {**EVENTO, "hora": "10:00", "justificativa": "Mudança aprovada"},
@@ -416,7 +416,7 @@ def test_editar_evento_exige_justificativa_e_registra_historico():
 
 def test_membro_ve_agenda_sem_dados_financeiros():
     sec = logado("secretaria")
-    eid = int(criar_evento(sec).headers["location"].split("/")[-1])
+    eid = criar_evento(sec).headers["location"].split("/")[-1]
     post(sec, f"/eventos/{eid}/inscricoes", {"nome": "ana", "telefone": "62988887777", "lgpd": "sim"}, pagina=f"/eventos/{eid}")
     membro = logado("membro")
     assert "Family Day" in membro.get("/agenda?mes=2026-11").text
@@ -526,7 +526,7 @@ def test_secretaria_define_coordenador_e_setores():
 
 def test_coordenacao_gerencia_somente_os_proprios_setores():
     sec = logado("secretaria")
-    eid_familia = int(criar_evento(sec).headers["location"].split("/")[-1])
+    eid_familia = criar_evento(sec).headers["location"].split("/")[-1]
     coord = logado("coordenacao")
     # Sem setor atribuído: não cria evento
     assert coord.get("/eventos/novo").status_code == 403
@@ -538,7 +538,7 @@ def test_coordenacao_gerencia_somente_os_proprios_setores():
     r = post(coord, "/eventos/novo", {**EVENTO, "titulo": "Culto Jovem", "departamento": "Jovens",
                                       "data": "20/11/2026"}, pagina="/eventos/novo")
     assert r.status_code == 303
-    eid_jovens = int(r.headers["location"].split("/")[-1])
+    eid_jovens = r.headers["location"].split("/")[-1]
     # Não cria em setor alheio
     r = post(coord, "/eventos/novo", {**EVENTO, "titulo": "Outro", "data": "21/11/2026"}, pagina="/eventos/novo")
     assert r.status_code == 400 and "setores que você coordena" in r.text
@@ -575,7 +575,7 @@ def test_telefone_no_padrao_obrigatorio():
     r = enviar_ficha(novo_cliente(), telefone="12345")
     assert r.status_code == 400 and "(62) 9 9999-9999" in r.text
     sec = logado("secretaria")
-    eid = int(criar_evento(sec).headers["location"].split("/")[-1])
+    eid = criar_evento(sec).headers["location"].split("/")[-1]
     post(sec, f"/eventos/{eid}/inscricoes", {"nome": "Ana Souza", "telefone": "6233334444", "lgpd": "sim"},
          pagina=f"/eventos/{eid}")
     with db.engine().connect() as c:
@@ -630,3 +630,34 @@ def test_tela_de_setores_mostra_coordenadores():
     post(adm, f"/coordenacao/{coord['id']}", {"setores": [_setor_id("Jovens")]}, pagina="/coordenacao")
     html = adm.get("/admin/setores").text
     assert "Pessoa Coordenacao" in html and "ninguém ainda" in html
+
+
+def test_links_da_agenda_abrem_detalhe_e_edicao_para_coordenacao():
+    """Ids de evento podem ser uuid no Supabase: os links da Lista e do Calendário precisam abrir."""
+    sec = logado("secretaria")
+    eid = criar_evento(sec).headers["location"].split("/")[-1]
+    coord = logado("coordenacao")
+    with db.engine().begin() as c:
+        c.execute(insert(db.usuario_setores).values(usuario_id=coord.usuario["id"], departamento_id=_setor_id("Família")))
+    for visao in ("lista", "calendario"):
+        html = coord.get(f"/agenda?mes=2026-11&visao={visao}").text
+        links = set(re.findall(r'href="(/eventos/[^"/#?]+)"', html)) - {"/eventos/novo"}
+        assert links == {f"/eventos/{eid}"}
+        detalhe = coord.get(f"/eventos/{eid}")
+        assert detalhe.status_code == 200 and "Editar" in detalhe.text
+    assert coord.get(f"/eventos/{eid}/editar").status_code == 200
+    r = post(coord, f"/eventos/{eid}/editar", {**EVENTO, "titulo": "Culto da Família", "justificativa": "mudança de título"},
+             pagina=f"/eventos/{eid}/editar")
+    assert r.status_code == 303 and r.headers["location"] == f"/eventos/{eid}"
+    post(coord, f"/eventos/{eid}/inscricoes", {"nome": "Ana Souza", "telefone": "62988887777", "lgpd": "sim"},
+         pagina=f"/eventos/{eid}")
+    post(coord, f"/eventos/{eid}/custos", {"descricao": "Lanche", "valor": "50,00"}, pagina=f"/eventos/{eid}")
+    html = coord.get(f"/eventos/{eid}").text
+    assert "Culto da Família" in html and "Ana Souza" in html and "Lanche" in html
+    iid = re.search(r'action="/inscricoes/([^/"]+)/editar"', html).group(1)
+    cid = re.search(r'action="/custos/([^/"]+)/excluir"', html).group(1)
+    assert post(coord, f"/inscricoes/{iid}/excluir", {"justificativa": "desistiu"}, pagina=f"/eventos/{eid}").status_code == 303
+    assert post(coord, f"/custos/{cid}/excluir", {}, pagina=f"/eventos/{eid}").status_code == 303
+    html = coord.get(f"/eventos/{eid}").text
+    assert "Ana Souza" not in html and "Lanche" not in html
+    assert coord.get("/eventos/nao-existe").status_code == 404
