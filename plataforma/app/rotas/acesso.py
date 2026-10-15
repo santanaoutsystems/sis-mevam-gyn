@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hmac
 from datetime import timedelta
 
 from sqlalchemy import func, select, update
+from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.routing import Route
 
@@ -117,6 +119,50 @@ async def trocar_senha(request: Request):
     return ir("/inicio")
 
 
+def _existe_admin() -> bool:
+    with db.engine().connect() as c:
+        return c.execute(select(db.usuarios.c.id).where(db.usuarios.c.perfil == "admin").limit(1)).first() is not None
+
+
+async def primeiro_acesso(request: Request):
+    """Cria o primeiro Administrador. Só existe enquanto não há nenhum admin e com o código configurado."""
+    if not config.CODIGO_PRIMEIRO_ACESSO or _existe_admin():
+        raise HTTPException(404)
+    if request.method == "GET":
+        return render(request, "primeiro_acesso.html")
+
+    form = await request.form()
+    ip = seguranca.ip_cliente(request)
+    dados = {k: (form.get(k) or "").strip() for k in ("nome", "email")}
+    dados["email"] = dados["email"].lower()
+    erro = None
+    if not await seguranca.conferir_csrf(request):
+        erro = "Sessão expirada. Tente novamente."
+    elif seguranca.ip_bloqueado(ip):
+        erro = "Muitas tentativas. Aguarde alguns minutos."
+    elif not hmac.compare_digest((form.get("codigo") or "").strip(), config.CODIGO_PRIMEIRO_ACESSO):
+        seguranca.registrar_falha_ip(ip)
+        erro = "Código de primeiro acesso incorreto."
+    elif not dados["nome"] or "@" not in dados["email"]:
+        erro = "Informe nome e e-mail."
+    elif (form.get("senha") or "") != (form.get("confirma") or ""):
+        erro = "A confirmação não é igual à senha."
+    else:
+        erro = seguranca.validar_forca_senha(form.get("senha") or "")
+    if erro:
+        return render(request, "primeiro_acesso.html", {"erro": erro, **dados}, status_code=400)
+
+    from .admin import criar_usuario
+    with db.engine().begin() as c:
+        uid, _ = criar_usuario(c, dados["nome"], dados["email"], "admin", senha=form.get("senha"))
+        c.execute(update(db.usuarios).where(db.usuarios.c.id == uid).values(trocar_senha=False))
+        u = c.execute(select(db.usuarios).where(db.usuarios.c.id == uid)).mappings().first()
+        auditar(request, "PRIMEIRO_ACESSO", f"Usuário #{uid}", "Primeiro Administrador criado", usuario=dict(u), conexao=c)
+    seguranca.iniciar_sessao(request, dict(u))
+    flash(request, "Administrador criado. Agora apague a variável CODIGO_PRIMEIRO_ACESSO no Render.")
+    return ir("/inicio")
+
+
 async def raiz(request: Request):
     return ir("/inicio" if seguranca.usuario_atual(request) else "/entrar")
 
@@ -155,4 +201,5 @@ rotas = [
     Route("/sair", sair, methods=["POST"]),
     Route("/trocar-senha", trocar_senha, methods=["GET", "POST"]),
     Route("/inicio", inicio),
+    Route("/primeiro-acesso", primeiro_acesso, methods=["GET", "POST"]),
 ]

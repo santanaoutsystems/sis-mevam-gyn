@@ -48,6 +48,8 @@ python -m pytest -q tests             # 34 testes
 | `SECRET_KEY` | sim | Assina sessões e links. Gere com `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `AMBIENTE` | sim | `homologacao` ou `producao` (ativa cookie seguro e exige `SECRET_KEY`) |
 | `URL_BASE` | sim | Endereço público, ex. `https://sis-mevam.onrender.com` (usado nos links do WhatsApp) |
+| `CODIGO_PRIMEIRO_ACESSO` | só no início | Libera `/primeiro-acesso` para criar o 1º Administrador. Apague depois de usar |
+| `PYTHON_VERSION` | sim (Render) | `3.11.9` |
 | `SMTP_USUARIO` / `SMTP_SENHA` | não | Alertas de evento por e-mail (senha de app do Gmail, **nova**) |
 
 Comando de início: `uvicorn app.main:app --host 0.0.0.0 --port $PORT` (pasta raiz do serviço: `plataforma`).

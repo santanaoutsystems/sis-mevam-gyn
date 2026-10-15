@@ -62,5 +62,9 @@ SMTP_PORTA = int(os.getenv("SMTP_PORTA", "587"))
 SMTP_USUARIO = os.getenv("SMTP_USUARIO", "")
 SMTP_SENHA = os.getenv("SMTP_SENHA", "")
 
+# Primeiro acesso: cria o 1º Administrador pela página /primeiro-acesso (o Render gratuito não tem terminal).
+# Só funciona enquanto não existir nenhum Administrador e exige este código. Apague a variável depois do uso.
+CODIGO_PRIMEIRO_ACESSO = os.getenv("CODIGO_PRIMEIRO_ACESSO", "")
+
 VERSAO_TERMO_LGPD = "v2.0-2026"
 VERSAO_APP = "2.0.0-unificada"

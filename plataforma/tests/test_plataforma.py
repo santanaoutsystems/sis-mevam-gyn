@@ -430,3 +430,23 @@ def test_producao_recusa_sqlite():
     ok = subprocess.run([sys.executable, "-c", "import app.config"], capture_output=True, text=True,
                         env={**base, "DATABASE_URL": "postgresql://u:s@h:5432/postgres"})
     assert ok.returncode == 0, ok.stderr
+
+
+def test_primeiro_acesso_cria_admin_uma_unica_vez(monkeypatch):
+    """Sem terminal no Render: o 1º Administrador nasce numa página protegida por código, que some depois."""
+    from app import config
+    c = novo_cliente()
+    assert c.get("/primeiro-acesso").status_code == 404  # sem código configurado, a página não existe
+    monkeypatch.setattr(config, "CODIGO_PRIMEIRO_ACESSO", "codigo-secreto-123")
+    pagina = c.get("/primeiro-acesso")
+    assert pagina.status_code == 200
+    dados = {"nome": "Ricardo César", "email": "Ricardo@Mevam.test", "senha": SENHA, "confirma": SENHA,
+             "csrf": csrf_de(pagina.text)}
+    assert c.post("/primeiro-acesso", data={**dados, "codigo": "errado"}).status_code == 400
+    r = c.post("/primeiro-acesso", data={**dados, "codigo": "codigo-secreto-123"}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/inicio"
+    assert "Administrador" in c.get("/inicio").text
+    with db.engine().connect() as cx:
+        u = cx.execute(select(db.usuarios).where(db.usuarios.c.email == "ricardo@mevam.test")).mappings().one()
+    assert u["perfil"] == "admin" and not u["trocar_senha"]
+    assert novo_cliente().get("/primeiro-acesso").status_code == 404  # já existe admin: página some
