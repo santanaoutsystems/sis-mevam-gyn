@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}{{ 'Editar evento' if e else ('Duplicar evento' if original else 'Novo evento') }}{% endblock %}
+{% block conteudo %}
+<h1>{{ 'Editar evento' if e else ('Duplicar evento' if original else 'Novo evento') }}</h1>
+{% if original %}<div class="msg">📄 Cópia de <b>{{ original.titulo }}</b>{% if original.quando %} ({{ original.quando.strftime('%d/%m/%Y às %H:%M') }}){% endif %}.
+  Informe a <b>nova data</b> e ajuste o que precisar. O evento original continua cadastrado.</div>{% endif %}
+{% if erros %}<div class="msg erro">Confira os campos destacados.</div>{% endif %}
+<form method="post" class="cartao">
+  {{ ui.csrf_input() }}
+  {{ ui.campo('titulo', 'Título do evento', obrig=True, voz=True) }}
+  <div class="{{ 'campo-erro' if erros.get('departamento') }}">
+    <label for="departamento">Setor responsável <span class="obrig">*</span></label>
+    <select id="departamento" name="departamento" required>
+      {% for d in deptos %}<option value="{{ d.nome }}" {{ 'selected' if valores.get('departamento') == d.nome }}>{{ d.nome }}{% if d.responsavel %} · {{ d.responsavel }}{% endif %}</option>
+      {% else %}<option value="Geral">Geral</option>{% endfor %}
+    </select>
+    {% if erros.get('departamento') %}<div class="erro-campo">{{ erros.departamento }}</div>{% endif %}
+  </div>
+  <div class="grade c2">
+    {{ ui.campo('data', 'Data', obrig=True, mascara='data', voz=True) }}
+    {{ ui.campo('hora', 'Hora', obrig=True, mascara='hora') }}
+  </div>
+  {{ ui.campo('local', 'Local', voz=True, dica='Ex: Templo sede') }}
+  <div class="grade c2">
+    {{ ui.campo('valor_inscricao', 'Valor da inscrição (R$)', mascara='moeda', dica='0,00 para gratuito') }}
+    <div>
+      <label>Vagas</label>
+      <div class="opcoes">
+        <label><input type="radio" name="controle_vagas" value="livre" {{ 'checked' if valores.get('controle_vagas', 'livre') != 'fixo' }}> Livre</label>
+        <label><input type="radio" name="controle_vagas" value="fixo" {{ 'checked' if valores.get('controle_vagas') == 'fixo' }}> Limitadas</label>
+      </div>
+    </div>
+  </div>
+  {{ ui.campo('limite_vagas', 'Número de vagas', attrs='inputmode="numeric"') }}
+  <label for="descricao">Descrição</label>
+  <textarea id="descricao" name="descricao">{{ valores.get('descricao') or '' }}</textarea>
+  {% if e %}
+  <div class="{{ 'campo-erro' if erros.get('justificativa') }}">
+    <label for="justificativa">Justificativa da alteração <span class="obrig">*</span></label>
+    <textarea id="justificativa" name="justificativa" required placeholder="Ex: mudança de horário aprovada pela liderança">{{ valores.get('justificativa') or '' }}</textarea>
+    {% if erros.get('justificativa') %}<div class="erro-campo">{{ erros.justificativa }}</div>{% endif %}
+  </div>
+  {% endif %}
+  {% if erros.get('_conflito') and pode('secretaria', 'admin') %}
+  <div class="msg aviso">
+    <label class="check"><input type="checkbox" name="liberar_conflito" value="sim" {{ 'checked' if valores.get('liberar_conflito') == 'sim' }}>
+      <span><b>Liberar mesmo assim</b> (autorização da Secretaria / Adm). Fica registrado no histórico e na auditoria.</span></label>
+    <div class="{{ 'campo-erro' if erros.get('motivo_liberacao') }}">
+      <label for="motivo_liberacao">Motivo da liberação</label>
+      <textarea id="motivo_liberacao" name="motivo_liberacao" placeholder="Ex: salas separadas, sem som no outro evento">{{ valores.get('motivo_liberacao') or '' }}</textarea>
+      {% if erros.get('motivo_liberacao') %}<div class="erro-campo">{{ erros.motivo_liberacao }}</div>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+  <div class="acoes">
+    <button class="botao" type="submit">💾 Salvar</button>
+    <a class="botao secundario" href="{{ '/eventos/%s' % e.id if e else '/agenda' }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

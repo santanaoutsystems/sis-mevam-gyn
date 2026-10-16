@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Coordenação{% endblock %}
+{% block conteudo %}
+<h1>Coordenação</h1>
+<p class="suave" style="margin-top:0">Quem tem o perfil <span class="selo coordenacao">Coordenação</span> cria, edita e exclui eventos,
+  inscrições e despesas <b>somente dos setores marcados aqui</b>. Não vê fichas de membros nem usuários.</p>
+
+<details class="cartao" {{ 'open' if not coords }}>
+  <summary class="botao peq" style="display:inline-flex">➕ Adicionar coordenador</summary>
+  {% if candidatos %}
+  <form method="post" action="/coordenacao/adicionar" class="grade c2" style="align-items:end;margin-top:.75rem">
+    {{ ui.csrf_input() }}
+    <div><label for="c_usuario">Usuário (perfil Membro)</label>
+      <select id="c_usuario" name="usuario_id" required>
+        <option value="">Escolha…</option>
+        {% for u in candidatos %}<option value="{{ u.id }}">{{ u.nome }} · {{ u.email }}</option>{% endfor %}
+      </select></div>
+    <button class="botao">Tornar Coordenação</button>
+  </form>
+  {% else %}
+  <p class="suave" style="margin-top:.75rem">Nenhum usuário com perfil Membro disponível. Crie o acesso da pessoa primeiro (ficha validada › Criar acesso{% if pode('admin') %}, ou Usuários › Novo usuário{% endif %}).</p>
+  {% endif %}
+</details>
+
+{% if not deptos %}<div class="msg aviso">Nenhum setor cadastrado ainda.{% if pode('admin') %} <a href="/admin/setores">Cadastrar setores</a>.{% endif %}</div>{% endif %}
+
+{% for u in coords %}
+<form method="post" action="/coordenacao/{{ u.id }}" class="cartao" id="u{{ u.id }}">
+  {{ ui.csrf_input() }}
+  <h2 style="margin-bottom:.2rem">{{ u.nome }}{% if not u.ativo %} <span class="selo inativo">Desativado</span>{% endif %}</h2>
+  <p class="pequeno suave" style="margin-top:0">{{ u.email }}{% if not u.setores %} · <b class="texto-perigo">nenhum setor: ainda não pode criar eventos</b>{% endif %}</p>
+  <fieldset style="border:0;padding:0;margin:0">
+    <legend class="pequeno"><b>Setores que pode gerenciar</b></legend>
+    <div class="grade c2 c3">
+      {% for d in deptos %}
+      <label class="check"><input type="checkbox" name="setores" value="{{ d.id }}" {{ 'checked' if d.id|string in u.setores }}> {{ d.nome }}</label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <div class="acoes" style="margin-bottom:0">
+    <button class="botao peq">Salvar setores</button>
+    <button class="botao secundario peq" formaction="/coordenacao/{{ u.id }}/remover"
+      onclick="return confirm('Tirar {{ u.nome }} da Coordenação? A pessoa volta a ser Membro.')">Tirar da Coordenação</button>
+  </div>
+</form>
+{% else %}
+<p class="suave">Ninguém na Coordenação ainda.</p>
+{% endfor %}
+{% endblock %}

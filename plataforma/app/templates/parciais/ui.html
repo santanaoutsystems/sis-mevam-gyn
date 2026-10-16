@@ -1,0 +1,38 @@
+{# Componentes de formulário. Importar com: {% import "parciais/ui.html" as ui with context %} #}
+{% macro campo(nome, rotulo, tipo='text', obrig=False, mascara=None, voz=False, dica=None, attrs='') -%}
+<div class="{{ 'campo-erro' if erros.get(nome) }}">
+  <label for="{{ nome }}">{{ rotulo }}{% if obrig %} <span class="obrig">*</span>{% endif %}</label>
+  <input type="{{ tipo }}" id="{{ nome }}" name="{{ nome }}" value="{{ valores.get(nome) or '' }}"
+    {%- if obrig %} required{% endif %}{% if mascara %} data-mascara="{{ mascara }}"{% endif %}
+    {%- if voz %} data-voz{% endif %}{% if dica %} placeholder="{{ dica }}"{% endif %} {{ attrs|safe }}>
+  {% if erros.get(nome) %}<div class="erro-campo">{{ erros[nome] }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro selecao(nome, rotulo, opcoes, obrig=False, vazio='Selecione...') -%}
+<div class="{{ 'campo-erro' if erros.get(nome) }}">
+  <label for="{{ nome }}">{{ rotulo }}{% if obrig %} <span class="obrig">*</span>{% endif %}</label>
+  <select id="{{ nome }}" name="{{ nome }}" {% if obrig %}required{% endif %}>
+    {% if vazio %}<option value="">{{ vazio }}</option>{% endif %}
+    {% for o in opcoes %}<option value="{{ o }}" {{ 'selected' if valores.get(nome) == o }}>{{ o }}</option>{% endfor %}
+  </select>
+  {% if erros.get(nome) %}<div class="erro-campo">{{ erros[nome] }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro radios(nome, rotulo, opcoes, obrig=False) -%}
+<div class="{{ 'campo-erro' if erros.get(nome) }}">
+  <label>{{ rotulo }}{% if obrig %} <span class="obrig">*</span>{% endif %}</label>
+  <div class="opcoes">
+    {% for o in opcoes %}<label><input type="radio" name="{{ nome }}" value="{{ o }}" {{ 'checked' if valores.get(nome) == o }} {% if obrig %}required{% endif %}> {{ o }}</label>{% endfor %}
+  </div>
+  {% if erros.get(nome) %}<div class="erro-campo">{{ erros[nome] }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro selo(status) -%}
+{%- set classe = {'Aguardando Análise':'aguardando','Validado pela Secretaria':'validado','Ativo':'ativo','Inativo':'inativo','Anonimizado (LGPD)':'anonimizado'}.get(status, 'inativo') -%}
+<span class="selo {{ classe }}">{{ status }}</span>
+{%- endmacro %}
+
+{% macro csrf_input() %}<input type="hidden" name="csrf" value="{{ csrf }}">{% endmacro %}

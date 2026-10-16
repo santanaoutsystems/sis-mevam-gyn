@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Membros{% endblock %}
+{% block conteudo %}
+<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+  <h1>Membros</h1>
+  <div class="acoes" style="margin:0">
+    <a class="botao" href="/ficha">➕ Nova ficha</a>
+    {% if pode('admin') %}<a class="botao secundario" href="/membros/exportar.csv">⬇️ Exportar CSV</a>{% endif %}
+  </div>
+</div>
+<div class="opcoes" style="margin:.75rem 0">
+  <a class="selo {{ 'validado' if not status else 'inativo' }}" href="/membros">Todos</a>
+  {% for s in STATUS %}<a class="selo {{ 'validado' if status == s else 'inativo' }}" href="/membros?status={{ s|urlencode }}">{{ s }} ({{ contagem.get(s, 0) }})</a>{% endfor %}
+</div>
+<form class="cartao" method="get" style="display:grid;gap:.5rem;grid-template-columns:1fr auto">
+  <input type="search" name="q" value="{{ busca }}" placeholder="Buscar por nome, e-mail, WhatsApp ou bairro" aria-label="Buscar membros" data-voz>
+  <input type="hidden" name="status" value="{{ status }}">
+  <select name="setor" style="grid-column:1" aria-label="Filtrar por setor"><option value="">Todos os setores</option>
+    {% for d in deptos %}<option value="{{ d.id }}" {{ 'selected' if setor == d.id|string }}>{{ d.nome }}</option>{% endfor %}</select>
+  <button class="botao" type="submit">Buscar</button>
+</form>
+<div class="cartao">
+  {% if linhas %}
+  <table class="tabela responsiva">
+    <thead><tr><th>#</th><th>Nome</th><th>WhatsApp</th><th>Bairro</th><th>Nascimento</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for l in linhas %}
+      <tr>
+        <td data-rotulo="Protocolo">{{ l.id }}</td>
+        <td data-rotulo="Nome"><a href="/membros/{{ l.id }}"><b>{{ l.nome_completo }}</b></a></td>
+        <td data-rotulo="WhatsApp">{{ l.whatsapp or '-' }}</td>
+        <td data-rotulo="Bairro">{{ l.bairro or '-' }}</td>
+        <td data-rotulo="Nascimento">{{ l.data_nascimento|data_br }}</td>
+        <td data-rotulo="Status">{{ ui.selo(l.status) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="suave">Nenhuma ficha encontrada.</p>{% endif %}
+</div>
+{% endblock %}

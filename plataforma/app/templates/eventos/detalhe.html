@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}{{ e.titulo }}{% endblock %}
+{% block conteudo %}
+{% if recem_criado and pode_gerir %}
+<div class="cartao acoes" style="justify-content:space-between;align-items:center">
+  <span>✅ Evento cadastrado. Quer lançar mais um?</span>
+  <a class="botao dourado" href="/eventos/novo">➕ Cadastrar outro evento</a>
+</div>
+{% endif %}
+<div class="cartao">
+  <span class="pequeno suave">Evento #{{ e.id }}</span>
+  <h1>{{ e.titulo }}</h1>
+  <div class="grade c2">
+    <div>📅 <b>{{ e.quando.strftime('%d/%m/%Y') if e.quando }}</b> às <b>{{ e.quando.strftime('%H:%M') if e.quando }}</b></div>
+    <div>🏢 {{ e.departamento or 'Geral' }}</div>
+    {% if e.local %}<div>📍 {{ e.local }}</div>{% endif %}
+    <div>💰 Inteira: {{ e.valor_inscricao|moeda }}</div>
+    <div>👥 {{ e.vagas_txt }}</div>
+  </div>
+  {% if e.descricao %}<p>{{ e.descricao }}</p>{% endif %}
+  {% if pode_gerir %}
+  <div class="acoes">
+    <a class="botao secundario peq" href="/eventos/{{ e.id }}/editar">✏️ Editar</a>
+    <a class="botao secundario peq" href="/eventos/novo?copiar={{ e.id }}">📄 Duplicar</a>
+    <a class="botao secundario peq" href="/eventos/{{ e.id }}/relatorio?tipo=lista" target="_blank">🖨️ Lista de inscritos</a>
+    <a class="botao secundario peq" href="/eventos/{{ e.id }}/relatorio?tipo=inadimplentes" target="_blank">⏳ A receber</a>
+    <a class="botao secundario peq" href="/eventos/{{ e.id }}/relatorio?tipo=financeiro" target="_blank">📊 Extrato financeiro</a>
+  </div>
+  <p class="pequeno suave">Última alteração: {{ e.criado_por or '-' }}</p>
+  {% if e.historico_alteracoes %}<details><summary class="pequeno">Histórico de alterações</summary><pre class="pequeno" style="white-space:pre-wrap">{{ e.historico_alteracoes }}</pre></details>{% endif %}
+  {% endif %}
+</div>
+
+{% if pode_gerir %}
+<div class="grade c2 c4" id="financeiro">
+  <div class="numero"><b>{{ fin.receita|moeda }}</b>Receita confirmada</div>
+  <div class="numero"><b>{{ fin.despesa|moeda }}</b>Despesas</div>
+  <div class="numero"><b>{{ fin.a_receber|moeda }}</b>A receber</div>
+  <div class="numero"><b class="{{ 'texto-sucesso' if fin.resultado >= 0 else 'texto-perigo' }}">{{ fin.resultado|moeda }}</b>Resultado</div>
+</div>
+<p class="pequeno suave">Público: {% for t, q in fin.publico.items() %}{{ q }} {{ t.split(' ')[0] }}{{ ' · ' if not loop.last }}{% endfor %}
+  · Pix {{ fin.por_forma['Pix']|moeda }} · Cartões {{ (fin.por_forma['Cartão de Crédito'] + fin.por_forma['Cartão de Débito'])|moeda }} · Dinheiro {{ fin.por_forma['Dinheiro']|moeda }}</p>
+
+<div class="cartao" id="inscricoes">
+  <h2>Inscrições ({{ fin.total_inscritos }})</h2>
+  <details {{ 'open' if (not inscritos or inscrever_mais) }}>
+    <summary class="botao peq" style="display:inline-flex">➕ Nova inscrição</summary>
+    <form method="post" action="/eventos/{{ e.id }}/inscricoes" style="margin-top:.75rem">
+      {{ ui.csrf_input() }}
+      <div class="grade c2">
+        <div><label for="i_nome">Nome completo <span class="obrig">*</span></label><input id="i_nome" name="nome" required data-voz {{ 'autofocus' if inscrever_mais }}></div>
+        <div><label for="i_tel">Telefone</label><input id="i_tel" name="telefone" data-mascara="telefone"></div>
+        <div><label for="i_tipo">Tipo de ingresso</label><select id="i_tipo" name="tipo_ingresso">{% for t in TIPOS_INGRESSO %}<option>{{ t }}</option>{% endfor %}</select></div>
+        <div><label for="i_forma">Pagamento</label><select id="i_forma" name="forma_pagamento">{% for f in FORMAS_PAGAMENTO %}<option>{{ f }}</option>{% endfor %}</select></div>
+      </div>
+      <label>Status</label>
+      <div class="opcoes">{% for s in STATUS_PAGAMENTO %}<label><input type="radio" name="status_pagamento" value="{{ s }}" {{ 'checked' if loop.first }}> {{ s }}</label>{% endfor %}</div>
+      <label class="check" style="margin-top:.75rem"><input type="checkbox" name="lgpd" value="sim" required>
+        O participante está ciente e concorda com o uso dos dados para organização e controle financeiro deste evento (LGPD).</label>
+      <button class="botao" style="margin-top:.75rem">Confirmar inscrição</button>
+    </form>
+  </details>
+
+  {% if inscritos %}
+  <table class="tabela responsiva" style="margin-top:1rem">
+    <thead><tr><th>Nome</th><th>Ingresso</th><th>Pagamento</th><th>Valor</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for i in inscritos %}
+      <tr>
+        <td data-rotulo="Nome"><b>{{ i.nome }}</b><br><span class="pequeno suave">{{ i.telefone or '' }}</span></td>
+        <td data-rotulo="Ingresso">{{ i.tipo_ingresso }}</td>
+        <td data-rotulo="Pagamento">{{ i.forma_pagamento }}</td>
+        <td data-rotulo="Valor">{{ i.valor_pago|moeda }}</td>
+        <td data-rotulo="Status"><span class="selo {{ 'ativo' if i.status_pagamento == 'Confirmado' else 'aguardando' }}">{{ i.status_pagamento }}</span></td>
+        <td data-rotulo="">
+          <details><summary class="pequeno">Alterar</summary>
+            <form method="post" action="/inscricoes/{{ i.id }}/editar">
+              {{ ui.csrf_input() }}
+              <input name="nome" value="{{ i.nome }}" required>
+              <input name="telefone" value="{{ i.telefone or '' }}" data-mascara="telefone">
+              <select name="tipo_ingresso">{% for t in TIPOS_INGRESSO %}<option {{ 'selected' if t == i.tipo_ingresso }}>{{ t }}</option>{% endfor %}</select>
+              <select name="forma_pagamento">{% for f in FORMAS_PAGAMENTO %}<option {{ 'selected' if f == i.forma_pagamento }}>{{ f }}</option>{% endfor %}</select>
+              <select name="status_pagamento">{% for s in STATUS_PAGAMENTO %}<option {{ 'selected' if s == i.status_pagamento }}>{{ s }}</option>{% endfor %}</select>
+              <textarea name="justificativa" placeholder="Justificativa (obrigatória)" required></textarea>
+              <div class="acoes" style="margin-top:.4rem">
+                <button class="botao peq">Salvar</button>
+                <button class="botao perigo peq" formaction="/inscricoes/{{ i.id }}/excluir" onclick="return confirm('Excluir esta inscrição?')">Excluir</button>
+              </div>
+            </form>
+          </details>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<div class="cartao">
+  <h2>Despesas</h2>
+  <form method="post" action="/eventos/{{ e.id }}/custos" class="grade c3" style="align-items:end">
+    {{ ui.csrf_input() }}
+    <div><label for="c_desc">Descrição</label><input id="c_desc" name="descricao" required data-voz></div>
+    <div><label for="c_valor">Valor (R$)</label><input id="c_valor" name="valor" data-mascara="moeda" required></div>
+    <button class="botao">Lançar despesa</button>
+  </form>
+  {% if custos %}
+  <ul class="lista" style="margin-top:.75rem">
+    {% for c in custos %}<li style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">
+      <span>{{ c.descricao }}</span><span><b>{{ c.valor|moeda }}</b>
+      <form method="post" action="/custos/{{ c.id }}/excluir" style="display:inline" onsubmit="return confirm('Remover despesa?')">{{ ui.csrf_input() }}<button class="botao secundario peq" aria-label="Remover">✕</button></form></span>
+    </li>{% endfor %}
+  </ul>
+  {% endif %}
+</div>
+
+<details class="cartao">
+  <summary><b>Excluir evento</b></summary>
+  <form method="post" action="/eventos/{{ e.id }}/excluir" onsubmit="return confirm('Excluir o evento?')">
+    {{ ui.csrf_input() }}
+    <label for="j_exc">Justificativa <span class="obrig">*</span></label>
+    <textarea id="j_exc" name="justificativa" required></textarea>
+    <p class="pequeno suave">Eventos com inscrições ou despesas lançadas não podem ser excluídos, para não perder esses registros.</p>
+    <button class="botao perigo">Excluir evento</button>
+  </form>
+</details>
+{% endif %}
+{% endblock %}

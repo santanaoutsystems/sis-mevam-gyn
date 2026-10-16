@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}{{ 'Editar ficha' if modo == 'editar' else ('Atualização cadastral' if modo == 'regularizar' else 'Ficha de Membro') }}{% endblock %}
+{% block cabeca %}
+{% endblock %}
+
+{% macro formulario() %}
+<h1>{{ 'Editar ficha #' ~ m.id if modo == 'editar' else ('Atualização cadastral' if modo == 'regularizar' else 'Ficha de Membro') }}</h1>
+<p class="suave" style="margin-top:0">
+  {% if modo == 'editar' %}As alterações ficam registradas na auditoria.
+  {% elif modo == 'regularizar' %}Paz, {{ m.nome_completo.split(' ')[0] }}! Confira os dados da sua ficha antiga e complete o que falta.
+  {% else %}Preencha seus dados. A Secretaria analisa a ficha e depois envia o link da Confissão de Fé.{% endif %}
+</p>
+{% if modo == 'regularizar' and faltas %}<div class="msg aviso"><b>Falta completar:</b> {{ faltas|join(', ') }}.</div>{% endif %}
+{% if erros %}<div class="msg erro">Confira os campos destacados ({{ erros|length }}).</div>{% endif %}
+<div class="etapas" aria-hidden="true"><span></span><span></span><span></span>{% if modo != 'editar' %}<span></span>{% endif %}</div>
+
+<form id="formFicha" method="post" novalidate>
+  {{ ui.csrf_input() }}
+  <input type="hidden" name="filhos_json" value="{{ valores.get('filhos_json') or '[]' }}">
+  <input type="hidden" name="foto_3x4" value="{{ valores.get('foto_3x4') or '' }}" {% if modo != 'editar' %}required{% endif %}>
+  <input type="hidden" name="ocr_documento_nome" value="{{ valores.get('ocr_documento_nome') or '' }}">
+
+  <!-- Etapa 1 -->
+  <section class="etapa cartao atual">
+    <h2>1. Dados pessoais</h2>
+    <div class="ocr-caixa nao-imprimir">
+      <b>📄 Tem a ficha em papel ou um documento?</b>
+      <p class="pequeno suave" style="margin:.25rem 0 .5rem">Tire uma foto ou envie o PDF: os campos que conseguirmos ler serão preenchidos para você conferir.</p>
+      <label class="botao secundario peq" style="display:inline-flex;margin:0">Ler documento
+        <input type="file" id="docOcr" accept="image/*,.pdf" capture="environment" hidden></label>
+      <div class="barra"><i id="ocrBarra"></i></div>
+      <div id="ocrStatus" class="pequeno" style="margin-top:.35rem"></div>
+    </div>
+
+    <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;margin-top:1rem" class="{{ 'campo-erro' if erros.get('foto_3x4') }}">
+      <div id="previaFoto" class="foto3x4">Foto 3x4<br>sem óculos</div>
+      <div>
+        <label style="margin-top:0">Foto 3x4 {% if modo != 'editar' %}<span class="obrig">*</span>{% endif %}</label>
+        <div class="acoes" style="margin-top:0">
+          <label class="botao peq" style="margin:0">📷 Câmera<input type="file" accept="image/*" capture="user" data-foto hidden></label>
+          <label class="botao secundario peq" style="margin:0">🖼️ Galeria<input type="file" accept="image/*" data-foto hidden></label>
+          <button type="button" class="botao secundario peq" id="btnRemoverFoto">Remover</button>
+        </div>
+        <p class="pequeno suave">Rosto de frente, fundo claro e sem óculos.</p>
+        {% if erros.get('foto_3x4') %}<div class="erro-campo">{{ erros.foto_3x4 }}</div>{% endif %}
+      </div>
+    </div>
+
+    {{ ui.campo('nome_completo', 'Nome completo', obrig=True, voz=True, attrs='autocomplete="name"') }}
+    <div class="grade c2">
+      {{ ui.campo('cpf', 'CPF', obrig=(modo != 'editar'), mascara='cpf') }}
+      {{ ui.campo('data_nascimento', 'Data de nascimento', obrig=True, mascara='data', voz=True) }}
+    </div>
+    {{ ui.campo('naturalidade', 'Naturalidade', obrig=True, voz=True, dica='Ex: Goiânia - GO') }}
+    {{ ui.radios('sexo', 'Sexo', SEXOS, obrig=True) }}
+    <div class="grade c2">
+      {{ ui.selecao('estado_civil', 'Estado civil', ESTADOS_CIVIS, obrig=True) }}
+      <div id="grupoConjuge"{% if valores.get('estado_civil') not in ('Casado(a)', 'União Estável') %} style="display:none"{% endif %}>{{ ui.campo('conjuge', 'Nome do cônjuge', voz=True) }}</div>
+    </div>
+    <h3>Filhos</h3>
+    <div id="filhos"></div>
+    <button type="button" class="botao secundario peq" id="btnAddFilho">➕ Adicionar filho(a)</button>
+    <h3>Endereço</h3>
+    <div class="grade c2">
+      {{ ui.campo('cep', 'CEP', obrig=True, mascara='cep', dica='Digite o CEP para preencher o endereço') }}
+      {{ ui.campo('cidade', 'Cidade', obrig=True, voz=True, dica='Goiânia - GO') }}
+    </div>
+    {{ ui.campo('endereco', 'Endereço', obrig=True, voz=True, dica='Rua, número, quadra, lote', attrs='autocomplete="street-address"') }}
+    {{ ui.campo('bairro', 'Bairro / Setor', obrig=True, voz=True) }}
+  </section>
+
+  <!-- Etapa 2 -->
+  <section class="etapa cartao">
+    <h2>2. Contato e profissão</h2>
+    <div class="grade c2">
+      {{ ui.campo('whatsapp', 'WhatsApp', tipo='tel', obrig=True, mascara='telefone', attrs='autocomplete="tel"') }}
+      {{ ui.campo('telefone', 'Outro telefone', tipo='tel', mascara='telefone') }}
+    </div>
+    {{ ui.campo('email', 'E-mail', tipo='email', obrig=True, voz=True, attrs='autocomplete="email"') }}
+    <div class="grade c2">
+      {{ ui.selecao('escolaridade', 'Escolaridade', ESCOLARIDADES, obrig=True) }}
+      {{ ui.campo('formacao_academica', 'Formação acadêmica', obrig=True, voz=True, dica='Ex: Administração') }}
+      {{ ui.campo('profissao', 'Profissão', obrig=True, voz=True) }}
+      {{ ui.campo('empresa', 'Empresa / ocupação', obrig=True, voz=True, dica="Ou 'Autônomo', 'Do lar', 'Aposentado'") }}
+    </div>
+  </section>
+
+  <!-- Etapa 3 -->
+  <section class="etapa cartao">
+    <h2>3. Vida cristã</h2>
+    {{ ui.radios('batizado', 'Batizado(a) nas águas?', SIM_NAO, obrig=True) }}
+    <div id="grupoBatismo"{% if valores.get('batizado') != 'Sim' %} style="display:none"{% endif %}>{{ ui.campo('data_batismo', 'Data do batismo', mascara='data', voz=True) }}</div>
+    {{ ui.radios('congregava_antes', 'Congregava em outra igreja antes?', SIM_NAO, obrig=True) }}
+    <div id="grupoCongregava"{% if valores.get('congregava_antes') != 'Sim' %} style="display:none"{% endif %}>{{ ui.campo('onde_congregava', 'Igreja anterior', voz=True) }}</div>
+    {{ ui.campo('area_ministerial', 'Áreas em que já serviu ou deseja servir', voz=True, dica='Ex: Louvor, Mídia, Infantil') }}
+    {{ ui.campo('interesse_batismo_familia', 'Alguém da família deseja se batizar?', voz=True, dica="Ex: Sim, meu filho / Não") }}
+    {% if modo == 'editar' %}
+      <div class="acoes"><button class="botao" type="submit" id="btnEnviar">💾 Salvar alterações</button>
+      <a class="botao secundario" href="/membros/{{ m.id }}">Cancelar</a></div>
+    {% endif %}
+  </section>
+
+  {% if modo != 'editar' %}
+  <!-- Etapa 4 -->
+  <section class="etapa cartao">
+    <h2>4. Privacidade (LGPD)</h2>
+    <p>Seus dados serão usados somente pela Secretaria e pela liderança do MEVAM GYN para cadastro de membresia,
+      comunicação ministerial e organização de atividades, conforme a Lei 13.709/2018 (LGPD). Você pode pedir acesso,
+      correção ou exclusão dos seus dados a qualquer momento junto à Secretaria. <a href="/privacidade" target="_blank">Leia a política completa</a>.</p>
+    <div class="{{ 'campo-erro' if erros.get('lgpd_consentimento') }}">
+      <label class="check"><input type="checkbox" name="lgpd_consentimento" value="sim" required>
+        Li e concordo com o tratamento dos meus dados pessoais para as finalidades acima.</label>
+      {% if erros.get('lgpd_consentimento') %}<div class="erro-campo">{{ erros.lgpd_consentimento }}</div>{% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  <div class="acoes" style="justify-content:space-between">
+    <button type="button" class="botao secundario" id="btnVoltar" style="visibility:hidden">← Voltar</button>
+    <button type="button" class="botao" id="btnAvancar">Continuar →</button>
+    {% if modo != 'editar' %}<button type="submit" class="botao dourado" id="btnEnviar" style="display:none">{{ '💾 Salvar meus dados' if modo == 'regularizar' else '💾 Enviar ficha para análise' }}</button>{% endif %}
+  </div>
+</form>
+{% endmacro %}
+
+{% block conteudo %}{{ formulario() }}{% endblock %}
+{% block publico %}{{ formulario() }}{% endblock %}
+{% block scripts %}
+<script src="/static/js/ocr_engine.js" defer></script>
+<script src="/static/js/ficha.js" defer></script>
+{% endblock %}
