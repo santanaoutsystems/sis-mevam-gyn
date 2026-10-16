@@ -1065,3 +1065,42 @@ def test_email_pelo_google_apps_script(monkeypatch):
     assert corpo["segredo"] == "frase-secreta" and corpo["para"] == "ana@exemplo.com"
     assert "segredo inválido" in envios.enviar_email("ana@exemplo.com", "A", "C")
     assert "Qualquer pessoa" in envios.enviar_email("ana@exemplo.com", "A", "C")
+
+
+def test_duplicar_evento_mantem_o_original():
+    sec = logado("secretaria")
+    r = criar_evento(sec)
+    eid = r.headers["location"].rsplit("/", 1)[1]
+    assert "/eventos/novo?copiar=" in sec.get(f"/eventos/{eid}").text
+    pagina = sec.get(f"/eventos/novo?copiar={eid}").text
+    assert "Duplicar evento" in pagina and 'value="Family Day"' in pagina and 'value="09:00"' in pagina
+    r = post(sec, f"/eventos/novo?copiar={eid}", {**EVENTO, "data": "22/11/2026"}, pagina=f"/eventos/novo?copiar={eid}")
+    assert r.status_code == 303
+    with db.engine().connect() as c:
+        evs = [dict(x) for x in c.execute(select(db.eventos).order_by(db.eventos.c.id)).mappings()]
+    assert len(evs) == 2
+    assert datas.parse_data_hora_local(evs[0]["data_inicio"]) == datetime(2026, 11, 15, 9, 0)
+    assert datas.parse_data_hora_local(evs[1]["data_inicio"]) == datetime(2026, 11, 22, 9, 0)
+    assert 'cópia de "Family Day" (15/11/2026 09:00)' in evs[1]["historico_alteracoes"]
+    assert evs[1]["limite_vagas"] == 2 and evs[1]["local"] == "Templo sede"
+
+
+def test_ajuste_unico_de_horarios_da_agenda_antiga():
+    with db.engine().begin() as c:
+        c.execute(insert(db.eventos).values(titulo="Integra", data_inicio="2026-10-17T12:00:00", departamento="Secretaria",
+                                            historico_alteracoes="[13/10/2026 às 19:29] Criado por Alessandra Nunes"))
+    sec = logado("secretaria")
+    criar_evento(sec)  # criado no sistema novo: não vem marcado
+    pagina = sec.get("/admin/ajustar-horarios").text
+    assert "17/10/2026 15:00" in pagina and pagina.count("checked") == 1
+    with db.engine().connect() as c:
+        ids = {r.titulo: str(r.id) for r in c.execute(select(db.eventos.c.id, db.eventos.c.titulo))}
+    post(sec, "/admin/ajustar-horarios", {"evento": ids["Integra"]}, pagina="/admin/ajustar-horarios")
+    post(sec, "/admin/ajustar-horarios", {"evento": ids["Integra"]}, pagina="/admin/ajustar-horarios")  # não soma duas vezes
+    with db.engine().connect() as c:
+        evs = {r.titulo: r for r in c.execute(select(db.eventos))}
+        acoes = [r[0] for r in c.execute(select(db.auditoria.c.acao))]
+    assert datas.parse_data_hora_local(evs["Integra"].data_inicio) == datetime(2026, 10, 17, 15, 0)
+    assert datas.parse_data_hora_local(evs["Family Day"].data_inicio) == datetime(2026, 11, 15, 9, 0)
+    assert "Horário ajustado" in evs["Integra"].historico_alteracoes and acoes.count("EVENTO_HORARIO_AJUSTADO") == 1
+    assert logado("membro").get("/admin/ajustar-horarios", follow_redirects=False).status_code in (302, 303, 403)

@@ -246,8 +246,21 @@ async def novo(request: Request):
     if escopo is not None and not deptos:
         return render(request, "erro.html", {"titulo": "Nenhum setor atribuído",
                       "mensagem": "Peça à Secretaria ou ao Adm para definir os setores que você coordena."}, 403)
+    # Duplicar: /eventos/novo?copiar=<id> abre o formulário com os dados do evento original e a data em branco.
+    # O original não muda; a cópia é um evento novo, com as mesmas regras de setor e de conflito de horário.
+    original = None
+    if request.query_params.get("copiar"):
+        with db.engine().connect() as c:
+            original = _evento(c, request.query_params["copiar"])
+        if original and not _pode_gerir(escopo, original):
+            original = None
     if request.method == "GET":
-        return render(request, "eventos/form.html", {"deptos": deptos, "valores": {}, "erros": {}})
+        valores = {}
+        if original:
+            valores = {**original, "data": "", "hora": original["quando"].strftime("%H:%M") if original["quando"] else "",
+                       "controle_vagas": "fixo" if (original.get("limite_vagas") or 0) > 0 else "livre",
+                       "valor_inscricao": f"{(original.get('valor_inscricao') or 0):.2f}".replace(".", ",")}
+        return render(request, "eventos/form.html", {"deptos": deptos, "valores": valores, "erros": {}, "original": original})
     form = await request.form()
     dados, erros = _ler_form_evento(form)
     if escopo is not None and dados["departamento"] not in escopo:
@@ -255,14 +268,19 @@ async def novo(request: Request):
     with db.engine().begin() as c:
         liberacao = None if erros else _verificar_conflito(c, form, dados, u, erros)
         if erros:
-            return render(request, "eventos/form.html", {"deptos": deptos, "valores": dict(form), "erros": erros}, 400)
+            return render(request, "eventos/form.html",
+                          {"deptos": deptos, "valores": dict(form), "erros": erros, "original": original}, 400)
         carimbo = _carimbo(u)
         historico = f"[{carimbo}] Criado"
+        if original:
+            quando = original["quando"].strftime("%d/%m/%Y %H:%M") if original["quando"] else "-"
+            historico += f" como cópia de \"{original['titulo']}\" ({quando})"
         if liberacao:
             historico += f"\n[{carimbo}] Conflito de horário liberado ({liberacao['conflitos']}). Motivo: {liberacao['motivo']}"
         dados.update(criado_por=carimbo, historico_alteracoes=historico)
         eid = c.execute(insert(db.eventos).values(**{**dados, "data_inicio": db.data_evento(dados["data_inicio"])})).inserted_primary_key[0]
-        auditar(request, "EVENTO_CRIADO", f"Evento #{eid}", dados["titulo"], conexao=c)
+        auditar(request, "EVENTO_CRIADO", f"Evento #{eid}",
+                dados["titulo"] + (f" (cópia do evento #{original['id']})" if original else ""), conexao=c)
         if liberacao:
             auditar(request, "CONFLITO_LIBERADO", f"Evento #{eid}",
                     f"{liberacao['conflitos']}. Motivo: {liberacao['motivo']}", conexao=c)

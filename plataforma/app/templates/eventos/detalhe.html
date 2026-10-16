@@ -22,6 +22,7 @@
   {% if pode_gerir %}
   <div class="acoes">
     <a class="botao secundario peq" href="/eventos/{{ e.id }}/editar">✏️ Editar</a>
+    <a class="botao secundario peq" href="/eventos/novo?copiar={{ e.id }}">📄 Duplicar</a>
     <a class="botao secundario peq" href="/eventos/{{ e.id }}/relatorio?tipo=lista" target="_blank">🖨️ Lista de inscritos</a>
     <a class="botao secundario peq" href="/eventos/{{ e.id }}/relatorio?tipo=inadimplentes" target="_blank">⏳ A receber</a>
     <a class="botao secundario peq" href="/eventos/{{ e.id }}/relatorio?tipo=financeiro" target="_blank">📊 Extrato financeiro</a>

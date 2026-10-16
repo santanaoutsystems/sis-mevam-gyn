@@ -3,6 +3,7 @@
 {% block titulo %}Auditoria{% endblock %}
 {% block conteudo %}
 <h1>Trilha de auditoria</h1>
+<p class="pequeno"><a href="/admin/ajustar-horarios">🕒 Ajustar horários vindos da Agenda antiga</a></p>
 <p class="suave" style="margin-top:0">Quem fez o quê, quando (horário de Goiânia) e de onde. Exibe os 300 registros mais recentes.</p>
 <form method="post" action="/admin/email-teste" class="cartao com-acao">
   {{ ui.csrf_input() }}

@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 {% import "parciais/ui.html" as ui with context %}
-{% block titulo %}{{ 'Editar evento' if e else 'Novo evento' }}{% endblock %}
+{% block titulo %}{{ 'Editar evento' if e else ('Duplicar evento' if original else 'Novo evento') }}{% endblock %}
 {% block conteudo %}
-<h1>{{ 'Editar evento' if e else 'Novo evento' }}</h1>
+<h1>{{ 'Editar evento' if e else ('Duplicar evento' if original else 'Novo evento') }}</h1>
+{% if original %}<div class="msg">📄 Cópia de <b>{{ original.titulo }}</b>{% if original.quando %} ({{ original.quando.strftime('%d/%m/%Y às %H:%M') }}){% endif %}.
+  Informe a <b>nova data</b> e ajuste o que precisar. O evento original continua cadastrado.</div>{% endif %}
 {% if erros %}<div class="msg erro">Confira os campos destacados.</div>{% endif %}
 <form method="post" class="cartao">
   {{ ui.csrf_input() }}

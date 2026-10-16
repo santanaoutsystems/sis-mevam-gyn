@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import re
+from datetime import timedelta
+
 from sqlalchemy import delete, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from starlette.requests import Request
@@ -338,6 +341,61 @@ async def email_teste(request: Request):
     return ir("/admin/auditoria")
 
 
+# ---------------------------------------------------------------------------
+# Ajuste único dos horários vindos da Agenda antiga
+# ---------------------------------------------------------------------------
+# A Agenda antiga (Streamlit) gravava "AAAA-MM-DDTHH:MM" sem fuso numa coluna timestamptz; o banco
+# entendeu como UTC e a plataforma, que mostra em Goiânia, exibe 3 horas a menos. O Brasil não tem
+# horário de verão desde 2019, então a diferença é sempre de 3 horas.
+DIFERENCA_AGENDA_ANTIGA = timedelta(hours=3)
+MARCA_AJUSTE = "Horário ajustado (fuso da Agenda antiga)"
+_CRIADO_NA_AGENDA_ANTIGA = re.compile(r"^\[\d{2}/\d{2}/\d{4} às \d{2}:\d{2}\] Criado por ")
+
+
+def _eventos_para_ajuste(c) -> list[dict]:
+    linhas = []
+    for r in c.execute(select(db.eventos.c.id, db.eventos.c.titulo, db.eventos.c.data_inicio, db.eventos.c.departamento,
+                              db.eventos.c.historico_alteracoes)).mappings():
+        e = dict(r)
+        hist = e["historico_alteracoes"] or ""
+        e["quando"] = datas.parse_data_hora_local(e["data_inicio"])
+        if not e["quando"]:
+            continue
+        e["corrigido"] = e["quando"] + DIFERENCA_AGENDA_ANTIGA
+        e["ja_ajustado"] = MARCA_AJUSTE in hist
+        e["da_agenda_antiga"] = bool(_CRIADO_NA_AGENDA_ANTIGA.match(hist.strip()))
+        e["sugerido"] = e["da_agenda_antiga"] and not e["ja_ajustado"]
+        linhas.append(e)
+    linhas.sort(key=lambda e: e["quando"])
+    return linhas
+
+
+@seguranca.exigir("admin", "secretaria")
+async def ajustar_horarios(request: Request):
+    u = seguranca.usuario_atual(request)
+    if request.method == "POST":
+        form = await request.form()
+        escolhidos = {str(v) for v in form.getlist("evento")}
+        feitos = []
+        with db.engine().begin() as c:
+            for e in _eventos_para_ajuste(c):
+                if str(e["id"]) not in escolhidos or e["ja_ajustado"]:
+                    continue
+                antes, depois = e["quando"].strftime("%d/%m/%Y %H:%M"), e["corrigido"].strftime("%d/%m/%Y %H:%M")
+                carimbo = f"{u['nome']} em {datas.agora().strftime('%d/%m/%Y às %H:%M')}"
+                hist = f"{e['historico_alteracoes'] or ''}\n[{carimbo}] {MARCA_AJUSTE}: {antes} → {depois}".strip()
+                c.execute(update(db.eventos).where(db.texto(db.eventos.c.id) == str(e["id"])).values(
+                    data_inicio=db.data_evento(e["corrigido"].strftime("%Y-%m-%dT%H:%M:%S")), historico_alteracoes=hist))
+                auditar(request, "EVENTO_HORARIO_AJUSTADO", f"Evento #{e['id']}", f"{e['titulo']}: {antes} → {depois}", conexao=c)
+                feitos.append(e["titulo"])
+        flash(request, f"{len(feitos)} evento(s) com horário corrigido." if feitos else "Nenhum evento foi alterado.",
+              "sucesso" if feitos else "aviso")
+        return ir("/admin/ajustar-horarios")
+    with db.engine().connect() as c:
+        linhas = _eventos_para_ajuste(c)
+    return render(request, "admin/ajustar_horarios.html", {"linhas": linhas})
+
+
 rotas = [
     Route("/admin/usuarios", usuarios),
     Route("/admin/usuarios/novo", novo_usuario, methods=["POST"]),
@@ -353,4 +411,5 @@ rotas = [
     Route("/admin/setores/{id}/excluir", excluir_setor, methods=["POST"]),
     Route("/admin/auditoria", auditoria),
     Route("/admin/email-teste", email_teste, methods=["POST"]),
+    Route("/admin/ajustar-horarios", ajustar_horarios, methods=["GET", "POST"]),
 ]
