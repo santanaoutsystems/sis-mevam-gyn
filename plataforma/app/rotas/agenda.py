@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import calendar
 from datetime import date, datetime, timedelta
+from urllib.parse import urlencode
 
 from sqlalchemy import delete, func, insert, select, update
 from starlette.requests import Request
@@ -523,29 +524,15 @@ async def relatorio_evento(request: Request):
         inscritos = [dict(r) for r in c.execute(select(db.inscricoes).where(db.texto(db.inscricoes.c.evento_id) == str(eid))
                                                 .order_by(db.inscricoes.c.nome)).mappings()]
         custos = [dict(r) for r in c.execute(select(db.custos_evento).where(db.texto(db.custos_evento.c.evento_id) == str(eid))).mappings()]
-    if tipo == "inadimplentes":
-        inscritos = [i for i in inscritos if i.get("status_pagamento") == "Pendente"]
+    if tipo in ("lista", "inadimplentes"):
+        # Listas de pessoas saem pela Central de Relatórios (mesmo visual, filtros, impressão e regras de LGPD)
+        dia = datas.fmt_data(e["quando"]) if e["quando"] else ""
+        destino = "participantes" if tipo == "lista" else "a-receber"
+        return ir(f"/relatorios/{destino}?" + urlencode({"de": dia, "ate": dia, "evento": str(e["id"])}))
     auditar(request, "RELATORIO_EVENTO", f"Evento #{eid}", tipo)
     return render(request, "eventos/relatorio.html", {"e": e, "tipo": tipo, "inscritos": inscritos, "custos": custos,
                                                        "fin": _resumo_financeiro(inscritos, custos),
                                                        "emitido": datas.agora()})
-
-
-@seguranca.exigir(*GESTAO)
-async def relatorio_periodo(request: Request):
-    hoje = datas.hoje()
-    de = datas.parse_data(request.query_params.get("de")) or hoje.replace(day=1)
-    ate = datas.parse_data(request.query_params.get("ate")) or date(hoje.year, hoje.month, calendar.monthrange(hoje.year, hoje.month)[1])
-    with db.engine().connect() as c:
-        eventos = [dict(r) for r in c.execute(select(db.eventos).where(
-            db.eventos.c.data_inicio >= db.data_evento(f"{de.isoformat()}T00:00:00"),
-            db.eventos.c.data_inicio <= db.data_evento(f"{ate.isoformat()}T23:59:59")).order_by(db.eventos.c.data_inicio)).mappings()]
-        escopo = escopo_setores(c, seguranca.usuario_atual(request))
-    eventos = [e for e in eventos if _pode_gerir(escopo, e)]
-    for e in eventos:
-        e["quando"] = datas.parse_data_hora_local(e["data_inicio"])
-    return render(request, "eventos/relatorio_periodo.html", {"eventos": eventos, "de": de, "ate": ate,
-                                                               "emitido": datas.agora()})
 
 
 rotas = [
@@ -560,5 +547,4 @@ rotas = [
     Route("/eventos/{id}/custos", lancar_custo, methods=["POST"]),
     Route("/custos/{cid}/excluir", excluir_custo, methods=["POST"]),
     Route("/eventos/{id}/relatorio", relatorio_evento),
-    Route("/relatorios/periodo", relatorio_periodo),
 ]

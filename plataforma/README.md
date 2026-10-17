@@ -38,7 +38,7 @@ cd plataforma
 pip install -r requirements.txt
 python scripts/dados_demo.py          # banco SQLite de demonstração
 uvicorn app.main:app --reload         # http://localhost:8000  (admin@demo.local / Demo1234)
-python -m pytest -q tests             # 34 testes
+python -m pytest -q tests             # 90 testes
 ```
 
 ## Variáveis de ambiente

@@ -22,6 +22,7 @@ templates.env.filters["data_hora_br"] = datas.fmt_data_hora
 templates.env.filters["moeda"] = lambda v: ("R$ {:,.2f}".format(float(v or 0))
                                              .replace(",", "X").replace(".", ",").replace("X", "."))
 templates.env.globals["PERFIS_ROTULO"] = db.PERFIS_ROTULO
+templates.env.globals["MESES"] = datas.MESES
 templates.env.globals["VERSAO_APP"] = config.VERSAO_APP
 
 

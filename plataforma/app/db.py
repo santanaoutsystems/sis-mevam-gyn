@@ -247,6 +247,17 @@ pesquisa_satisfacao = Table(
     Column("respondido_em", DateTime(timezone=True), server_default=func.now()),
 )
 
+# Central de Relatórios: combinações de filtros salvas por usuário ("⭐ Meus filtros")
+relatorios_salvos = Table(
+    "relatorios_salvos", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False),
+    Column("nome", String(80), nullable=False),
+    Column("relatorio", String(40), nullable=False),
+    Column("consulta", Text, nullable=False, default=""),  # parâmetros do endereço (filtros, ordem, colunas)
+    Column("criado_em", DateTime(timezone=True), server_default=func.now()),
+)
+
 STATUS_MEMBRO = ("Aguardando Análise", "Validado pela Secretaria", "Ativo", "Inativo", "Anonimizado (LGPD)")
 
 _engine: Engine | None = None
@@ -329,7 +340,8 @@ def aplicar_migracoes_aditivas() -> None:
 
     Hoje: 003 (Coordenação), 004 (id de setor como texto) e 005 (colunas que faltam na Agenda legada)
     006 (CPF em membros e usuários)
-    007 (regularização de fichas antigas) e 008 (lembretes de cadastro e setores de interesse).
+    007 (regularização de fichas antigas), 008 (lembretes de cadastro e setores de interesse)
+    e 009 (filtros salvos da Central de Relatórios).
     Só cria/alarga; nunca remove dados. Se falhar, o app sobe mesmo assim e registra o erro.
     """
     import logging
@@ -339,7 +351,7 @@ def aplicar_migracoes_aditivas() -> None:
         return
     pasta = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes")
     for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql", "007_regularizacao.sql",
-                 "008_lembretes_interesses.sql"):
+                 "008_lembretes_interesses.sql", "009_relatorios_salvos.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()

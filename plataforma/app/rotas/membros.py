@@ -292,32 +292,36 @@ async def meu_cpf(request: Request):
 # ---------------------------------------------------------------------------
 @seguranca.exigir(*ADMIN_SECRETARIA)
 async def lista(request: Request):
+    """Lista de membros com filtro e ordenação pelos cabeçalhos (v2.7.0). A busca continua no topo."""
+    from .. import tabelas
+    from .relatorios import _membros, colunas_membros
+    u = seguranca.usuario_atual(request)
     busca = (request.query_params.get("q") or "").strip()
-    status = request.query_params.get("status") or ""
-    setor = request.query_params.get("setor") or ""
-    q = select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.whatsapp, db.membros.c.bairro,
-               db.membros.c.status, db.membros.c.data_registro, db.membros.c.credo_aceito,
-               db.membros.c.data_nascimento)
-    if busca:
-        termo = f"%{busca.lower()}%"
-        q = q.where(or_(func.lower(db.membros.c.nome_completo).like(termo),
-                        func.lower(db.membros.c.email).like(termo),
-                        db.membros.c.whatsapp.like(f"%{ficha.so_digitos(busca) or busca}%"),
-                        func.lower(db.membros.c.bairro).like(termo),
-                        *([db.membros.c.cpf.like(f"%{ficha.so_digitos(busca)}%")] if ficha.so_digitos(busca) else [])))
-    if status:
-        q = q.where(db.membros.c.status == status)
-    if setor:
-        q = q.where(db.membros.c.id.in_(select(db.membro_setores.c.membro_id)
-                                        .where(db.membro_setores.c.departamento_id == setor)))
-    q = q.order_by(db.membros.c.nome_completo).limit(500)
     with db.engine().connect() as c:
-        linhas = [dict(r) for r in c.execute(q).mappings()]
-        contagem = dict(c.execute(select(db.membros.c.status, func.count()).group_by(db.membros.c.status)).all())
-        deptos = [dict(r) for r in c.execute(select(db.departamentos).order_by(db.departamentos.c.nome)).mappings()]
+        linhas = _membros(c, com_setores=True)
+    contagem = {}
+    for l in linhas:
+        contagem[l["status"]] = contagem.get(l["status"], 0) + 1
+    if busca:
+        termo, dig = busca.lower(), ficha.so_digitos(busca)
+        linhas = [l for l in linhas if termo in (l["nome_completo"] or "").lower() or termo in (l["email"] or "").lower()
+                  or termo in (l["bairro"] or "").lower()
+                  or (dig and (dig in ficha.so_digitos(l["whatsapp"] or "") or dig in (l["cpf"] or "")))]
+    linhas.sort(key=lambda l: tabelas._norm(l["nome_completo"]))
+    colunas = colunas_membros(u["perfil"], ("id", "nome_completo", "whatsapp", "bairro", "data_nascimento", "status"))
+    estado = tabelas.ler_estado(request.query_params, colunas)
+    formato = request.query_params.get("formato")
+    t = tabelas.montar("/membros", linhas, colunas, estado, tudo=bool(request.query_params.get("tudo")) or formato == "csv")
+    if formato == "csv":
+        auditar(request, "EXPORTACAO_CSV", "Membros (lista filtrada)",
+                f"{t['total']} registros · " + (" · ".join(t["filtros_texto"]) or "sem filtros"))
+        nome = f"membros_mevam_{datas.hoje().strftime('%d-%m-%Y')}.csv"
+        return Response(tabelas.csv_de(t), media_type="text/csv; charset=utf-8",
+                        headers={"Content-Disposition": f'attachment; filename="{nome}"', "Cache-Control": "no-store"})
+    status_ativo = (estado["filtros"].get("status") or {}).get("em", [])
     return render(request, "membros/lista.html", {
-        "linhas": linhas, "busca": busca, "status": status, "setor": setor, "contagem": contagem,
-        "STATUS": db.STATUS_MEMBRO, "deptos": deptos})
+        "t": t, "busca": busca, "contagem": contagem, "STATUS": db.STATUS_MEMBRO,
+        "status_ativo": status_ativo[0] if len(status_ativo) == 1 else "", "emitido": datas.agora()})
 
 
 @seguranca.exigir(*ADMIN_SECRETARIA)

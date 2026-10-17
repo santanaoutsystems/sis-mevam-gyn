@@ -32,7 +32,7 @@
     {% set f = [('/inicio', '🏠', 'Início'), ('/agenda', '📅', 'Agenda')] %}
     {% if pode('secretaria', 'admin') %}{% set f = f + [('/membros', '👥', 'Membros'), ('/coordenacao', '🧭', 'Coordenação'), ('/regularizacao', '📋', 'Regularização')] %}{% endif %}
     {% if pode('coordenacao') %}{% set f = f + [('/eventos/novo', '➕', 'Novo evento')] %}{% endif %}
-    {% if pode('coordenacao', 'secretaria', 'admin') %}{% set f = f + [('/relatorios/periodo', '🖨️', 'Relatórios')] %}{% endif %}
+    {% set f = f + [('/relatorios', '🖨️', 'Relatórios')] %}
     {% if pode('coordenacao', 'secretaria', 'admin') %}{% set f = f + [('/voluntarios', '🙋', 'Voluntários')] %}{% endif %}
     {% if pode('admin') %}{% set f = f + [('/admin/usuarios', '🔐', 'Usuários'), ('/admin/setores', '🏢', 'Setores'), ('/admin/auditoria', '🔍', 'Auditoria')] %}{% endif %}
     {% set f = f + [('/minha-ficha', '🪪', 'Minha ficha')] %}

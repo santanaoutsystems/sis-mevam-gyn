@@ -356,3 +356,87 @@ main:focus { outline: none; }
   font-weight: 600; font-size: .95rem; text-decoration: none; }
 .botao-voltar:hover { border-color: var(--marca); }
 @media print { .botao-voltar { display: none; } }
+
+/* ---------- Tabelas com filtro e ordenação pelos cabeçalhos (Membros e Relatórios) ---------- */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.tabela-filtro th { padding: 0; white-space: nowrap; }
+.tabela-filtro th.on { background: var(--gradiente-ouro-texto); }
+.menu-col > summary { list-style: none; cursor: pointer; padding: .65rem .7rem; display: flex; align-items: center; gap: .35rem; min-height: var(--toque); }
+.menu-col > summary::-webkit-details-marker { display: none; }
+.menu-col > summary:hover { background: rgba(255,255,255,.12); }
+.menu-col .ind { font-size: .72rem; background: rgba(255,255,255,.2); border-radius: 6px; padding: 0 .35rem; }
+.menu-col-painel { position: fixed; z-index: 60; width: min(330px, 92vw); max-height: 70vh; overflow: auto; text-align: left;
+  background: var(--superficie); color: var(--t-principal); border: 1px solid var(--borda-forte); border-radius: 14px;
+  box-shadow: var(--sombra-forte); padding: .6rem; font-weight: 400; white-space: normal; }
+.menu-col-corpo .opcao { display: flex; align-items: center; min-height: 40px; padding: .35rem .6rem; border-radius: 10px;
+  text-decoration: none; color: var(--t-principal); font-weight: 600; }
+.menu-col-corpo .opcao:hover, .menu-col-corpo .opcao.sel { background: var(--realce); color: var(--t-titulo); }
+.filtro-col { border-top: 1px solid var(--borda); margin-top: .4rem; padding-top: .5rem; }
+.filtro-col label { margin: .2rem 0; }
+.filtro-col .check { font-weight: 500; font-size: .92rem; }
+.lista-opcoes { max-height: 240px; overflow: auto; margin-top: .3rem; }
+.barra-tabela .chips { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin-top: .5rem; }
+.chip { display: inline-flex; gap: .35rem; align-items: center; border-radius: 99px; padding: .25rem .75rem; font-size: .82rem;
+  font-weight: 700; text-decoration: none; border: 1.5px solid; }
+.chip.filtro { background: var(--aviso-fundo); color: var(--aviso-texto); border-color: var(--ouro); }
+.chip.ordem { background: var(--info-fundo); color: var(--info-texto); border-color: var(--t-titulo); }
+.limpar-tudo { font-size: .85rem; font-weight: 700; }
+.painel-filtros, .painel-colunas { position: relative; }
+.painel-filtros > summary, .painel-colunas > summary { list-style: none; }
+.painel-filtros > summary::-webkit-details-marker, .painel-colunas > summary::-webkit-details-marker { display: none; }
+.painel-corpo { margin-top: .5rem; background: var(--superficie); border: 1px solid var(--borda-forte); border-radius: 14px;
+  padding: .75rem; box-shadow: var(--sombra-forte); min-width: min(320px, 90vw); }
+@media (min-width: 701px) {
+  .painel-filtros { display: none; } /* no PC os menus ficam nos próprios cabeçalhos */
+  .painel-colunas[open] .painel-corpo { position: absolute; z-index: 40; columns: 2; column-gap: 1rem; min-width: 460px; }
+}
+.item-painel { border-bottom: 1px solid var(--borda); }
+.item-painel > summary { font-weight: 700; padding: .5rem 0; cursor: pointer; }
+.tabela td.assinatura { min-width: 160px; }
+@media print { .tabela td.assinatura { width: 28%; } }
+/* Central de Relatórios */
+.central { display: grid; gap: 1rem; }
+.central > * { min-width: 0; }
+@media (min-width: 640px) { .central .campo-largo { grid-column: span 2; } }
+@media (min-width: 1000px) { .central { grid-template-columns: 250px 1fr; align-items: start; } }
+.catalogo h3 { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--t-suave); margin: .9rem 0 .35rem; }
+.catalogo h3:first-child { margin-top: 0; }
+.catalogo a { display: flex; gap: .45rem; align-items: center; padding: .5rem .65rem; border-radius: 10px; text-decoration: none;
+  color: var(--t-principal); font-weight: 600; font-size: .92rem; min-height: 42px; border: 1.5px solid transparent; }
+.catalogo a:hover { background: var(--superficie-2); }
+.catalogo a.ativo { background: var(--aviso-fundo); border-color: var(--ouro); color: var(--aviso-texto); }
+.catalogo .salvo { display: flex; align-items: center; gap: .25rem; }
+.catalogo .salvo a { flex: 1; }
+.catalogo .salvo button { background: none; border: 0; color: var(--t-suave); cursor: pointer; min-width: 36px; min-height: 36px; font-size: 1rem; }
+@media (max-width: 999px) { .catalogo-lista { display: none; } .catalogo[open] .catalogo-lista { display: block; } }
+@media (min-width: 1000px) { .catalogo > summary { display: none; } .catalogo-lista { display: block !important; } }
+.atalhos { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.atalhos a { font-size: .82rem; font-weight: 700; padding: .3rem .75rem; border-radius: 99px; background: var(--realce); color: var(--t-titulo); text-decoration: none; }
+.resumo { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .6rem; margin: .75rem 0; }
+.resumo div { background: var(--superficie-2); border-radius: 12px; padding: .6rem .8rem; }
+.resumo b { display: block; font-size: 1.35rem; color: var(--t-titulo); }
+.resumo span { font-size: .8rem; color: var(--t-suave); }
+.cab-relatorio { display: flex; gap: 1rem; align-items: center; border-bottom: 3px solid var(--ouro); padding-bottom: .6rem; margin-bottom: .6rem; }
+.cab-relatorio img { width: 56px; height: 56px; border-radius: 50%; }
+.cab-relatorio h2 { margin: 0; font-size: 1.15rem; }
+.filtros-aplicados { background: var(--superficie-2); border-radius: 10px; padding: .45rem .7rem; font-size: .85rem; }
+.rodape-lgpd { display: none; }
+.so-impressao { display: none; }
+@media print {
+  @page { size: A4; margin: 12mm 10mm 16mm;
+    @bottom-left { content: "SIS MEVAM-GYN"; font-size: 8pt; color: #64748b; }
+    @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 8pt; color: #64748b; } }
+  .so-impressao { display: block; }
+  .catalogo, .barra-tabela, .menu-col-painel, .painel-filtros, .painel-colunas, .msg { display: none !important; }
+  .central { display: block; }
+  .menu-col > summary { padding: .4rem .5rem; min-height: 0; } .menu-col .ind { display: none; }
+  .tabela-filtro th.on { background: #1e3a8a !important; }
+  .tabela { font-size: 9.5pt; } .tabela thead { display: table-header-group; } .tabela tr { break-inside: avoid; }
+  .tabela.responsiva thead { display: table-header-group !important; }
+  .tabela.responsiva tr { display: table-row !important; border: 0; margin: 0; padding: 0; }
+  .tabela.responsiva td { display: table-cell !important; padding: .3rem .4rem; border-bottom: 1px solid #ccc; }
+  .tabela.responsiva td::before { content: none !important; }
+  .rolagem { overflow: visible; }
+  .rodape-lgpd { display: block; margin-top: .6rem; font-size: 8.5pt; color: #b91c1c; font-weight: 700; }
+  .resumo div { border: 1px solid #ccc; }
+}

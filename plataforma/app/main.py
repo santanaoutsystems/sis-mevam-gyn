@@ -21,7 +21,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.staticfiles import StaticFiles
 
 from . import config, datas, db, lembretes, seguranca
-from .rotas import acesso, admin, agenda, membros, pesquisa, regularizacao, voluntarios
+from .rotas import acesso, admin, agenda, membros, pesquisa, regularizacao, relatorios, voluntarios
 from .web import BASE, render
 
 CSP = ("default-src 'self'; "
@@ -48,7 +48,7 @@ class CabecalhosSeguranca(BaseHTTPMiddleware):
             resp.headers.setdefault("Cache-Control", "public, max-age=2592000")  # 30 dias: não mudam
         elif request.url.path.startswith("/static/"):
             resp.headers.setdefault("Cache-Control", "no-cache")  # CSS/JS: confere versão a cada visita (ETag)
-        if request.url.path.startswith(("/membros", "/minha-ficha", "/admin", "/credo")):
+        if request.url.path.startswith(("/membros", "/minha-ficha", "/admin", "/credo", "/relatorios", "/voluntarios")):
             resp.headers.setdefault("Cache-Control", "no-store")
         return resp
 
@@ -91,7 +91,7 @@ rotas = [
     Route("/privacidade", privacidade),
     Route("/sw.js", service_worker),
     Mount("/static", app=StaticFiles(directory=os.path.join(BASE, "static")), name="static"),
-    *acesso.rotas, *membros.rotas, *regularizacao.rotas, *voluntarios.rotas, *pesquisa.rotas, *agenda.rotas, *admin.rotas,
+    *acesso.rotas, *membros.rotas, *regularizacao.rotas, *voluntarios.rotas, *pesquisa.rotas, *relatorios.rotas, *agenda.rotas, *admin.rotas,
 ]
 
 middleware = [
