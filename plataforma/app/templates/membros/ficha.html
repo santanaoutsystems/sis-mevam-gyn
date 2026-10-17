@@ -112,6 +112,8 @@
         {% endfor %}
       </div>
     </fieldset>
+    <label class="check" style="margin:.5rem 0 1rem"><input type="checkbox" name="sem_homenagem" value="1" {{ 'checked' if valores.get('sem_homenagem') or valores.get('homenagem_aniversario') == False }}>
+      <span>Não quero homenagem de aniversário<br><span class="pequeno suave">Marcado, seu aniversário (só dia e mês) não aparece para a equipe e você não recebe mensagens de parabéns.</span></span></label>
     {{ ui.campo('area_ministerial', 'Experiência em outros ministérios', voz=True, dica='Onde já serviu antes. Ex: louvor em outra igreja') }}
     {{ ui.campo('interesse_batismo_familia', 'Alguém da família deseja se batizar?', voz=True, dica="Ex: Sim, meu filho / Não") }}
     {% if modo == 'editar' %}

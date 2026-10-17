@@ -103,8 +103,24 @@
     <div><b>Batismo na família:</b> {{ m.interesse_batismo_familia or '-' }}</div>
   </div>
   {% if m.observacoes and not propria %}<p class="pequeno"><b>Observações:</b> {{ m.observacoes }}</p>{% endif %}
-  <p class="pequeno suave">LGPD: {{ m.status_lgpd }} · termo {{ m.lgpd_versao_termo or '-' }} · consentimento em {{ m.lgpd_data_consentimento|data_hora_br or '-' }}</p>
+  <p class="pequeno suave">LGPD: {{ m.status_lgpd }} · termo {{ m.lgpd_versao_termo or '-' }} · consentimento em {{ m.lgpd_data_consentimento|data_hora_br or '-' }}
+    · 🎂 Homenagem de aniversário: {{ 'recusada' if m.homenagem_aniversario == False else 'aceita' }}</p>
 </div>
+{% if propria and m.status != 'Anonimizado (LGPD)' %}
+<div class="cartao nao-imprimir">
+  <h2 style="margin-top:0">🎂 Meu aniversário</h2>
+  {% if m.homenagem_aniversario == False %}
+  <p class="pequeno">Você pediu para não receber homenagem: seu aniversário não aparece para a equipe.</p>
+  <form method="post" action="/minha-ficha/homenagem"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="homenagem" value="sim">
+    <button class="botao peq">Quero ser lembrado no meu aniversário</button></form>
+  {% else %}
+  <p class="pequeno">A Coordenação do seu setor e a Secretaria veem só o <b>dia e o mês</b> do seu aniversário (nunca o ano ou a idade),
+    para enviar uma mensagem especial no dia.</p>
+  <form method="post" action="/minha-ficha/homenagem"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="homenagem" value="nao">
+    <button class="botao peq secundario">Não quero homenagem de aniversário</button></form>
+  {% endif %}
+</div>
+{% endif %}
 
 {% if not propria and m.status != 'Anonimizado (LGPD)' %}
 <details class="cartao">

@@ -186,8 +186,10 @@ def rodar(agora=None) -> int:
 
 
 def agendar() -> None:
-    """Chamado pelo /healthz: roda em segundo plano, no máximo a cada 30 min, das 8h às 21h."""
-    if not envios.email_configurado() or not 8 <= datas.agora().hour < 21:
+    """Chamado pelo /healthz: roda em segundo plano, no máximo a cada 30 min, das 8h às 21h.
+
+    Também roda a rotina dos aniversariantes (avisos de amanhã, resumo das 8h e e-mail do dia)."""
+    if not 8 <= datas.agora().hour < 21:
         return
     with _trava:
         if _ultima_rodada["t"] and time.monotonic() - _ultima_rodada["t"] < INTERVALO_SEGUNDOS:
@@ -196,9 +198,17 @@ def agendar() -> None:
 
     def tarefa():
         try:
-            n = rodar()
-            if n:
-                log.info("Lembretes de cadastro enviados: %s", n)
+            if envios.email_configurado():
+                n = rodar()
+                if n:
+                    log.info("Lembretes de cadastro enviados: %s", n)
         except Exception:  # noqa: BLE001
             log.exception("Falha na rodada de lembretes de cadastro")
+        try:
+            from . import aniversarios
+            r = aniversarios.rodar()
+            if any(r.values()):
+                log.info("Aniversariantes: %s", r)
+        except Exception:  # noqa: BLE001
+            log.exception("Falha na rotina dos aniversariantes")
     threading.Thread(target=tarefa, daemon=True).start()

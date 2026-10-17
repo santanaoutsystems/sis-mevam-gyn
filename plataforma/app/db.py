@@ -104,6 +104,7 @@ usuarios = Table(
     Column("bloqueado_ate", DateTime(timezone=True)),
     Column("ultimo_login", DateTime(timezone=True)),
     Column("origem", String),  # 'novo', 'agenda:administradores#ID', 'membros_app:usuarios#ID'
+    Column("email_avisos", Boolean, nullable=False, default=True),  # resumo diário dos avisos por e-mail
     Column("criado_em", DateTime(timezone=True), server_default=func.now()),
 )
 
@@ -153,6 +154,8 @@ membros = Table(
     Column("ficha_escaneada", Text),
     Column("ficha_escaneada_em", DateTime(timezone=True)),
     Column("ficha_escaneada_por", String),
+    # LGPD: o membro pode recusar a homenagem de aniversário (some dos avisos, do calendário e das mensagens)
+    Column("homenagem_aniversario", Boolean, nullable=False, default=True),
     Column("criado_em", DateTime(timezone=True), server_default=func.now()),
     Column("atualizado_em", DateTime(timezone=True), server_default=func.now()),
 )
@@ -258,6 +261,46 @@ relatorios_salvos = Table(
     Column("criado_em", DateTime(timezone=True), server_default=func.now()),
 )
 
+# Aniversariantes (v2.8.0): avisos do sino/janela, modelos de mensagem e mensagens enviadas
+avisos = Table(
+    "avisos", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False),
+    Column("tipo", String(30), nullable=False),  # aniversario_amanha | aniversario_hoje
+    Column("membro_id", Integer, ForeignKey("membros.id", ondelete="CASCADE")),
+    Column("referencia", Date, nullable=False),  # dia do aniversário
+    Column("janela", Boolean, nullable=False, default=False),  # também aparece na janela (não só no sino)
+    Column("criado_em", DateTime(timezone=True), server_default=func.now()),
+    Column("lido_em", DateTime(timezone=True)),
+    Column("email_em", DateTime(timezone=True)),  # entrou no e-mail resumo
+    UniqueConstraint("usuario_id", "tipo", "membro_id", "referencia", name="avisos_unico"),
+)
+
+mensagens_modelo = Table(
+    "mensagens_modelo", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("tipo", String(30), nullable=False, default="aniversario"),
+    Column("titulo", String(80), nullable=False),
+    Column("texto", Text, nullable=False),
+    Column("ativo", Boolean, nullable=False, default=True),
+    Column("padrao", Boolean, nullable=False, default=False),  # usado no e-mail automático do Ministério
+    Column("criado_por", String(120)),
+    Column("atualizado_em", DateTime(timezone=True), server_default=func.now()),
+)
+
+aniversario_envios = Table(
+    "aniversario_envios", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("membro_id", Integer, ForeignKey("membros.id", ondelete="CASCADE"), nullable=False),
+    Column("ano", Integer, nullable=False),
+    Column("canal", String(20), nullable=False),  # whatsapp | email | copia | email_auto
+    Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="SET NULL")),
+    Column("usuario_nome", String(120)),
+    Column("enviado_em", DateTime(timezone=True), server_default=func.now()),
+    Column("resultado", Text),
+    Column("chave", String(60), unique=True),  # só no e-mail automático: trava de 1 por ano
+)
+
 STATUS_MEMBRO = ("Aguardando Análise", "Validado pela Secretaria", "Ativo", "Inativo", "Anonimizado (LGPD)")
 
 _engine: Engine | None = None
@@ -341,7 +384,7 @@ def aplicar_migracoes_aditivas() -> None:
     Hoje: 003 (Coordenação), 004 (id de setor como texto) e 005 (colunas que faltam na Agenda legada)
     006 (CPF em membros e usuários)
     007 (regularização de fichas antigas), 008 (lembretes de cadastro e setores de interesse)
-    e 009 (filtros salvos da Central de Relatórios).
+    009 (filtros salvos da Central de Relatórios) e 010 (aniversariantes).
     Só cria/alarga; nunca remove dados. Se falhar, o app sobe mesmo assim e registra o erro.
     """
     import logging
@@ -351,7 +394,7 @@ def aplicar_migracoes_aditivas() -> None:
         return
     pasta = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes")
     for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql", "007_regularizacao.sql",
-                 "008_lembretes_interesses.sql", "009_relatorios_salvos.sql"):
+                 "008_lembretes_interesses.sql", "009_relatorios_salvos.sql", "010_aniversariantes.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()

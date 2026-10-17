@@ -24,6 +24,7 @@ templates.env.filters["moeda"] = lambda v: ("R$ {:,.2f}".format(float(v or 0))
 templates.env.globals["PERFIS_ROTULO"] = db.PERFIS_ROTULO
 templates.env.globals["MESES"] = datas.MESES
 templates.env.globals["VERSAO_APP"] = config.VERSAO_APP
+templates.env.globals["aniv"] = {}  # telas fora do render() comum: sem avisos
 
 
 def flash(request: Request, mensagem: str, tipo: str = "sucesso") -> None:
@@ -41,9 +42,43 @@ def voltar_para(caminho: str) -> str | None:
         return "/agenda"
     if partes[0] == "regularizacao" and len(partes) >= 2:
         return f"/regularizacao/membro/{partes[2]}" if len(partes) >= 4 else "/regularizacao"
+    if partes[0] == "aniversariantes" and len(partes) >= 2:
+        return "/aniversariantes"
     if partes[0] == "membros" and len(partes) >= 2:
         return f"/membros/{partes[1]}" if len(partes) >= 3 else "/membros"
     return "/inicio"
+
+
+def _aniversarios(request: Request, usuario: dict | None) -> dict:
+    """Sino (avisos), janela de aniversariantes (1x por dia) e felicitação ao próprio membro no dia."""
+    if not usuario or usuario.get("trocar_senha"):
+        return {}
+    from . import aniversarios as an
+    saida: dict = {}
+    hoje = datas.hoje()
+    dia = hoje.isoformat()
+    try:
+        if usuario["perfil"] in db.PERFIS_AGENDA:
+            an.garantir(hoje)
+            with db.engine().connect() as c:
+                lista = an.avisos_do_usuario(c, usuario["id"], hoje)
+                saida["avisos_n"] = sum(1 for a in lista if not a["lido_em"])
+                janela = [a for a in lista if a["janela"] and not a["lido_em"]]
+                if (janela and request.session.get("aniv_janela") != dia
+                        and request.url.path not in ("/aniversariantes", "/avisos")):
+                    request.session["aniv_janela"] = dia
+                    dados = {m["id"]: m for m in an.membros(c, {a["membro_id"] for a in janela})}
+                    saida["janela"] = [{**a, "m": dados[a["membro_id"]]} for a in janela if a["membro_id"] in dados]
+        if usuario.get("membro_id") and request.session.get("aniv_felicitacao") != dia:
+            request.session["aniv_felicitacao"] = dia
+            with db.engine().connect() as c:
+                proprio = an.membros(c, [usuario["membro_id"]])
+            if proprio and an.no_ano(proprio[0]["nasc"], hoje.year) == hoje:
+                saida["felicitacao"] = proprio[0]["primeiro"]
+    except Exception:  # noqa: BLE001  (o aviso nunca pode derrubar a tela)
+        import logging
+        logging.getLogger("mevam").exception("Falha nos avisos de aniversário")
+    return saida
 
 
 def render(request: Request, nome: str, contexto: dict | None = None, status_code: int = 200):
@@ -57,6 +92,7 @@ def render(request: Request, nome: str, contexto: dict | None = None, status_cod
         "inatividade": seguranca.limite_inatividade(usuario),
         "versao": config.VERSAO,
         "voltar_para": voltar_para(request.url.path),
+        "aniv": _aniversarios(request, usuario),
     }
     ctx.update(contexto or {})
     return templates.TemplateResponse(request, nome, ctx, status_code=status_code)

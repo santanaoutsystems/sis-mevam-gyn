@@ -166,6 +166,8 @@ def validar(form, exigir_foto: bool = True, exigir_lgpd: bool = True, exigir_cpf
         erros["cpf"] = ERRO_CPF
     dados["cpf"] = cpf or None
 
+    dados["homenagem_aniversario"] = not form.get("sem_homenagem")  # LGPD: recusa da homenagem de aniversário
+
     nasc = datas.parse_data(form.get("data_nascimento"))
     if not nasc:
         erros["data_nascimento"] = "Data de nascimento inválida (use dd/mm/aaaa)."

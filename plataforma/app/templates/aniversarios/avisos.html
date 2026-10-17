@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titulo %}Avisos{% endblock %}
+{% block conteudo %}
+<h1>🔔 Avisos</h1>
+<div class="cartao">
+{% for a in itens %}
+  <div class="pessoa-aniv">
+    <span class="avatar" aria-hidden="true">🎂</span>
+    <span><b>{{ a.m.nome }}</b><br><span class="pequeno suave">
+      {{ 'Hoje' if a.hoje else ('Amanhã' if a.tipo == 'aniversario_amanha' else 'Ontem') }} ({{ a.referencia.strftime('%d/%m') }}) ·
+      {% for s in a.m.setores %}{{ s.nome }}{{ ' · interesse' if s.tipo == 'interesse' }}{{ ', ' if not loop.last }}{% else %}Sem setor{% endfor %}</span></span>
+    {% if a.tipo == 'aniversario_hoje' %}<a class="botao peq zap" href="/aniversariantes/{{ a.m.id }}/mensagem">💬 Mensagem</a>{% endif %}
+  </div>
+{% else %}
+  <p class="suave">Nenhum aviso agora. Os aniversariantes aparecem aqui um dia antes.</p>
+{% endfor %}
+</div>
+<a class="botao secundario" href="/aniversariantes">🎂 Ver o calendário</a>
+{% endblock %}

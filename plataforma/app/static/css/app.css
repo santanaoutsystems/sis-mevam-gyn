@@ -440,3 +440,63 @@ main:focus { outline: none; }
   .rodape-lgpd { display: block; margin-top: .6rem; font-size: 8.5pt; color: #b91c1c; font-weight: 700; }
   .resumo div { border: 1px solid #ccc; }
 }
+
+/* ---------- Aniversariantes (v2.8.0) ---------- */
+.sino { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px;
+  border-radius: 12px; background: var(--superficie-2); border: 1px solid var(--borda); text-decoration: none; font-size: 1.15rem; }
+.sino i { position: absolute; top: -6px; right: -6px; background: #dc2626; color: #fff; font-style: normal; font-size: .7rem;
+  font-weight: 800; border-radius: 99px; padding: 1px 6px; min-width: 18px; text-align: center; }
+.janela-fundo { position: fixed; inset: 0; z-index: 200; background: rgba(15, 23, 42, .55); display: flex; align-items: center;
+  justify-content: center; padding: 16px; }
+.janela { background: var(--superficie); color: var(--t-principal); border-radius: 22px; border-top: 8px solid var(--ouro);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, .45); width: 100%; max-width: 460px; max-height: 88vh; overflow: auto; padding: 1.25rem; }
+.janela h2 { margin: 0 0 .15rem; font-size: 1.3rem; }
+.felicitacao { text-align: center; }
+.felicitacao .bolo { font-size: 3rem; }
+.pessoa-aniv { display: flex; gap: .7rem; align-items: center; border: 1px solid var(--borda); border-radius: 14px;
+  padding: .55rem .7rem; margin-bottom: .5rem; background: var(--superficie); }
+.pessoa-aniv > span:nth-child(2) { flex: 1; min-width: 0; }
+.avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--aviso-fundo); color: var(--aviso-texto); font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.botao.zap { background: #15803d; color: #fff; border-color: #15803d; }
+.botao.desativado { opacity: .55; cursor: not-allowed; }
+.cal-aniv-grade { display: grid; gap: 1rem; }
+.cal-aniv-grade > * { min-width: 0; }
+@media (min-width: 1100px) { .cal-aniv-grade { grid-template-columns: 1fr 340px; align-items: start; } }
+.cal-cab { display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap; margin-bottom: .5rem; }
+.cal-cab .navega { display: flex; align-items: center; gap: .4rem; }
+.cal-cab h2 { margin: 0 .25rem; font-size: 1.2rem; }
+.filtros-cal { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.filtros-cal .abas { display: flex; gap: .3rem; }
+.filtros-cal select { width: auto; min-width: 170px; }
+.cal-aniv td { height: 92px; vertical-align: top; padding: .25rem .3rem; }
+.cal-aniv td.fora { opacity: .4; }
+.cal-aniv td.ocupado { background: var(--realce); }
+.cal-aniv .num { display: block; font-size: .8rem; font-weight: 700; margin-bottom: .15rem; }
+.nome-aniv { display: block; font-size: .72rem; font-weight: 700; background: var(--aviso-fundo); color: var(--aviso-texto);
+  border-radius: 6px; padding: 1px 5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; }
+.nome-aniv.enviado { background: var(--ok-fundo); color: var(--ok-texto); }
+.ok-aniv { color: var(--t-sucesso); font-weight: 800; }
+.lista-aniv li { display: flex; gap: .75rem; align-items: center; padding: .55rem 0; border-bottom: 1px solid var(--borda); }
+.lista-aniv li > span { flex: 1; min-width: 0; }
+.lista-aniv li.hoje .dia-destaque { color: var(--t-ouro); }
+@media (max-width: 600px) {
+  .cal-aniv td { height: 58px; padding: .15rem; }
+  .nome-aniv { font-size: 0; height: 7px; padding: 0; }
+  .nome-aniv .ok-aniv { display: none; }
+}
+.grade-mensagem { display: grid; gap: 1rem; }
+@media (min-width: 900px) { .grade-mensagem { grid-template-columns: 1fr 320px; align-items: start; } }
+@media print {
+  .janela-fundo, .sino { display: none !important; }
+  .cal-aniv-grade { display: block; }
+  .cal-aniv td { height: auto; min-height: 70px; }
+  .nome-aniv { font-size: 9pt; background: none; color: #000; border: 0; padding: 0; }
+}
+.so-cel-aniv { display: none; }
+@media (max-width: 600px) { .so-cel-aniv { display: block; margin-top: .75rem; } }
+@media (max-width: 440px) {
+  .topo:has(.sino) .nome-app { display: none; }
+  .sino { min-width: 38px; min-height: 38px; }
+}
+@media print { .so-cel-aniv { display: none !important; } }

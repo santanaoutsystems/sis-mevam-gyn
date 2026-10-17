@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block titulo %}Modelos de mensagem{% endblock %}
+{% block conteudo %}
+<h1>⚙️ Modelos de mensagem de aniversário</h1>
+<p class="suave" style="margin-top:0">O modelo <b>padrão</b> é usado no e-mail automático do Ministério e vem escolhido na tela de mensagem.</p>
+<div class="cartao">
+  <table class="tabela">
+    <thead><tr><th>Modelo</th><th>Situação</th><th></th></tr></thead>
+    <tbody>
+    {% for x in lista %}
+      <tr><td><b>{{ x.titulo }}</b><br><span class="pequeno suave">{{ x.texto[:120] }}{{ '…' if x.texto|length > 120 }}</span></td>
+        <td>{% if x.padrao %}<span class="selo validado">Padrão</span>{% elif x.ativo %}<span class="selo ativo">Ativo</span>{% else %}<span class="selo inativo">Desativado</span>{% endif %}
+          {% if x.id == 0 %}<br><span class="pequeno suave">Embutido no sistema</span>{% endif %}</td>
+        <td><a class="botao peq secundario" href="?editar={{ x.id }}">{{ 'Personalizar' if x.id == 0 else 'Editar' }}</a></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<form class="cartao" method="post" action="/aniversariantes/modelos/salvar">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="id" value="{{ editar.id if editar else '' }}">
+  <h2 style="margin-top:0">{{ 'Editar: ' ~ editar.titulo if editar and editar.id else 'Novo modelo' }}</h2>
+  <label for="titulo">Nome do modelo</label>
+  <input id="titulo" name="titulo" maxlength="80" required value="{{ editar.titulo if editar else '' }}" placeholder="Ex.: Kids, Jovens, Louvor">
+  <label for="texto">Texto</label>
+  <textarea id="texto" name="texto" rows="7" maxlength="1500" required>{{ editar.texto if editar else 'Paz, {primeiro_nome}! 🎉\n\n' }}</textarea>
+  <p class="pequeno suave">Campos automáticos: {% for k in CAMPOS %}<code>{{ k }}</code>{{ ', ' if not loop.last }}{% endfor %}. Nunca use idade ou ano de nascimento.</p>
+  <label class="check"><input type="checkbox" name="ativo" value="1" {{ 'checked' if not editar or editar.ativo }}> Ativo (aparece na tela de mensagem)</label>
+  <label class="check"><input type="checkbox" name="padrao" value="1" {{ 'checked' if editar and editar.padrao }}> Padrão (usado no e-mail automático do Ministério)</label>
+  <div class="acoes" style="margin-bottom:0"><button class="botao">💾 Salvar modelo</button>
+    {% if editar %}<a class="botao secundario" href="/aniversariantes/modelos">Cancelar</a>{% endif %}</div>
+</form>
+{% endblock %}

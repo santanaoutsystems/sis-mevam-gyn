@@ -24,6 +24,7 @@
     <div class="usuario">
       {{ usuario.nome.split(' ')[0] }}<br><span class="perfil">{{ PERFIS_ROTULO[usuario.perfil] }}</span>
     </div>
+    {% if pode('coordenacao', 'secretaria', 'admin') %}<a class="sino" href="/avisos" aria-label="Avisos{{ ': ' ~ aniv.avisos_n ~ ' novo(s)' if aniv.avisos_n }}" title="Avisos">🔔{% if aniv.avisos_n %}<i>{{ aniv.avisos_n }}</i>{% endif %}</a>{% endif %}
     <button type="button" class="botao-tema" aria-label="Alternar tema">🌙</button>
     <form method="post" action="/sair"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">Sair</button></form>
   </header>
@@ -33,7 +34,7 @@
     {% if pode('secretaria', 'admin') %}{% set f = f + [('/membros', '👥', 'Membros'), ('/coordenacao', '🧭', 'Coordenação'), ('/regularizacao', '📋', 'Regularização')] %}{% endif %}
     {% if pode('coordenacao') %}{% set f = f + [('/eventos/novo', '➕', 'Novo evento')] %}{% endif %}
     {% set f = f + [('/relatorios', '🖨️', 'Relatórios')] %}
-    {% if pode('coordenacao', 'secretaria', 'admin') %}{% set f = f + [('/voluntarios', '🙋', 'Voluntários')] %}{% endif %}
+    {% if pode('coordenacao', 'secretaria', 'admin') %}{% set f = f + [('/voluntarios', '🙋', 'Voluntários'), ('/aniversariantes', '🎂', 'Aniversariantes')] %}{% endif %}
     {% if pode('admin') %}{% set f = f + [('/admin/usuarios', '🔐', 'Usuários'), ('/admin/setores', '🏢', 'Setores'), ('/admin/auditoria', '🔍', 'Auditoria')] %}{% endif %}
     {% set f = f + [('/minha-ficha', '🪪', 'Minha ficha')] %}
     {% set na_barra = f if f|length <= 5 else f[:4] %}
@@ -62,6 +63,7 @@
       {% block conteudo %}{% endblock %}
     </main>
   </div>
+  {% if aniv.janela or aniv.felicitacao %}{% include "parciais/aniversario_janela.html" %}{% endif %}
 {% else %}
   <header class="topo">
     <img src="/static/img/logo_round.jpg" alt="MEVAM GYN" width="40" height="40">
@@ -78,6 +80,7 @@
 <script src="/static/js/tema.js" defer></script>
 <script src="/static/js/mascaras.js" defer></script>
 <script src="/static/js/voz.js" defer></script>
+{% if usuario %}<script src="/static/js/aniversarios.js" defer></script>{% endif %}
 {% block scripts %}{% endblock %}
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(function(){});</script>
 </body>

@@ -412,22 +412,24 @@ def r_pendencias(ctx: Ctx):
 
 
 def r_aniversariantes(ctx: Ctx):
+    """Coordenação: só os membros dos seus setores (onde serve ou de interesse). Quem recusou a homenagem não entra."""
+    from .. import aniversarios as an
+    esc = an.escopo(ctx.c, ctx.u)
     linhas = []
-    for m in _membros(ctx.c, com_setores=True):
-        n = m.get("data_nascimento")
-        if m["status"] in FORA or not n:
+    for m in an.membros(ctx.c):
+        if not an.visivel(m, esc) or (ctx.mes and m["mes"] != ctx.mes):
             continue
-        n = datas.parse_data(n)
-        if ctx.mes and n.month != ctx.mes:
-            continue
-        linhas.append({"id": m["id"], "aniversario": n, "nome": m["nome_completo"], "setores": m["setores"],
-                       "whatsapp": m["whatsapp"], "status": m["status"]})
-    linhas.sort(key=lambda l: (l["aniversario"].month, l["aniversario"].day, tabelas._norm(l["nome"])))
+        linhas.append({"id": m["id"], "aniversario": m["nasc"], "nome": m["nome"],
+                       "setores": [s["nome"] + (" (interesse)" if s["tipo"] == "interesse" else "") for s in m["setores"]]
+                       or [an.SEM_SETOR], "whatsapp": m["whatsapp"]})
     ctx.resumo = [(len(linhas), f"aniversariantes em {datas.MESES[ctx.mes - 1]}" if ctx.mes else "aniversariantes")]
     dia_mes = lambda v: v.strftime("%d/%m") if v else "-"  # LGPD: sem ano de nascimento nem idade
-    return [Coluna("aniversario", "Aniversário", "aniversario", fmt=dia_mes),
-            Coluna("nome", "Nome", "texto", destaque=True), Coluna("setores", "Setor em que serve", "lista"),
-            Coluna("whatsapp", "WhatsApp", "texto", sensivel=True, padrao=False), Coluna("status", "Situação", "lista", padrao=False)], linhas
+    cols = [Coluna("aniversario", "Aniversário", "aniversario", fmt=dia_mes),
+            Coluna("nome", "Nome", "texto", destaque=True, link=lambda l: f"/aniversariantes/{l['id']}/mensagem"),
+            Coluna("setores", "Setores", "lista")]
+    if esc is None:  # telefone só para Secretaria e Adm; a Coordenação usa o botão de mensagem
+        cols.append(Coluna("whatsapp", "WhatsApp", "texto", sensivel=True, padrao=False))
+    return cols, linhas
 
 
 def r_membros_setor(ctx: Ctx):
@@ -686,8 +688,9 @@ CATALOGO = [
               descricao="Lista de membros com as colunas que você escolher e total por situação."),
     Relatorio("pendencias", "Pendências de cadastro", "⚠️", G_PESSOAS, SEC_ADM, r_pendencias, (), periodo_padrao=False,
               descricao="Quem precisa de contato e qual é a pendência."),
-    Relatorio("aniversariantes", "Aniversariantes", "🎂", G_PESSOAS, SEC_ADM, r_aniversariantes, ("mes",), periodo_padrao=False,
-              descricao="Nome e dia/mês do aniversário, sem ano de nascimento nem idade."),
+    Relatorio("aniversariantes", "Aniversariantes", "🎂", G_PESSOAS, db.PERFIS_AGENDA, r_aniversariantes, ("mes",),
+              periodo_padrao=False, descricao="Nome e dia/mês do aniversário, sem ano nem idade. A Coordenação vê só os seus "
+                                               "setores. Calendário completo em 🎂 Aniversariantes."),
     Relatorio("membros-setor", "Membros por setor de serviço", "🛠️", G_PESSOAS, SEC_ADM, r_membros_setor, ("setor",),
               periodo_padrao=False, descricao="Quem serve em cada setor e em qual função."),
     Relatorio("interesses", "Setores de interesse", "💡", G_PESSOAS, SEC_ADM, r_interesses, (), periodo_padrao=False,
