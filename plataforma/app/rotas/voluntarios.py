@@ -59,7 +59,7 @@ def texto_padrao(setor: str, evento: dict | None, usuario: dict) -> tuple[str, s
     if evento:
         quando = evento["quando"].strftime("%d/%m/%Y às %H:%M") if evento.get("quando") else ""
         local = f", em {evento['local']}" if evento.get("local") else ""
-        assunto = f"Convite especial: servir no {evento['titulo']}"
+        assunto = f"Convite especial para servir: {evento['titulo']}"
         convite = (f"Estamos preparando o evento {evento['titulo']}, no dia {quando}{local}, "
                    f"e precisamos de voluntários do setor {setor}.")
     else:
