@@ -23,7 +23,8 @@ from starlette.routing import Route
 
 from .. import config, datas, db, envios, ficha, seguranca
 from ..web import auditar, flash, ir, render
-from .membros import ERRO_CPF_REPETIDO, _carregar, _contexto_form, _cpf_em_uso, _ligar_pelo_cpf, _valores_de
+from .membros import (ERRO_CPF_REPETIDO, _carregar, _contexto_form, _cpf_em_uso, _ligar_pelo_cpf, _valores_de,
+                      interesses_de, salvar_interesses)
 
 ADMIN_SECRETARIA = ("secretaria", "admin")
 ORIGEM_IMPRESSA = "ficha_impressa"  # membros.origem é único (exceto 'novo'): cada ficha leva um sufixo
@@ -515,25 +516,28 @@ async def atualizar(request: Request):
                       200 if reg else 403)
     with db.engine().connect() as c:
         m = _carregar(c, reg["membro_id"])
+        interesses = interesses_de(c, reg["membro_id"]) if m else []
     if not m or m["status"] == "Anonimizado (LGPD)":
         return render(request, "erro.html", {"titulo": "Indisponível", "mensagem": "Cadastro indisponível."}, 404)
     faltas = pendencias(m)
     if request.method == "GET":
         return render(request, "membros/ficha.html", _contexto_form(
-            {"modo": "regularizar", "m": m, "valores": _valores_de(m), "faltas": faltas}))
+            {"modo": "regularizar", "m": m, "valores": _valores_de(m), "faltas": faltas, "interesses": interesses}))
 
     if not await seguranca.conferir_csrf(request):
         flash(request, "A página expirou. Seus dados não foram salvos; preencha novamente.", "erro")
         return ir(f"/atualizar/{rid}?t={request.query_params.get('t')}")
     form = await request.form()
     dados, erros = ficha.validar(form)
+    interesses = ficha.interesses_do_form(form)
     if not erros.get("cpf"):
         with db.engine().connect() as c:
             if _cpf_em_uso(c, dados["cpf"], membro_id=m["id"]):
                 erros["cpf"] = ERRO_CPF_REPETIDO
     if erros:
         return render(request, "membros/ficha.html", _contexto_form(
-            {"modo": "regularizar", "m": m, "valores": dict(form), "erros": erros, "faltas": faltas}), 400)
+            {"modo": "regularizar", "m": m, "valores": dict(form), "erros": erros, "faltas": faltas,
+             "interesses": interesses}), 400)
     agora = datas.agora_utc()
     alterados = [k for k, v in dados.items() if m.get(k) != v and k != "foto_3x4"]
     with db.engine().begin() as c:
@@ -544,6 +548,7 @@ async def atualizar(request: Request):
         c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == m["id"], db.usuarios.c.cpf.is_(None))
                   .values(cpf=dados["cpf"]))
         _ligar_pelo_cpf(c, dados["cpf"], membro_id=m["id"])
+        salvar_interesses(c, m["id"], interesses)
         c.execute(update(db.regularizacoes).where(db.regularizacoes.c.id == reg["id"]).values(concluido_em=agora))
         c.execute(update(db.regularizacoes).where(
             db.regularizacoes.c.membro_id == m["id"], db.regularizacoes.c.id != reg["id"],

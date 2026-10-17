@@ -193,7 +193,7 @@ def test_ficha_valida_campos_obrigatorios_foto_e_lgpd():
     assert r.status_code == 400
     assert "Nome completo é obrigatório" in r.text
     assert "Data de nascimento inválida" in r.text
-    assert "foto 3x4" in r.text and "LGPD" in r.text
+    assert "LGPD" in r.text
     assert membro_id_mais_recente() is None
 
 
@@ -1104,3 +1104,146 @@ def test_ajuste_unico_de_horarios_da_agenda_antiga():
     assert datas.parse_data_hora_local(evs["Family Day"].data_inicio) == datetime(2026, 11, 15, 9, 0)
     assert "Horário ajustado" in evs["Integra"].historico_alteracoes and acoes.count("EVENTO_HORARIO_AJUSTADO") == 1
     assert logado("membro").get("/admin/ajustar-horarios", follow_redirects=False).status_code in (302, 303, 403)
+
+
+# ---------------------------------------------------------------------------
+# v2.6.0: foto opcional com lembretes, setores de interesse, voluntários e pesquisa
+# ---------------------------------------------------------------------------
+def _caixa_de_email(monkeypatch):
+    from app import envios
+    caixa = []
+    monkeypatch.setattr(envios, "email_configurado", lambda: True)
+    monkeypatch.setattr(envios, "enviar_email", lambda para, assunto, corpo: caixa.append((para, assunto, corpo)))
+    return caixa
+
+
+def test_ficha_sem_foto_e_aceita_e_envia_link_manual_e_pesquisa(monkeypatch):
+    caixa = _caixa_de_email(monkeypatch)
+    c = novo_cliente()
+    r = enviar_ficha(c, foto_3x4="", interesses=["Louvor", "Kids", "Inventado"])
+    assert r.status_code == 303
+    assert "Falta a foto 3x4" in c.get("/ficha/recebida").text
+    mid = membro_id_mais_recente()
+    with db.engine().connect() as cx:
+        reg = cx.execute(select(db.regularizacoes).where(db.regularizacoes.c.membro_id == mid)).mappings().one()
+        etapas = cx.execute(select(db.lembretes_cadastro.c.etapa)).scalars().all()
+        interesses = sorted(cx.execute(select(db.membro_interesses.c.setor)).scalars())
+    assert (reg["expira_em"].replace(tzinfo=None) - reg["criado_em"].replace(tzinfo=None)).days == 30
+    assert etapas == ["d0"] and interesses == ["Kids", "Louvor"]
+    assert len(caixa) == 1
+    para, assunto, corpo = caixa[0]
+    assert para == "maria@exemplo.com" and "foto 3x4" in assunto
+    assert f"/atualizar/{reg['id']}?t=" in corpo and "/manual/membro" in corpo and "Prefiro não opinar agora" in corpo
+
+
+def test_ficha_com_foto_recebe_so_boas_vindas(monkeypatch):
+    caixa = _caixa_de_email(monkeypatch)
+    enviar_ficha(novo_cliente())
+    with db.engine().connect() as cx:
+        assert cx.execute(select(db.regularizacoes)).first() is None
+        assert cx.execute(select(db.lembretes_cadastro)).first() is None
+    assert len(caixa) == 1 and caixa[0][1] == "MEVAM GYN: ficha recebida" and "/pesquisa/" in caixa[0][2]
+
+
+def test_etapas_dos_lembretes():
+    from app.lembretes import etapa_do_dia
+    assert [etapa_do_dia(d) for d in (0, 1, 9, 10, 24, 25, 28, 29, 30, 36, 37, 44)] == [
+        None, "d1", "d1", "d10", "d10", "d25", "d25", "d29", "d30", "d30", "s1", "s2"]
+
+
+def test_rodada_de_lembretes_envia_uma_vez_e_para_com_a_foto(monkeypatch):
+    from datetime import timedelta
+    from app import lembretes
+    caixa = _caixa_de_email(monkeypatch)
+    enviar_ficha(novo_cliente(), foto_3x4="")
+    mid = membro_id_mais_recente()
+    caixa.clear()
+    criado = datas.agora_utc()
+    assert lembretes.rodar(criado + timedelta(days=1, hours=1)) == 1
+    assert lembretes.rodar(criado + timedelta(days=1, hours=2)) == 0  # mesma etapa não repete
+    assert lembretes.rodar(criado + timedelta(days=29, hours=1)) == 1  # pula as perdidas: só a mais recente
+    assert "termina amanhã" in caixa[-1][2]
+    assert lembretes.rodar(criado + timedelta(days=30, hours=1)) == 1
+    assert "chamado especial" in caixa[-1][1] and "Hoje vence" in caixa[-1][2]
+    with db.engine().connect() as cx:  # link vencido: o chamado leva um link novo e válido
+        abertos = cx.execute(select(db.regularizacoes).where(db.regularizacoes.c.membro_id == mid,
+                                                             db.regularizacoes.c.revogado.is_(False))).mappings().all()
+    assert len(abertos) == 1
+    with db.engine().begin() as cx:
+        cx.execute(db.membros.update().where(db.membros.c.id == mid).values(foto_3x4=FOTO))
+    assert lembretes.rodar(criado + timedelta(days=37, hours=1)) == 0
+
+
+def test_portal_de_atualizacao_conclui_com_a_foto(monkeypatch):
+    from app import lembretes
+    caixa = _caixa_de_email(monkeypatch)
+    enviar_ficha(novo_cliente(), foto_3x4="", interesses=["Louvor"])
+    mid = membro_id_mais_recente()
+    link = re.search(r"https?://[^\s]+/atualizar/\d+\?t=\w+", caixa[0][2]).group(0)
+    caminho = link.split("://", 1)[1].split("/", 1)[1]
+    c = novo_cliente()
+    pagina = c.get("/" + caminho)
+    assert pagina.status_code == 200 and "Louvor" in pagina.text
+    with db.engine().connect() as cx:
+        cpf = cx.execute(select(db.membros.c.cpf).where(db.membros.c.id == mid)).scalar()
+    r = c.post("/" + caminho, data={**FICHA_OK, "cpf": cpf, "interesses": ["Louvor", "Bazar"],
+                                   "csrf": csrf_de(pagina.text)}, follow_redirects=False)
+    assert r.status_code == 303, r.text
+    with db.engine().connect() as cx:
+        assert cx.execute(select(db.membros.c.foto_3x4).where(db.membros.c.id == mid)).scalar() == FOTO
+        assert sorted(cx.execute(select(db.membro_interesses.c.setor)).scalars()) == ["Bazar", "Louvor"]
+    assert lembretes.rodar() == 0
+
+
+def test_voluntarios_coordenacao_ve_so_os_seus_setores_e_convida(monkeypatch):
+    caixa = _caixa_de_email(monkeypatch)
+    enviar_ficha(novo_cliente(), interesses=["Voluntariado", "Louvor"])
+    caixa.clear()
+    coord = logado("coordenacao")
+    assert "não coordena nenhum setor" in coord.get("/voluntarios").text
+    with db.engine().begin() as c:  # nome antigo do setor continua valendo
+        did = c.execute(insert(db.departamentos).values(nome="Líder dos Voluntários")).inserted_primary_key[0]
+        c.execute(insert(db.usuario_setores).values(usuario_id=coord.usuario["id"], departamento_id=str(did)))
+    pagina = coord.get("/voluntarios").text
+    assert "Maria da Silva Souza" in pagina and "Voluntariado (1)" in pagina and "Louvor" not in pagina
+    mid = membro_id_mais_recente()
+    proibido = post(coord, "/voluntarios/convidar", {"setor": "Louvor", "assunto": "x", "corpo": "y", "membro": str(mid)},
+                    pagina="/voluntarios")
+    assert proibido.status_code == 403 and not caixa
+    r = post(coord, "/voluntarios/convidar", {"setor": "Voluntariado", "assunto": "Convite", "corpo": "Paz, {nome}!",
+                                              "membro": str(mid)}, pagina="/voluntarios")
+    assert r.status_code == 303 and caixa == [("maria@exemplo.com", "Convite", "Paz, Maria!")]
+    sec = logado("secretaria")
+    assert "Louvor (1)" in sec.get("/voluntarios?setor=Louvor").text
+
+
+def test_editar_ficha_atualiza_setores_de_interesse():
+    enviar_ficha(novo_cliente(), interesses=["Kids"])
+    mid = membro_id_mais_recente()
+    sec = logado("secretaria")
+    pagina = sec.get(f"/membros/{mid}/editar")
+    assert 'value="Kids" checked' in pagina.text
+    with db.engine().connect() as cx:
+        cpf = cx.execute(select(db.membros.c.cpf).where(db.membros.c.id == mid)).scalar()
+    r = sec.post(f"/membros/{mid}/editar", data={**FICHA_OK, "foto_3x4": "", "cpf": cpf, "interesses": ["Bazar"],
+                                                 "csrf": csrf_de(pagina.text)}, follow_redirects=False)
+    assert r.status_code == 303
+    with db.engine().connect() as cx:
+        assert cx.execute(select(db.membro_interesses.c.setor)).scalars().all() == ["Bazar"]
+
+
+def test_pesquisa_de_satisfacao_por_link(monkeypatch):
+    from app.rotas import pesquisa
+    enviar_ficha(novo_cliente())
+    mid = membro_id_mais_recente()
+    c = novo_cliente()
+    assert c.get(f"/pesquisa/{mid}?r=bom&t=errado").status_code == 403
+    link = pesquisa.link(mid, "bom").split("://", 1)[1].split("/", 1)[1]
+    r = c.get("/" + link)
+    assert r.status_code == 200 and "Bom" in r.text
+    c.get("/" + pesquisa.link(mid, "regular").split("://", 1)[1].split("/", 1)[1])
+    with db.engine().connect() as cx:
+        assert cx.execute(select(db.pesquisa_satisfacao.c.resposta)).scalars().all() == ["regular"]
+    adm = logado("admin")
+    assert "Regular" in adm.get("/admin/satisfacao").text
+    assert logado("membro").get("/admin/satisfacao").status_code in (302, 303, 403)

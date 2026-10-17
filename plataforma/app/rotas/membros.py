@@ -15,7 +15,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route
 
-from .. import config, datas, db, ficha, seguranca
+from .. import config, datas, db, envios, ficha, lembretes, seguranca
 from ..pdf import gerar_pdf_membro
 from ..web import auditar, flash, ir, render
 
@@ -31,6 +31,26 @@ with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "credo.json")
 def _carregar(c, membro_id: int) -> dict | None:
     row = c.execute(select(db.membros).where(db.membros.c.id == membro_id)).mappings().first()
     return dict(row) if row else None
+
+
+def interesses_de(c, membro_id) -> list[str]:
+    q = select(db.membro_interesses.c.setor).where(db.membro_interesses.c.membro_id == membro_id)
+    marcados = {r[0] for r in c.execute(q)}
+    return [n for n in ficha.NOMES_SETORES if n in marcados]
+
+
+def salvar_interesses(c, membro_id, setores: list[str]) -> bool:
+    """Grava os setores em que o membro deseja servir. Devolve True se mudou algo."""
+    atuais = set(interesses_de(c, membro_id))
+    novos = set(setores)
+    if atuais == novos:
+        return False
+    if atuais - novos:
+        c.execute(delete(db.membro_interesses).where(db.membro_interesses.c.membro_id == membro_id,
+                                                     db.membro_interesses.c.setor.in_(list(atuais - novos))))
+    for setor in sorted(novos - atuais):
+        c.execute(insert(db.membro_interesses).values(membro_id=membro_id, setor=setor, criado_em=datas.agora_utc()))
+    return True
 
 
 def _setores_do_membro(c, membro_id: int) -> list[dict]:
@@ -142,7 +162,8 @@ ERRO_CPF_REPETIDO = "Este CPF já está em outro cadastro. Se for o seu, fale co
 
 def _contexto_form(extra: dict | None = None) -> dict:
     ctx = {"ESTADOS_CIVIS": ficha.ESTADOS_CIVIS, "ESCOLARIDADES": ficha.ESCOLARIDADES,
-           "SEXOS": ficha.SEXOS, "SIM_NAO": ficha.SIM_NAO, "valores": {}, "erros": {}}
+           "SEXOS": ficha.SEXOS, "SIM_NAO": ficha.SIM_NAO, "SETORES_INTERESSE": ficha.SETORES_INTERESSE,
+           "valores": {}, "erros": {}, "interesses": []}
     ctx.update(extra or {})
     return ctx
 
@@ -168,15 +189,16 @@ async def ficha_publica(request: Request):
         flash(request, "A página expirou. Seus dados não foram enviados; preencha novamente.", "erro")
         return ir("/ficha")
 
-    dados, erros = ficha.validar(form)
+    dados, erros = ficha.validar(form, exigir_foto=False)
+    interesses = ficha.interesses_do_form(form)
     if not erros.get("cpf"):
         with db.engine().connect() as c:
             if _cpf_em_uso(c, dados["cpf"]):
                 erros["cpf"] = ERRO_CPF_REPETIDO
     if erros:
         valores = dict(form)
-        return render(request, "membros/ficha.html",
-                      _contexto_form({"modo": "publico", "valores": valores, "erros": erros}), status_code=400)
+        return render(request, "membros/ficha.html", _contexto_form(
+            {"modo": "publico", "valores": valores, "erros": erros, "interesses": interesses}), status_code=400)
 
     agora = datas.agora_utc()
     usuario = seguranca.usuario_atual(request)
@@ -198,9 +220,17 @@ async def ficha_publica(request: Request):
         if usuario and not usuario["membro_id"] and (dados.get("email") or "").lower() == (usuario.get("email") or "").lower():
             c.execute(update(db.usuarios).where(db.usuarios.c.id == usuario["id"]).values(membro_id=novo_id, cpf=dados["cpf"]))
         _ligar_pelo_cpf(c, dados["cpf"], membro_id=novo_id)
-        auditar(request, "CADASTRO_MEMBRO", f"Membro #{novo_id}", "Pré-cadastro enviado para análise", conexao=c)
+        salvar_interesses(c, novo_id, interesses)
+        sem_foto = not dados["foto_3x4"]
+        if sem_foto:
+            lembretes.iniciar(c, novo_id)  # link de 30 dias para enviar a foto
+        auditar(request, "CADASTRO_MEMBRO", f"Membro #{novo_id}",
+                "Pré-cadastro enviado para análise" + (" (sem foto: prazo de 30 dias)" if sem_foto else ""), conexao=c)
+    if dados.get("email") and envios.email_configurado():
+        lembretes.boas_vindas(novo_id, sem_foto)
 
     request.session["protocolo"] = novo_id
+    request.session["protocolo_sem_foto"] = sem_foto
     return ir("/ficha/recebida")
 
 
@@ -208,7 +238,8 @@ async def ficha_recebida(request: Request):
     protocolo = request.session.get("protocolo")
     if not protocolo:
         return ir("/ficha")
-    return render(request, "membros/recebida.html", {"protocolo": protocolo})
+    return render(request, "membros/recebida.html", {"protocolo": protocolo,
+                                                     "sem_foto": request.session.get("protocolo_sem_foto")})
 
 
 # ---------------------------------------------------------------------------
@@ -315,10 +346,14 @@ async def editar(request: Request):
     if not m or m["status"] == "Anonimizado (LGPD)":
         return render(request, "erro.html", {"titulo": "Indisponível", "mensagem": "Ficha não pode ser editada."}, 404)
     if request.method == "GET":
-        return render(request, "membros/ficha.html", _contexto_form({"modo": "editar", "m": m, "valores": _valores_de(m)}))
+        with db.engine().connect() as c:
+            interesses = interesses_de(c, mid)
+        return render(request, "membros/ficha.html", _contexto_form(
+            {"modo": "editar", "m": m, "valores": _valores_de(m), "interesses": interesses}))
 
     form = await request.form()
     dados, erros = ficha.validar(form, exigir_foto=False, exigir_lgpd=False, exigir_cpf=False)
+    interesses = ficha.interesses_do_form(form)
     if not erros.get("cpf"):
         with db.engine().connect() as c:
             onde = _onde_esta_cpf(c, dados["cpf"], membro_id=mid)
@@ -328,10 +363,13 @@ async def editar(request: Request):
         dados.pop("foto_3x4")  # sem nova foto: mantém a atual
     if erros:
         return render(request, "membros/ficha.html",
-                      _contexto_form({"modo": "editar", "m": m, "valores": dict(form), "erros": erros}), 400)
+                      _contexto_form({"modo": "editar", "m": m, "valores": dict(form), "erros": erros,
+                                      "interesses": interesses}), 400)
     alterados = [k for k, v in dados.items() if m.get(k) != v and k != "foto_3x4"]
     with db.engine().begin() as c:
         c.execute(update(db.membros).where(db.membros.c.id == mid).values(**dados, atualizado_em=datas.agora_utc()))
+        if salvar_interesses(c, mid, interesses):
+            alterados.append("setores de interesse")
         if "cpf" in alterados:  # o login da mesma pessoa acompanha o CPF da ficha
             c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == mid).values(cpf=dados["cpf"]))
         _ligar_pelo_cpf(c, dados["cpf"], membro_id=mid)
@@ -435,6 +473,7 @@ async def anonimizar(request: Request):
             **vazios, nome_completo=f"Titular Anonimizado #{mid}", filhos=[],
             status="Anonimizado (LGPD)", status_lgpd="Anonimizado", atualizado_em=datas.agora_utc()))
         c.execute(delete(db.membro_setores).where(db.membro_setores.c.membro_id == mid))
+        c.execute(delete(db.membro_interesses).where(db.membro_interesses.c.membro_id == mid))
         c.execute(update(db.regularizacoes).where(db.regularizacoes.c.membro_id == mid).values(revogado=True))
         c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == mid).values(membro_id=None, cpf=None))
         auditar(request, "ANONIMIZACAO_LGPD", f"Membro #{mid}", motivo, conexao=c)
@@ -456,6 +495,9 @@ async def excluir(request: Request):
         c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == mid).values(membro_id=None))
         c.execute(delete(db.membro_setores).where(db.membro_setores.c.membro_id == mid))
         c.execute(delete(db.regularizacoes).where(db.regularizacoes.c.membro_id == mid))
+        c.execute(delete(db.membro_interesses).where(db.membro_interesses.c.membro_id == mid))
+        c.execute(delete(db.lembretes_cadastro).where(db.lembretes_cadastro.c.membro_id == mid))
+        c.execute(delete(db.pesquisa_satisfacao).where(db.pesquisa_satisfacao.c.membro_id == mid))
         c.execute(delete(db.membros).where(db.membros.c.id == mid))
         auditar(request, "EXCLUSAO_MEMBRO", f"Membro #{mid}", f"Nome: {m['nome_completo']}", conexao=c)
     flash(request, f"Ficha #{mid} excluída.")

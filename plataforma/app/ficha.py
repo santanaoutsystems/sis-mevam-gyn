@@ -1,7 +1,8 @@
 """
 Regras da Ficha de Membro (validação, normalização e opções dos campos).
 
-Mantém as regras da v1.26: seções 1, 2 e 3 obrigatórias e foto 3x4 obrigatória no pré-cadastro.
+Mantém as regras da v1.26: seções 1, 2 e 3 obrigatórias. Desde a v2.6.0 a foto 3x4 é opcional no pré-cadastro:
+quem não envia recebe lembretes por e-mail e tem 30 dias para completar (ver lembretes.py).
 """
 
 from __future__ import annotations
@@ -16,6 +17,40 @@ ESCOLARIDADES = ["Ensino Fundamental", "Ensino Médio", "Superior Incompleto", "
                  "Pós-Graduação / Especialização", "Mestrado", "Doutorado"]
 SEXOS = ["Masculino", "Feminino"]
 SIM_NAO = ["Sim", "Não"]
+
+# Setores padronizados (proposta "Padronização dos Setores", Edição 02): nome completo e o que a equipe faz.
+SETORES_INTERESSE = [
+    ("Secretaria", "Cadastro de membros, documentos e atendimento"),
+    ("Escola Teológica", "Cursos, aulas e formação bíblica"),
+    ("Louvor", "Música e ministração nos cultos"),
+    ("Mídia e Comunicação", "Redes sociais, fotos, vídeos, transmissões e avisos"),
+    ("Ministério de Homens", "Cultos e encontros de homens, incluindo o MP6 (Mesa para Seis)"),
+    ("Ministério de Mulheres", "Cultos e encontros de mulheres, incluindo o Inteiras (Mulheres Inteiras)"),
+    ("Kids", "Ministério infantil: cuidado e ensino das crianças"),
+    ("LED", "Ministério LED"),
+    ("GCs", "Grupos que se reúnem nas casas durante a semana"),
+    ("Voluntariado", "Recepção, apoio e serviço nos eventos"),
+    ("Mevam Social", "Ação social do MEVAM"),
+    ("Bazar", "Organização e vendas do bazar"),
+]
+NOMES_SETORES = [n for n, _ in SETORES_INTERESSE]
+# Nomes antigos do sistema → nome padronizado (para ligar coordenadores aos interessados)
+APELIDOS_SETORES = {"líder dos voluntários": "Voluntariado", "líder dos gc’s": "GCs", "líder dos gc's": "GCs",
+                    "mídia": "Mídia e Comunicação", "discipulado inteiras": "Ministério de Mulheres"}
+
+
+def setor_padrao(nome: str) -> str | None:
+    """Nome padronizado de um setor cadastrado (aceita os nomes antigos)."""
+    n = (nome or "").strip()
+    for p in NOMES_SETORES:
+        if p.lower() == n.lower():
+            return p
+    return APELIDOS_SETORES.get(n.lower())
+
+
+def interesses_do_form(form) -> list[str]:
+    escolhidos = set(form.getlist("interesses")) if hasattr(form, "getlist") else set(form.get("interesses") or [])
+    return [n for n in NOMES_SETORES if n in escolhidos]
 
 OBRIGATORIOS = {
     "nome_completo": "Nome completo",
@@ -190,7 +225,7 @@ def validar(form, exigir_foto: bool = True, exigir_lgpd: bool = True, exigir_cpf
     if len(foto) > 1_500_000:
         erros["foto_3x4"] = "Foto muito grande. Tente novamente pela câmera ou outra imagem."
     if exigir_foto and not foto:
-        erros["foto_3x4"] = "A foto 3x4 (sem óculos) é obrigatória."
+        erros["foto_3x4"] = "Envie a foto 3x4 (sem óculos) para concluir o cadastro."
     dados["foto_3x4"] = foto or None
 
     dados["ocr_documento_nome"] = (form.get("ocr_documento_nome") or "")[:200] or None

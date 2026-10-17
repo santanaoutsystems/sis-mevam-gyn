@@ -217,6 +217,36 @@ regularizacoes = Table(
     Column("desfecho", String),  # quem não atualizou no prazo: em_analise | inativado
 )
 
+# Lembretes por e-mail de quem fez o pré-cadastro sem foto (etapas: d0, d1, d10, d25, d29, d30, s1, s2...)
+lembretes_cadastro = Table(
+    "lembretes_cadastro", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("membro_id", Integer, ForeignKey("membros.id", ondelete="CASCADE"), nullable=False),
+    Column("etapa", String(10), nullable=False),
+    Column("enviado_em", DateTime(timezone=True), server_default=func.now()),
+    Column("resultado", String),
+    UniqueConstraint("membro_id", "etapa", name="lembretes_cadastro_unico"),
+)
+
+# Setores em que o membro deseja servir (nomes padronizados de ficha.SETORES_INTERESSE)
+membro_interesses = Table(
+    "membro_interesses", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("membro_id", Integer, ForeignKey("membros.id", ondelete="CASCADE"), nullable=False),
+    Column("setor", String(80), nullable=False),
+    Column("criado_em", DateTime(timezone=True), server_default=func.now()),
+    UniqueConstraint("membro_id", "setor", name="membro_interesses_unico"),
+)
+
+# Pesquisa de satisfação enviada no e-mail de boas-vindas (uma resposta por membro; pode mudar depois)
+pesquisa_satisfacao = Table(
+    "pesquisa_satisfacao", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("membro_id", Integer, ForeignKey("membros.id", ondelete="CASCADE"), nullable=False, unique=True),
+    Column("resposta", String(20), nullable=False),  # bom | regular | ruim | nao_opinar
+    Column("respondido_em", DateTime(timezone=True), server_default=func.now()),
+)
+
 STATUS_MEMBRO = ("Aguardando Análise", "Validado pela Secretaria", "Ativo", "Inativo", "Anonimizado (LGPD)")
 
 _engine: Engine | None = None
@@ -299,7 +329,7 @@ def aplicar_migracoes_aditivas() -> None:
 
     Hoje: 003 (Coordenação), 004 (id de setor como texto) e 005 (colunas que faltam na Agenda legada)
     006 (CPF em membros e usuários)
-    e 007 (regularização de fichas antigas).
+    007 (regularização de fichas antigas) e 008 (lembretes de cadastro e setores de interesse).
     Só cria/alarga; nunca remove dados. Se falhar, o app sobe mesmo assim e registra o erro.
     """
     import logging
@@ -308,7 +338,8 @@ def aplicar_migracoes_aditivas() -> None:
     if eng.dialect.name != "postgresql":
         return
     pasta = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes")
-    for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql", "007_regularizacao.sql"):
+    for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql", "007_regularizacao.sql",
+                 "008_lembretes_interesses.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()

@@ -5,6 +5,8 @@
   <div style="font-size:3rem">🙏</div>
   <h1>Ficha recebida!</h1>
   <p>Seu protocolo é <b class="dia-destaque">#{{ protocolo }}</b>.</p>
+  {% if sem_foto %}<div class="msg aviso" style="text-align:left"><b>Falta a foto 3x4.</b> Enviamos para o seu e-mail um link
+    para anexá-la. Você tem até 30 dias, e vamos lembrar você por e-mail até o cadastro ficar completo.</div>{% endif %}
   <p class="suave">A Secretaria vai analisar seus dados. Depois da validação você receberá pelo WhatsApp
     o link para ler a Confissão de Fé e fazer sua rúbrica digital.</p>
   <div class="acoes" style="justify-content:center">

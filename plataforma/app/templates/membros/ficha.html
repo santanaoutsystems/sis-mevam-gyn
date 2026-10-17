@@ -2,6 +2,13 @@
 {% import "parciais/ui.html" as ui with context %}
 {% block titulo %}{{ 'Editar ficha' if modo == 'editar' else ('Atualização cadastral' if modo == 'regularizar' else 'Ficha de Membro') }}{% endblock %}
 {% block cabeca %}
+<style>
+  .interesses{border:1px solid var(--borda, #e2e8f0);border-radius:12px;padding:.75rem 1rem;margin:1rem 0}
+  .interesses legend{font-weight:600;padding:0 .35rem}
+  .grade-interesses{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.5rem}
+  .check.interesse{align-items:flex-start;margin:0;padding:.45rem .6rem;border-radius:10px;border:1px solid var(--borda, #e2e8f0)}
+  .check.interesse input{margin-top:.2rem}
+</style>
 {% endblock %}
 
 {% macro formulario() %}
@@ -18,7 +25,7 @@
 <form id="formFicha" method="post" novalidate>
   {{ ui.csrf_input() }}
   <input type="hidden" name="filhos_json" value="{{ valores.get('filhos_json') or '[]' }}">
-  <input type="hidden" name="foto_3x4" value="{{ valores.get('foto_3x4') or '' }}" {% if modo != 'editar' %}required{% endif %}>
+  <input type="hidden" name="foto_3x4" value="{{ valores.get('foto_3x4') or '' }}" {% if modo == 'regularizar' %}required{% endif %}>
   <input type="hidden" name="ocr_documento_nome" value="{{ valores.get('ocr_documento_nome') or '' }}">
 
   <!-- Etapa 1 -->
@@ -36,13 +43,15 @@
     <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;margin-top:1rem" class="{{ 'campo-erro' if erros.get('foto_3x4') }}">
       <div id="previaFoto" class="foto3x4">Foto 3x4<br>sem óculos</div>
       <div>
-        <label style="margin-top:0">Foto 3x4 {% if modo != 'editar' %}<span class="obrig">*</span>{% endif %}</label>
+        <label style="margin-top:0">Foto 3x4 {% if modo == 'regularizar' %}<span class="obrig">*</span>{% elif modo == 'publico' %}<span class="pequeno suave">(pode enviar depois)</span>{% endif %}</label>
         <div class="acoes" style="margin-top:0">
           <label class="botao peq" style="margin:0">📷 Câmera<input type="file" accept="image/*" capture="user" data-foto hidden></label>
           <label class="botao secundario peq" style="margin:0">🖼️ Galeria<input type="file" accept="image/*" data-foto hidden></label>
           <button type="button" class="botao secundario peq" id="btnRemoverFoto">Remover</button>
         </div>
         <p class="pequeno suave">Rosto de frente, fundo claro e sem óculos.</p>
+        {% if modo == 'publico' %}<p class="pequeno" style="margin:.25rem 0 0;max-width:34rem">Sem a foto agora? Envie a ficha assim mesmo.
+          Você terá <b>30 dias</b> para anexá-la pelo link que chegará no seu e-mail, e o cadastro só fica completo com a foto.</p>{% endif %}
         {% if erros.get('foto_3x4') %}<div class="erro-campo">{{ erros.foto_3x4 }}</div>{% endif %}
       </div>
     </div>
@@ -93,7 +102,17 @@
     <div id="grupoBatismo"{% if valores.get('batizado') != 'Sim' %} style="display:none"{% endif %}>{{ ui.campo('data_batismo', 'Data do batismo', mascara='data', voz=True) }}</div>
     {{ ui.radios('congregava_antes', 'Congregava em outra igreja antes?', SIM_NAO, obrig=True) }}
     <div id="grupoCongregava"{% if valores.get('congregava_antes') != 'Sim' %} style="display:none"{% endif %}>{{ ui.campo('onde_congregava', 'Igreja anterior', voz=True) }}</div>
-    {{ ui.campo('area_ministerial', 'Áreas em que já serviu ou deseja servir', voz=True, dica='Ex: Louvor, Mídia, Infantil') }}
+    <fieldset class="interesses">
+      <legend>Setores em que deseja servir <span class="pequeno suave">(marque quantos quiser)</span></legend>
+      <p class="pequeno suave" style="margin:.1rem 0 .5rem">Quando um setor precisar de voluntários, a coordenação poderá convidar você por e-mail.</p>
+      <div class="grade-interesses">
+        {% for nome, descricao in SETORES_INTERESSE %}
+        <label class="check interesse"><input type="checkbox" name="interesses" value="{{ nome }}" {% if nome in interesses %}checked{% endif %}>
+          <span><b>{{ nome }}</b><br><span class="pequeno suave">{{ descricao }}</span></span></label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    {{ ui.campo('area_ministerial', 'Experiência em outros ministérios', voz=True, dica='Onde já serviu antes. Ex: louvor em outra igreja') }}
     {{ ui.campo('interesse_batismo_familia', 'Alguém da família deseja se batizar?', voz=True, dica="Ex: Sim, meu filho / Não") }}
     {% if modo == 'editar' %}
       <div class="acoes"><button class="botao" type="submit" id="btnEnviar">💾 Salvar alterações</button>

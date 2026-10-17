@@ -20,8 +20,8 @@ from starlette.routing import Mount, Route
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.staticfiles import StaticFiles
 
-from . import config, datas, db, seguranca
-from .rotas import acesso, admin, agenda, membros, regularizacao
+from . import config, datas, db, lembretes, seguranca
+from .rotas import acesso, admin, agenda, membros, pesquisa, regularizacao, voluntarios
 from .web import BASE, render
 
 CSP = ("default-src 'self'; "
@@ -54,6 +54,7 @@ class CabecalhosSeguranca(BaseHTTPMiddleware):
 
 
 async def healthz(request: Request):
+    lembretes.agendar()  # o UptimeRobot chama a cada 5 min: serve de agendador dos lembretes de cadastro
     return JSONResponse({"status": "ok", "app": "SIS MEVAM-GYN", "versao": config.VERSAO_APP,
                          "hora_gyn": datas.agora().strftime("%d/%m/%Y %H:%M")})
 
@@ -90,7 +91,7 @@ rotas = [
     Route("/privacidade", privacidade),
     Route("/sw.js", service_worker),
     Mount("/static", app=StaticFiles(directory=os.path.join(BASE, "static")), name="static"),
-    *acesso.rotas, *membros.rotas, *regularizacao.rotas, *agenda.rotas, *admin.rotas,
+    *acesso.rotas, *membros.rotas, *regularizacao.rotas, *voluntarios.rotas, *pesquisa.rotas, *agenda.rotas, *admin.rotas,
 ]
 
 middleware = [
