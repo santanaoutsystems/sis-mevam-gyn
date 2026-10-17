@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titulo %}Eventos por período{% endblock %}
+{% block conteudo %}
+<form method="get" class="cartao nao-imprimir grade c3" style="align-items:end">
+  <div><label for="de">De</label><input id="de" name="de" data-mascara="data" value="{{ de.strftime('%d/%m/%Y') }}"></div>
+  <div><label for="ate">Até</label><input id="ate" name="ate" data-mascara="data" value="{{ ate.strftime('%d/%m/%Y') }}"></div>
+  <div class="acoes" style="margin:0"><button class="botao">Filtrar</button><button type="button" class="botao secundario" onclick="window.print()">🖨️ Imprimir</button></div>
+</form>
+<div class="cartao">
+  <div style="display:flex;gap:1rem;align-items:center"><img src="/static/img/logo_round.jpg" alt="" style="width:60px;border-radius:50%">
+    <div><h1 style="margin:0">MINISTÉRIO MEVAM GYN</h1><b>Eventos de {{ de.strftime('%d/%m/%Y') }} a {{ ate.strftime('%d/%m/%Y') }}</b><br>
+    <span class="pequeno suave">Emitido por {{ usuario.nome }} em {{ emitido.strftime('%d/%m/%Y às %H:%M') }}</span></div></div>
+  <table class="tabela responsiva" style="margin-top:1rem">
+    <thead><tr><th>Data / hora</th><th>Evento</th><th>Setor</th><th>Valor</th><th>Última alteração</th></tr></thead>
+    <tbody>{% for e in eventos %}<tr>
+      <td data-rotulo="Data">{{ e.quando.strftime('%d/%m/%Y %H:%M') if e.quando }}</td><td data-rotulo="Evento">{{ e.titulo }}</td>
+      <td data-rotulo="Setor">{{ e.departamento or 'Geral' }}</td><td data-rotulo="Valor">{{ e.valor_inscricao|moeda }}</td>
+      <td data-rotulo="Alteração" class="pequeno">{{ e.criado_por or '' }}</td></tr>
+    {% else %}<tr><td colspan="5">Nenhum evento no período.</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% endblock %}

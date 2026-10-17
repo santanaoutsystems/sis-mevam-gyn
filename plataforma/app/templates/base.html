@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1e3a8a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>{% block titulo %}SIS MEVAM-GYN{% endblock %} · MEVAM GYN</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" href="/static/img/logo_round.jpg">
+  <link rel="apple-touch-icon" href="/static/img/icone-192.png">
+  <link rel="preload" href="/static/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script>try{var t=localStorage.getItem("tema");if(t==="claro"||t==="escuro")document.documentElement.dataset.tema=t;}catch(e){}</script>
+  <link rel="stylesheet" href="/static/css/app.css">
+  {% block cabeca %}{% endblock %}
+</head>
+<body{% if usuario %} data-inatividade="{{ inatividade }}"{% endif %}>
+<a class="pular" href="#conteudo">Pular para o conteúdo</a>
+{% if usuario %}
+  <header class="topo">
+    <img src="/static/img/logo_round.jpg" alt="MEVAM GYN" width="40" height="40">
+    <div class="nome-app">SIS MEVAM-GYN<small>Ministério MEVAM Goiânia</small></div>
+    <div class="usuario">
+      {{ usuario.nome.split(' ')[0] }}<br><span class="perfil">{{ PERFIS_ROTULO[usuario.perfil] }}</span>
+    </div>
+    <button type="button" class="botao-tema" aria-label="Alternar tema">🌙</button>
+    <form method="post" action="/sair"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">Sair</button></form>
+  </header>
+  <div class="layout">
+    {# Ferramentas de cada perfil. No celular: as 4 primeiras na barra e o resto em "Mais". #}
+    {% set f = [('/inicio', '🏠', 'Início'), ('/agenda', '📅', 'Agenda')] %}
+    {% if pode('secretaria', 'admin') %}{% set f = f + [('/membros', '👥', 'Membros'), ('/coordenacao', '🧭', 'Coordenação'), ('/regularizacao', '📋', 'Regularização')] %}{% endif %}
+    {% if pode('coordenacao') %}{% set f = f + [('/eventos/novo', '➕', 'Novo evento')] %}{% endif %}
+    {% if pode('coordenacao', 'secretaria', 'admin') %}{% set f = f + [('/relatorios/periodo', '🖨️', 'Relatórios')] %}{% endif %}
+    {% if pode('coordenacao', 'secretaria', 'admin') %}{% set f = f + [('/voluntarios', '🙋', 'Voluntários')] %}{% endif %}
+    {% if pode('admin') %}{% set f = f + [('/admin/usuarios', '🔐', 'Usuários'), ('/admin/setores', '🏢', 'Setores'), ('/admin/auditoria', '🔍', 'Auditoria')] %}{% endif %}
+    {% set f = f + [('/minha-ficha', '🪪', 'Minha ficha')] %}
+    {% set na_barra = f if f|length <= 5 else f[:4] %}
+    {% set no_mais = [] if f|length <= 5 else f[4:] %}
+    {% macro item(href, ic, rotulo) %}
+      <a href="{{ href }}" class="{{ 'ativo' if caminho.startswith(href) else '' }}"{{ ' aria-current="page"' if caminho.startswith(href) }}><span class="ic" aria-hidden="true">{{ ic }}</span>{{ rotulo }}</a>
+    {% endmacro %}
+    <nav class="nav" aria-label="Menu principal">
+      {% for h, ic, r in na_barra %}{{ item(h, ic, r) }}{% endfor %}
+      {% if no_mais %}
+      {% set ns = namespace(ativo=False) %}
+      {% for h, ic, r in no_mais %}{% if caminho.startswith(h) %}{% set ns.ativo = True %}{% endif %}<span class="so-pc">{{ item(h, ic, r) }}</span>{% endfor %}
+      {% set mais_ativo = ns.ativo %}
+      <details class="mais">
+        <summary class="{{ 'ativo' if mais_ativo }}"><span class="ic" aria-hidden="true">☰</span>Mais</summary>
+        <div class="mais-lista" role="list">
+          {% for h, ic, r in no_mais %}{{ item(h, ic, r) }}{% endfor %}
+        </div>
+      </details>
+      {% endif %}
+      <span class="versao">versão {{ versao }}</span>
+    </nav>
+    <main class="conteudo" id="conteudo" tabindex="-1">
+      {% if voltar_para %}<a class="botao-voltar" href="{{ voltar_para }}" data-voltar>← Voltar</a>{% endif %}
+      {% for m in mensagens %}<div class="msg {{ m.tipo }}" role="status">{{ m.texto }}</div>{% endfor %}
+      {% block conteudo %}{% endblock %}
+    </main>
+  </div>
+{% else %}
+  <header class="topo">
+    <img src="/static/img/logo_round.jpg" alt="MEVAM GYN" width="40" height="40">
+    <div class="nome-app">SIS MEVAM-GYN<small>Ministério MEVAM Goiânia</small></div>
+    <div class="usuario"><a class="botao peq" href="/entrar">Entrar</a></div>
+    <button type="button" class="botao-tema" aria-label="Alternar tema">🌙</button>
+  </header>
+  <main class="conteudo" id="conteudo" tabindex="-1">
+    {% for m in mensagens %}<div class="msg {{ m.tipo }}" role="status">{{ m.texto }}</div>{% endfor %}
+    {% block publico %}{% endblock %}
+  </main>
+{% endif %}
+<style>@media (max-width: 899px) { .nav a.so-pc { display: none; } }</style>
+<script src="/static/js/tema.js" defer></script>
+<script src="/static/js/mascaras.js" defer></script>
+<script src="/static/js/voz.js" defer></script>
+{% block scripts %}{% endblock %}
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(function(){});</script>
+</body>
+</html>
