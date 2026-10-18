@@ -20,7 +20,7 @@ from starlette.routing import Mount, Route
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.staticfiles import StaticFiles
 
-from . import config, datas, db, lembretes, seguranca
+from . import config, datas, db, lembretes, seguranca, uso
 from .rotas import acesso, admin, agenda, aniversarios, membros, pesquisa, regularizacao, relatorios, voluntarios
 from .web import BASE, render
 
@@ -54,6 +54,7 @@ class CabecalhosSeguranca(BaseHTTPMiddleware):
 
 
 async def healthz(request: Request):
+    uso.gravar()
     lembretes.agendar()  # o UptimeRobot chama a cada 5 min: agendador dos lembretes de cadastro e dos aniversariantes
     return JSONResponse({"status": "ok", "app": "SIS MEVAM-GYN", "versao": config.VERSAO_APP,
                          "hora_gyn": datas.agora().strftime("%d/%m/%Y %H:%M")})
@@ -95,6 +96,7 @@ rotas = [
 ]
 
 middleware = [
+    Middleware(uso.MedirBanda),  # por fora do GZip: mede os bytes que de fato saem
     Middleware(GZipMiddleware, minimum_size=800),
     Middleware(CabecalhosSeguranca),
     Middleware(SessionMiddleware, secret_key=config.SECRET_KEY, session_cookie="mevam_sessao",

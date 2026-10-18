@@ -99,11 +99,21 @@ def _email_smtp(destino: str, assunto: str, corpo: str) -> str | None:
 def enviar_email(destino: str, assunto: str, corpo: str) -> str | None:
     if not email_configurado():
         return "e-mail não configurado"
-    if _google_ok():
-        return _email_google(destino, assunto, corpo)
-    if _brevo_ok():
-        return _email_brevo(destino, assunto, corpo)
-    return _email_smtp(destino, assunto, corpo)
+    from . import uso
+    # Gmail comum aceita 100 destinatários por dia no Apps Script: no limite, passa para o Brevo até a meia-noite
+    google = _google_ok() and not (_brevo_ok() and uso.hoje("email_google") >= config.LIMITE_EMAIL_GOOGLE_DIA)
+    if google:
+        canal, erro = "email_google", _email_google(destino, assunto, corpo)
+    elif _brevo_ok():
+        if uso.hoje("email_brevo") >= config.LIMITE_EMAIL_BREVO_DIA:
+            return "limite diário de e-mails atingido; tente amanhã"
+        canal, erro = "email_brevo", _email_brevo(destino, assunto, corpo)
+    else:
+        canal, erro = "email_smtp", _email_smtp(destino, assunto, corpo)
+    uso.contar(canal)
+    if erro:
+        uso.contar("email_falha")
+    return erro
 
 
 def enviar_whatsapp(numero: str, texto: str) -> str | None:

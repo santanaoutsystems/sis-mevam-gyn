@@ -500,3 +500,21 @@ main:focus { outline: none; }
   .sino { min-width: 38px; min-height: 38px; }
 }
 @media print { .so-cel-aniv { display: none !important; } }
+
+/* Uso dos serviços (v2.8.0) */
+.uso-item{border-left:6px solid #16a34a}
+.uso-item.amarelo{border-left-color:#d97706}
+.uso-item.vermelho{border-left-color:#dc2626}
+.uso-topo{display:flex;justify-content:space-between;gap:.75rem;flex-wrap:wrap}
+.uso-barra{height:12px;border-radius:8px;background:var(--neutro-fundo);margin:.6rem 0 .3rem;overflow:hidden}
+.uso-barra div{height:100%;background:#16a34a;border-radius:8px}
+.uso-item.amarelo .uso-barra div{background:#d97706}
+.uso-item.vermelho .uso-barra div{background:#dc2626}
+.uso-dias{display:flex;align-items:flex-end;gap:2px;height:110px;margin-top:.5rem}
+.uso-dias div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
+.uso-dias span{display:block;width:100%;min-height:2px;background:var(--marca);border-radius:3px 3px 0 0}
+.uso-dias small{font-size:.6rem;color:var(--texto-suave,#64748b)}
+.aviso-servicos{display:block;padding:.8rem 1rem;border-radius:12px;margin:0 0 1rem;font-weight:600;text-decoration:none;background:#fef3c7;color:#92400e}
+.aviso-servicos.vermelho{background:#fee2e2;color:#991b1b}
+.grade-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}@media(max-width:800px){.grade-2{grid-template-columns:1fr}}
+.grade-2>*{min-width:0}.uso-dias{overflow:hidden}.uso-dias small{font-size:.55rem}@media(max-width:600px){.uso-dias div:nth-child(even) small{visibility:hidden}}

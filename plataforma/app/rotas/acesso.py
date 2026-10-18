@@ -10,7 +10,7 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.routing import Route
 
-from .. import config, datas, db, seguranca
+from .. import config, datas, db, seguranca, uso
 from ..web import auditar, flash, ir, render
 
 
@@ -198,6 +198,10 @@ async def inicio(request: Request):
             meus_setores = sorted(escopo_setores(c, u) or [])
         if u["perfil"] == "admin":
             numeros["usuarios"] = c.execute(select(func.count()).select_from(db.usuarios)).scalar()
+            try:
+                numeros["servicos"] = uso.painel()["alerta"]
+            except Exception:  # noqa: BLE001
+                numeros["servicos"] = None
         minha_ficha = None
         if u["membro_id"]:
             minha_ficha = c.execute(select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.status, db.membros.c.cpf)

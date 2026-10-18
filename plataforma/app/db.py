@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
-    JSON, Boolean, Column, cast, Date, DateTime, Float, ForeignKey, Integer, MetaData,
+    JSON, BigInteger, Boolean, Column, cast, Date, DateTime, Float, ForeignKey, Integer, MetaData,
     String, Table, Text, UniqueConstraint, Uuid, FetchedValue, create_engine, func,
 )
 from sqlalchemy import text
@@ -301,6 +301,14 @@ aniversario_envios = Table(
     Column("chave", String(60), unique=True),  # só no e-mail automático: trava de 1 por ano
 )
 
+# Uso dos serviços gratuitos (v2.8.0): contadores por dia, gravados pelo /healthz
+uso_diario = Table(
+    "uso_diario", metadata,
+    Column("dia", Date, primary_key=True),
+    Column("chave", String(40), primary_key=True),  # banda_bytes | requisicoes | email_google | email_brevo | email_smtp | email_falha
+    Column("valor", BigInteger, nullable=False, default=0),
+)
+
 STATUS_MEMBRO = ("Aguardando Análise", "Validado pela Secretaria", "Ativo", "Inativo", "Anonimizado (LGPD)")
 
 _engine: Engine | None = None
@@ -384,7 +392,7 @@ def aplicar_migracoes_aditivas() -> None:
     Hoje: 003 (Coordenação), 004 (id de setor como texto) e 005 (colunas que faltam na Agenda legada)
     006 (CPF em membros e usuários)
     007 (regularização de fichas antigas), 008 (lembretes de cadastro e setores de interesse)
-    009 (filtros salvos da Central de Relatórios) e 010 (aniversariantes).
+    009 (filtros salvos da Central de Relatórios), 010 (aniversariantes) e 011 (uso dos serviços).
     Só cria/alarga; nunca remove dados. Se falhar, o app sobe mesmo assim e registra o erro.
     """
     import logging
@@ -394,7 +402,8 @@ def aplicar_migracoes_aditivas() -> None:
         return
     pasta = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes")
     for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql", "007_regularizacao.sql",
-                 "008_lembretes_interesses.sql", "009_relatorios_salvos.sql", "010_aniversariantes.sql"):
+                 "008_lembretes_interesses.sql", "009_relatorios_salvos.sql", "010_aniversariantes.sql",
+                 "011_uso_servicos.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()

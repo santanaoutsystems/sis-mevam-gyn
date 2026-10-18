@@ -20,6 +20,9 @@
   <a class="numero" href="/agenda"><b>{{ numeros.eventos_futuros }}</b>Eventos futuros</a>
   {% if pode('admin') %}<a class="numero" href="/admin/usuarios"><b>{{ numeros.usuarios }}</b>Usuários com acesso</a>{% endif %}
 </div>
+{% if numeros.servicos in ('amarelo', 'vermelho') %}
+<a class="aviso-servicos {{ numeros.servicos }} nao-imprimir" href="/admin/servicos">{{ '🔴' if numeros.servicos == 'vermelho' else '🟡' }} Um serviço gratuito está perto do limite. Toque para ver o uso.</a>
+{% endif %}
 <div class="acoes nao-imprimir">
   <a class="botao" href="/eventos/novo">➕ Novo evento</a>
   <a class="botao secundario" href="/ficha">📝 Nova ficha de membro</a>
@@ -28,6 +31,7 @@
   {% if pode('admin') %}
     <a class="botao secundario" href="/admin/setores">🏢 Setores</a>
     <a class="botao secundario" href="/admin/auditoria">🔍 Auditoria</a>
+    <a class="botao secundario" href="/admin/servicos">📶 Uso dos serviços</a>
   {% endif %}
 </div>
 {% else %}

@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from starlette.requests import Request
 from starlette.routing import Route
 
-from .. import config, datas, db, envios, ficha, seguranca
+from .. import config, datas, db, envios, ficha, seguranca, uso
 from ..web import auditar, flash, ir, render
 
 
@@ -325,6 +325,13 @@ async def auditoria(request: Request):
 
 
 @seguranca.exigir("admin")
+async def servicos(request: Request):
+    """Uso dos planos gratuitos (Render, Supabase, e-mail): conferir antes de cada atualização."""
+    uso.gravar()
+    return render(request, "admin/servicos.html", {"p": uso.painel(), "canal_email": envios.canal_email()})
+
+
+@seguranca.exigir("admin")
 async def email_teste(request: Request):
     """Envia um e-mail de teste para o próprio Adm e mostra o resultado na hora."""
     eu = seguranca.usuario_atual(request)
@@ -410,6 +417,7 @@ rotas = [
     Route("/admin/setores/salvar", salvar_setor, methods=["POST"]),
     Route("/admin/setores/{id}/excluir", excluir_setor, methods=["POST"]),
     Route("/admin/auditoria", auditoria),
+    Route("/admin/servicos", servicos),
     Route("/admin/email-teste", email_teste, methods=["POST"]),
     Route("/admin/ajustar-horarios", ajustar_horarios, methods=["GET", "POST"]),
 ]

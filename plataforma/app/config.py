@@ -93,3 +93,11 @@ CODIGO_PRIMEIRO_ACESSO = os.getenv("CODIGO_PRIMEIRO_ACESSO", "")
 
 VERSAO_TERMO_LGPD = "v2.0-2026"
 VERSAO_APP = "2.0.0-unificada"
+
+# Limites dos planos gratuitos (conferidos em 18/10/2026). Mude pelas variáveis se o plano mudar.
+LIMITE_EMAIL_GOOGLE_DIA = int(os.getenv("LIMITE_EMAIL_GOOGLE_DIA", "100"))  # Apps Script em conta Gmail comum
+LIMITE_EMAIL_BREVO_DIA = int(os.getenv("LIMITE_EMAIL_BREVO_DIA", "300"))
+LIMITE_BANDA_RENDER_GB = float(os.getenv("LIMITE_BANDA_RENDER_GB", "5"))  # banda de saída por mês (Hobby)
+LIMITE_HORAS_RENDER = int(os.getenv("LIMITE_HORAS_RENDER", "750"))  # horas de instância por mês, somando os serviços gratuitos
+LIMITE_BANCO_MB = int(os.getenv("LIMITE_BANCO_MB", "500"))  # banco do Supabase gratuito
+LIMITE_EGRESS_SUPABASE_GB = float(os.getenv("LIMITE_EGRESS_SUPABASE_GB", "5"))

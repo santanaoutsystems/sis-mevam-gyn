@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from sqlalchemy import delete, text  # noqa: E402
 from starlette.testclient import TestClient  # noqa: E402
 
-from app import aniversarios, db, seguranca  # noqa: E402
+from app import aniversarios, db, seguranca, uso  # noqa: E402
 from app.main import app  # noqa: E402
 from app.rotas.admin import criar_usuario  # noqa: E402
 
@@ -34,6 +34,7 @@ def banco_limpo():
                 c.execute(delete(t))
     seguranca.limpar_falhas_ip()
     aniversarios._garantido["dia"] = None
+    uso._pendente.clear()
     yield
 
 
