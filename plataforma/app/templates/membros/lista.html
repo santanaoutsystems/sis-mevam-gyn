@@ -7,6 +7,7 @@
   <h1>Membros</h1>
   <div class="acoes" style="margin:0">
     <a class="botao" href="/ficha">➕ Nova ficha</a>
+    <a class="botao secundario" href="/membros/lixeira">🗑️ Lixeira</a>
     <button type="button" class="botao secundario" data-imprimir>🖨️ Imprimir</button>
     <a class="botao secundario" href="{{ t.url_csv }}">⬇️ Planilha (CSV)</a>
     {% if pode('admin') %}<a class="botao secundario" href="/membros/exportar.csv" title="Todas as colunas, sem filtros">⬇️ Exportar tudo</a>{% endif %}

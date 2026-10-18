@@ -31,7 +31,7 @@ from .voluntarios import interessados, setores_permitidos
 TODOS = db.PERFIS
 SEC_ADM = ("secretaria", "admin")
 EXPORTAM = SEC_ADM
-FORA = ("Inativo", "Anonimizado (LGPD)")
+FORA = db.STATUS_FORA
 ANONIMIZADO = "Anonimizado (LGPD)"
 MINIMO_GRUPO = 3  # estatísticas: grupos menores aparecem como "menos de 3"
 
@@ -146,7 +146,7 @@ def _membros(c, com_setores: bool = False) -> list[dict]:
     q = select(m.id, m.nome_completo, m.whatsapp, m.email, m.bairro, m.cidade, m.data_nascimento, m.sexo,
                m.estado_civil, m.status, m.data_registro, m.credo_aceito, m.batizado, m.data_batismo,
                m.interesse_batismo_familia, m.cpf, m.origem, m.validado_por, m.data_validacao,
-               m.foto_3x4.isnot(None).label("tem_foto"))
+               m.foto_3x4.isnot(None).label("tem_foto")).where(m.status != db.EXCLUIDO)  # lixeira fica de fora
     linhas = [dict(r) for r in c.execute(q).mappings()]
     if com_setores:
         setores: dict[int, list[str]] = {}

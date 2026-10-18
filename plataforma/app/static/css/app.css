@@ -518,3 +518,12 @@ main:focus { outline: none; }
 .aviso-servicos.vermelho{background:#fee2e2;color:#991b1b}
 .grade-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}@media(max-width:800px){.grade-2{grid-template-columns:1fr}}
 .grade-2>*{min-width:0}.uso-dias{overflow:hidden}.uso-dias small{font-size:.55rem}@media(max-width:600px){.uso-dias div:nth-child(even) small{visibility:hidden}}
+
+/* v2.9.0 · Coordenação por setor, período ou evento */
+.designacao { border: 1px solid var(--borda); border-radius: 12px; padding: .6rem .75rem; margin: .5rem 0; background: var(--superficie-2); }
+.designacao-cab { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.designacao details { display: inline-block; margin: .25rem .4rem 0 0; vertical-align: top; }
+.designacao details[open] { display: block; }
+.designacao summary { list-style: none; cursor: pointer; }
+.designacao summary::-webkit-details-marker { display: none; }
+.lixeira-aviso { border-left: 4px solid var(--perigo, #b91c1c); }

@@ -2,49 +2,193 @@
 {% import "parciais/ui.html" as ui with context %}
 {% block titulo %}Coordenação{% endblock %}
 {% block conteudo %}
-<h1>Coordenação</h1>
-<p class="suave" style="margin-top:0">Quem tem o perfil <span class="selo coordenacao">Coordenação</span> cria, edita e exclui eventos,
-  inscrições e despesas <b>somente dos setores marcados aqui</b>. Não vê fichas de membros nem usuários.</p>
+{% if senha_provisoria %}
+<div class="msg aviso"><b>Acesso criado para {{ senha_provisoria.nome }}.</b><br>
+  E-mail: <b>{{ senha_provisoria.email }}</b> · Senha provisória: <b style="font-family:monospace;font-size:1.1rem">{{ senha_provisoria.senha }}</b><br>
+  <span class="pequeno">Anote agora: ela não será exibida de novo. A pessoa troca a senha no primeiro acesso.</span></div>
+{% endif %}
 
-<details class="cartao" {{ 'open' if not coords }}>
-  <summary class="botao peq" style="display:inline-flex">➕ Adicionar coordenador</summary>
-  {% if candidatos %}
-  <form method="post" action="/coordenacao/adicionar" class="grade c2" style="align-items:end;margin-top:.75rem">
-    {{ ui.csrf_input() }}
-    <div><label for="c_usuario">Usuário (perfil Membro)</label>
-      <select id="c_usuario" name="usuario_id" required>
-        <option value="">Escolha…</option>
-        {% for u in candidatos %}<option value="{{ u.id }}">{{ u.nome }} · {{ u.email }}</option>{% endfor %}
-      </select></div>
-    <button class="botao">Tornar Coordenação</button>
-  </form>
-  {% else %}
-  <p class="suave" style="margin-top:.75rem">Nenhum usuário com perfil Membro disponível. Crie o acesso da pessoa primeiro (ficha validada › Criar acesso{% if pode('admin') %}, ou Usuários › Novo usuário{% endif %}).</p>
-  {% endif %}
+<h1>Coordenação</h1>
+<p class="suave" style="margin-top:0">Quem recebe a <span class="selo coordenacao">Coordenação</span> de um setor cria, edita e exclui eventos,
+  inscrições e despesas <b>somente daquele setor</b> (ou só do evento, na coordenação para um evento). Não vê fichas de membros nem usuários.
+  Membro, Secretaria e Adm podem ser designados.</p>
+
+<details class="cartao" id="diretrizes">
+  <summary><b>📜 Critérios e diretrizes da função</b></summary>
+  <h3>Critérios (o sistema confere ao designar)</h3>
+  <ol class="pequeno">{% for t in CRITERIOS %}<li>{{ t }}</li>{% endfor %}</ol>
+  <h3>Diretrizes de quem coordena</h3>
+  <ol class="pequeno">{% for t in DIRETRIZES %}<li>{{ t }}</li>{% endfor %}</ol>
+  <h3>Tipos de coordenação</h3>
+  <ul class="pequeno">
+    <li><b>Permanente:</b> vale a partir do início, até a Secretaria ou o Adm encerrar.</li>
+    <li><b>Por período:</b> vale entre as datas de início e término (até 1 ano). No dia seguinte ao término, termina sozinha.</li>
+    <li><b>Para um evento:</b> vale até o dia do evento e libera só aquele evento (inscrições e despesas). Não permite criar outros eventos no setor.</li>
+  </ul>
 </details>
 
-{% if not deptos %}<div class="msg aviso">Nenhum setor cadastrado ainda.{% if pode('admin') %} <a href="/admin/setores">Cadastrar setores</a>.{% endif %}</div>{% endif %}
-
-{% for u in coords %}
-<form method="post" action="/coordenacao/{{ u.id }}" class="cartao" id="u{{ u.id }}">
+<form method="post" action="/coordenacao/designar" class="cartao" id="designar">
   {{ ui.csrf_input() }}
-  <h2 style="margin-bottom:.2rem">{{ u.nome }}{% if not u.ativo %} <span class="selo inativo">Desativado</span>{% endif %}</h2>
-  <p class="pequeno suave" style="margin-top:0">{{ u.email }}{% if not u.setores %} · <b class="texto-perigo">nenhum setor: ainda não pode criar eventos</b>{% endif %}</p>
-  <fieldset style="border:0;padding:0;margin:0">
-    <legend class="pequeno"><b>Setores que pode gerenciar</b></legend>
-    <div class="grade c2 c3">
-      {% for d in deptos %}
-      <label class="check"><input type="checkbox" name="setores" value="{{ d.id }}" {{ 'checked' if d.id|string in u.setores }}> {{ d.nome }}</label>
-      {% endfor %}
-    </div>
-  </fieldset>
-  <div class="acoes" style="margin-bottom:0">
-    <button class="botao peq">Salvar setores</button>
-    <button class="botao secundario peq" formaction="/coordenacao/{{ u.id }}/remover"
-      onclick="return confirm('Tirar {{ u.nome }} da Coordenação? A pessoa volta a ser Membro.')">Tirar da Coordenação</button>
+  <h2 style="margin-top:0">➕ Designar coordenador</h2>
+  {% if not deptos %}<div class="msg aviso">Nenhum setor cadastrado ainda.{% if pode('admin') %} <a href="/admin/setores">Cadastrar setores</a>.{% endif %}</div>{% endif %}
+  <div class="grade c2">
+    <div><label for="d_pessoa">Pessoa <span class="obrig">*</span></label>
+      <select id="d_pessoa" name="pessoa" required>
+        <option value="">Escolha…</option>
+        <optgroup label="Com login no sistema">
+          {% for u in usuarios %}<option value="u:{{ u.id }}">{{ u.nome }} · {{ PERFIS_ROTULO[u.perfil] }} · {{ u.email }}</option>{% endfor %}
+        </optgroup>
+        {% if fichas %}<optgroup label="Ficha validada, ainda sem login (o acesso será criado)">
+          {% for f in fichas %}<option value="m:{{ f.id }}">{{ f.nome_completo }} · ficha #{{ f.id }} · {{ f.email }}</option>{% endfor %}
+        </optgroup>{% endif %}
+      </select></div>
+    <div><label for="d_setor">Setor <span class="obrig">*</span></label>
+      <select id="d_setor" name="departamento_id" required>
+        <option value="">Escolha…</option>
+        {% for d in deptos %}<option value="{{ d.id }}" data-nome="{{ d.nome }}">{{ d.nome }}</option>{% endfor %}
+      </select></div>
+    <div><label for="d_tipo">Tipo <span class="obrig">*</span></label>
+      <select id="d_tipo" name="tipo" data-tipo-coord required>
+        {% for k, v in TIPOS.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+      </select></div>
+    <div><label for="d_inicio">Início</label>
+      <input id="d_inicio" name="inicio" data-mascara="data" inputmode="numeric" placeholder="dd/mm/aaaa (vazio = hoje)"></div>
+    <div data-so="periodo"><label for="d_fim">Término <span class="obrig">*</span></label>
+      <input id="d_fim" name="fim" data-mascara="data" inputmode="numeric" placeholder="dd/mm/aaaa"></div>
+    <div data-so="evento"><label for="d_evento">Evento <span class="obrig">*</span></label>
+      <select id="d_evento" name="evento_id" data-eventos>
+        <option value="">Escolha o setor e depois o evento…</option>
+        {% for e in eventos %}<option value="{{ e.id }}" data-setor="{{ e.departamento }}">{{ e.quando.strftime('%d/%m/%Y %H:%M') if e.quando }} · {{ e.titulo }} ({{ e.departamento }})</option>{% endfor %}
+      </select></div>
   </div>
+  <label for="d_obs">Observação (opcional)</label>
+  <textarea id="d_obs" name="observacao" maxlength="500" placeholder="Ex.: coordena o louvor no culto de domingo; aprovado na reunião de 12/10"></textarea>
+  <label class="check" style="margin-top:.5rem"><input type="checkbox" name="disponibilidade" value="sim" required>
+    <span>Confirmo que a pessoa <b>se disponibilizou a servir neste setor</b> e conhece as diretrizes da Coordenação. <span class="obrig">*</span></span></label>
+  <label class="check"><input type="checkbox" name="avisar" value="sim" checked> Avisar a pessoa por e-mail (com as diretrizes)</label>
+  <div class="acoes" style="margin-bottom:0"><button class="botao">Designar</button></div>
 </form>
-{% else %}
-<p class="suave">Ninguém na Coordenação ainda.</p>
+
+{% for u in sem_setor %}
+<div class="msg aviso" id="u{{ u.id }}"><b>{{ u.nome }}</b> está com perfil Coordenação, mas sem nenhum setor. Designe um setor acima ou
+  <form method="post" action="/coordenacao/{{ u.id }}/remover" style="display:inline">{{ ui.csrf_input() }}
+    <input type="hidden" name="motivo" value="Perfil Coordenação sem setor designado">
+    <button class="botao secundario peq">devolver a Membro</button></form>.</div>
 {% endfor %}
+
+<h2>Coordenadores ({{ pessoas|length }})</h2>
+{% for p in pessoas %}
+<div class="cartao" id="u{{ p.id }}">
+  <h3 style="margin:0 0 .2rem">{{ p.nome }} <span class="selo {{ p.perfil }}">{{ PERFIS_ROTULO[p.perfil] }}</span>
+    {% if not p.ativo %}<span class="selo inativo">Login desativado</span>{% endif %}</h3>
+  <p class="pequeno suave" style="margin-top:0">{{ p.email }}</p>
+  {% for d in p.designacoes %}
+  <div class="designacao">
+    <div class="designacao-cab">
+      <b>{{ d.setor }}</b>
+      <span class="selo {{ d.classe }}">{{ d.situacao }}</span>
+    </div>
+    <p class="pequeno" style="margin:.2rem 0">{{ TIPOS.get(d.tipo, d.tipo) }}
+      {%- if d.inicio %} · desde {{ d.inicio|data_br }}{% endif %}
+      {%- if d.fim %} · até {{ d.fim|data_br }}{% endif %}
+      {%- if d.tipo == 'evento' %} · evento: {{ d.evento.titulo if d.evento else '(evento passado ou removido)' }}{% endif %}
+      {%- if d.observacao %}<br><span class="suave">{{ d.observacao }}</span>{% endif %}
+      <br><span class="suave">Designado por {{ d.criado_por or 'Secretaria/Adm' }}{% if d.criado_em %} em {{ d.criado_em|data_hora_br }}{% endif %}</span></p>
+    <details>
+      <summary class="botao secundario peq" style="display:inline-flex">✏️ Editar</summary>
+      <form method="post" action="/coordenacao/designacao/{{ d.id }}/editar" class="grade c2" style="margin-top:.5rem">
+        {{ ui.csrf_input() }}
+        <div><label for="e_tipo{{ d.id }}">Tipo</label>
+          <select id="e_tipo{{ d.id }}" name="tipo" data-tipo-coord>{% for k, v in TIPOS.items() %}<option value="{{ k }}" {{ 'selected' if k == d.tipo }}>{{ v }}</option>{% endfor %}</select></div>
+        <div><label for="e_ini{{ d.id }}">Início</label>
+          <input id="e_ini{{ d.id }}" name="inicio" value="{{ d.inicio|data_br }}" data-mascara="data" inputmode="numeric" placeholder="dd/mm/aaaa"></div>
+        <div data-so="periodo"><label for="e_fim{{ d.id }}">Término</label>
+          <input id="e_fim{{ d.id }}" name="fim" value="{{ d.fim|data_br }}" data-mascara="data" inputmode="numeric" placeholder="dd/mm/aaaa"></div>
+        <div data-so="evento"><label for="e_ev{{ d.id }}">Evento</label>
+          <select id="e_ev{{ d.id }}" name="evento_id" data-eventos data-setor-fixo="{{ d.setor }}">
+            <option value="">Escolha…</option>
+            {% for e in eventos %}<option value="{{ e.id }}" data-setor="{{ e.departamento }}" {{ 'selected' if e.id|string == d.evento_id|string }}>{{ e.quando.strftime('%d/%m/%Y %H:%M') if e.quando }} · {{ e.titulo }}</option>{% endfor %}
+          </select></div>
+        <div style="grid-column:1/-1"><label for="e_obs{{ d.id }}">Observação</label>
+          <textarea id="e_obs{{ d.id }}" name="observacao" maxlength="500">{{ d.observacao or '' }}</textarea></div>
+        <div><button class="botao peq">Salvar alteração</button></div>
+      </form>
+    </details>
+    <details>
+      <summary class="botao perigo peq" style="display:inline-flex">⏹️ Encerrar</summary>
+      <form method="post" action="/coordenacao/designacao/{{ d.id }}/encerrar" style="margin-top:.5rem"
+        onsubmit="return confirm('Encerrar a coordenação de {{ p.nome }} em {{ d.setor }}?')">
+        {{ ui.csrf_input() }}
+        <label for="m{{ d.id }}">Justificativa <span class="obrig">*</span></label>
+        <textarea id="m{{ d.id }}" name="motivo" required minlength="10" placeholder="Ex.: evento concluído; pediu para sair da função"></textarea>
+        <button class="botao perigo peq" style="margin-top:.4rem">Encerrar coordenação</button>
+      </form>
+    </details>
+  </div>
+  {% endfor %}
+  {% if p.designacoes|length > 1 %}
+  <details style="margin-top:.5rem">
+    <summary class="pequeno">Tirar de toda a Coordenação</summary>
+    <form method="post" action="/coordenacao/{{ p.id }}/remover" style="margin-top:.5rem"
+      onsubmit="return confirm('Encerrar todas as coordenações de {{ p.nome }}?')">
+      {{ ui.csrf_input() }}
+      <label for="r{{ p.id }}">Justificativa <span class="obrig">*</span></label>
+      <textarea id="r{{ p.id }}" name="motivo" required minlength="10"></textarea>
+      <button class="botao perigo peq" style="margin-top:.4rem">Encerrar todas</button>
+    </form>
+  </details>
+  {% endif %}
+</div>
+{% else %}
+<p class="suave">Ninguém na Coordenação ainda. Use <b>➕ Designar coordenador</b> acima.</p>
+{% endfor %}
+
+<details class="cartao">
+  <summary><b>🕘 Histórico de coordenações encerradas</b> ({{ historico|length }})</summary>
+  {% if historico %}
+  <div style="overflow-x:auto"><table class="tabela responsiva">
+    <thead><tr><th>Pessoa</th><th>Setor</th><th>Tipo</th><th>Período</th><th>Encerrada</th><th>Motivo</th></tr></thead>
+    <tbody>{% for h in historico %}<tr>
+      <td data-rotulo="Pessoa">{{ h.usuario_nome }}</td><td data-rotulo="Setor">{{ h.setor_nome }}{% if h.evento_titulo %} · {{ h.evento_titulo }}{% endif %}</td>
+      <td data-rotulo="Tipo">{{ TIPOS.get(h.tipo, h.tipo) }}</td>
+      <td data-rotulo="Período">{{ h.inicio|data_br or '-' }} a {{ h.fim|data_br or 'nova decisão' }}</td>
+      <td data-rotulo="Encerrada">{{ h.encerrado_em|data_hora_br }} · {{ h.encerrado_por }}</td>
+      <td data-rotulo="Motivo" class="pequeno">{{ h.motivo_encerramento }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="suave">Nenhuma coordenação encerrada ainda.</p>{% endif %}
+</details>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  // Mostra Término só no tipo "Por período" e Evento só no tipo "Para um evento"
+  function ajustar(sel) {
+    var form = sel.closest("form");
+    form.querySelectorAll("[data-so]").forEach(function (el) {
+      var ok = el.getAttribute("data-so") === sel.value;
+      el.style.display = ok ? "" : "none";
+      el.querySelectorAll("input,select").forEach(function (i) { i.required = ok; });
+    });
+  }
+  // Lista só os eventos do setor escolhido
+  function filtrarEventos(form) {
+    var setorSel = form.querySelector("#d_setor");
+    form.querySelectorAll("[data-eventos]").forEach(function (lista) {
+      var nome = lista.getAttribute("data-setor-fixo") ||
+        (setorSel && setorSel.selectedOptions[0] ? setorSel.selectedOptions[0].getAttribute("data-nome") : "");
+      lista.querySelectorAll("option[data-setor]").forEach(function (o) {
+        var ok = !nome || o.getAttribute("data-setor") === nome;
+        o.hidden = !ok; o.disabled = !ok;
+        if (!ok && o.selected) lista.value = "";
+      });
+    });
+  }
+  document.querySelectorAll("[data-tipo-coord]").forEach(function (sel) {
+    ajustar(sel); filtrarEventos(sel.closest("form"));
+    sel.addEventListener("change", function () { ajustar(sel); });
+  });
+  var setor = document.getElementById("d_setor");
+  if (setor) setor.addEventListener("change", function () { filtrarEventos(setor.closest("form")); });
+})();
+</script>
 {% endblock %}

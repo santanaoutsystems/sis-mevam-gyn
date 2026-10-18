@@ -347,7 +347,7 @@ async def editar(request: Request):
     mid = request.path_params["id"]
     with db.engine().connect() as c:
         m = _carregar(c, mid)
-    if not m or m["status"] == "Anonimizado (LGPD)":
+    if not m or m["status"] in (db.ANONIMIZADO, db.EXCLUIDO):
         return render(request, "erro.html", {"titulo": "Indisponível", "mensagem": "Ficha não pode ser editada."}, 404)
     if request.method == "GET":
         with db.engine().connect() as c:
@@ -401,17 +401,179 @@ async def validar(request: Request):
 
 @seguranca.exigir(*ADMIN_SECRETARIA)
 async def alterar_status(request: Request):
+    """Etapas do fluxo (Aguardando, Validado, Ativo). Inativar e excluir têm botões próprios, com justificativa."""
     mid = request.path_params["id"]
     form = await request.form()
     novo = form.get("status")
-    if novo not in ("Ativo", "Inativo", "Aguardando Análise", "Validado pela Secretaria"):
-        flash(request, "Status inválido.", "erro")
+    if novo not in ("Ativo", "Aguardando Análise", "Validado pela Secretaria"):
+        flash(request, "Status inválido. Para inativar, use o botão Inativar membro (com justificativa).", "erro")
         return ir(f"/membros/{mid}")
     with db.engine().begin() as c:
+        m = _carregar(c, mid)
+        if not m:
+            return ir("/membros")
+        if m["status"] in db.STATUS_FORA:
+            flash(request, "Esta ficha está inativa, na lixeira ou anonimizada. Use Reativar ou Restaurar.", "erro")
+            return ir(f"/membros/{mid}")
         c.execute(update(db.membros).where(db.membros.c.id == mid).values(status=novo, atualizado_em=datas.agora_utc()))
         auditar(request, "ALTERACAO_STATUS", f"Membro #{mid}", f"Novo status: {novo}", conexao=c)
     flash(request, f"Status alterado para {novo}.")
     return ir(f"/membros/{mid}")
+
+
+# ---------------------------------------------------------------------------
+# Inativar, reativar, excluir (lixeira), restaurar e excluir definitivamente (v2.9.0)
+# Sempre com justificativa; tudo fica na auditoria. Exclusivo de Secretaria e Adm.
+# ---------------------------------------------------------------------------
+JUSTIFICATIVA_MINIMA = 10
+PERFIS_SUSPENSOS = ("membro", "coordenacao")  # login da equipe (Secretaria/Adm) não é desligado pela ficha
+
+
+def _justificativa(form) -> str | None:
+    texto = (form.get("motivo") or "").strip()
+    return texto[:1000] if len(texto) >= JUSTIFICATIVA_MINIMA else None
+
+
+def _suspender_login(c, mid: int, por: str, motivo: str) -> int:
+    """Desliga o login de Membro/Coordenação ligado à ficha e encerra as coordenações dele."""
+    from .. import coordenacao
+    n = 0
+    for uid, perfil in c.execute(select(db.usuarios.c.id, db.usuarios.c.perfil).where(
+            db.usuarios.c.membro_id == mid, db.usuarios.c.ativo.is_(True), db.usuarios.c.perfil.in_(PERFIS_SUSPENSOS))).all():
+        coordenacao.encerrar_todas(c, uid, por, motivo)
+        c.execute(update(db.usuarios).where(db.usuarios.c.id == uid).values(ativo=False))
+        n += 1
+    if n:
+        c.execute(update(db.membros).where(db.membros.c.id == mid).values(login_suspenso=True))
+    return n
+
+
+def _religar_login(c, m: dict) -> int:
+    if not m.get("login_suspenso"):
+        return 0
+    r = c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == m["id"], db.usuarios.c.perfil.in_(PERFIS_SUSPENSOS))
+                  .values(ativo=True, tentativas_falhas=0, bloqueado_ate=None))
+    c.execute(update(db.membros).where(db.membros.c.id == m["id"]).values(login_suspenso=False))
+    return r.rowcount or 0
+
+
+def _status_de_volta(m: dict) -> str:
+    anterior = m.get("status_anterior")
+    if anterior in ("Ativo", "Validado pela Secretaria", "Aguardando Análise"):
+        return anterior
+    return "Ativo" if m.get("credo_aceito") else "Validado pela Secretaria"
+
+
+@seguranca.exigir(*ADMIN_SECRETARIA)
+async def inativar(request: Request):
+    mid = request.path_params["id"]
+    form = await request.form()
+    motivo = _justificativa(form)
+    u = seguranca.usuario_atual(request)
+    if not motivo:
+        flash(request, f"Escreva a justificativa da inativação (mínimo {JUSTIFICATIVA_MINIMA} caracteres).", "erro")
+        return ir(f"/membros/{mid}#inativar")
+    with db.engine().begin() as c:
+        m = _carregar(c, mid)
+        if not m or m["status"] in db.STATUS_FORA:
+            flash(request, "Esta ficha já está fora da lista de ativos.", "erro")
+            return ir(f"/membros/{mid}")
+        c.execute(update(db.membros).where(db.membros.c.id == mid).values(
+            status="Inativo", status_anterior=m["status"], inativado_em=datas.agora_utc(), inativado_por=u["nome"],
+            motivo_inativacao=motivo, atualizado_em=datas.agora_utc()))
+        n = _suspender_login(c, mid, u["nome"], "Membro inativado: " + motivo)
+        auditar(request, "MEMBRO_INATIVADO", f"Membro #{mid}",
+                f"{m['nome_completo']} · {motivo}" + (" · login desligado" if n else ""), conexao=c)
+    flash(request, f"{m['nome_completo']} foi inativado(a)." + (" O acesso ao sistema foi desligado." if n else ""))
+    return ir(f"/membros/{mid}")
+
+
+@seguranca.exigir(*ADMIN_SECRETARIA)
+async def reativar(request: Request):
+    mid = request.path_params["id"]
+    form = await request.form()
+    motivo = _justificativa(form)
+    if not motivo:
+        flash(request, f"Escreva a justificativa da reativação (mínimo {JUSTIFICATIVA_MINIMA} caracteres).", "erro")
+        return ir(f"/membros/{mid}")
+    with db.engine().begin() as c:
+        m = _carregar(c, mid)
+        if not m or m["status"] != "Inativo":
+            return ir(f"/membros/{mid}")
+        volta = _status_de_volta(m)
+        c.execute(update(db.membros).where(db.membros.c.id == mid).values(
+            status=volta, status_anterior=None, inativado_em=None, inativado_por=None, motivo_inativacao=None,
+            atualizado_em=datas.agora_utc()))
+        n = _religar_login(c, m)
+        auditar(request, "MEMBRO_REATIVADO", f"Membro #{mid}",
+                f"{m['nome_completo']} · status {volta} · {motivo}" + (" · login religado" if n else ""), conexao=c)
+    flash(request, f"{m['nome_completo']} foi reativado(a) ({volta})." + (" O acesso ao sistema voltou." if n else ""))
+    return ir(f"/membros/{mid}")
+
+
+@seguranca.exigir(*ADMIN_SECRETARIA)
+async def excluir(request: Request):
+    """Excluir = mandar para a lixeira: some das listas, relatórios e avisos, mas pode ser restaurada."""
+    mid = request.path_params["id"]
+    form = await request.form()
+    motivo = _justificativa(form)
+    u = seguranca.usuario_atual(request)
+    if not motivo:
+        flash(request, f"Escreva a justificativa da exclusão (mínimo {JUSTIFICATIVA_MINIMA} caracteres).", "erro")
+        return ir(f"/membros/{mid}#excluir")
+    if (form.get("confirmacao") or "").strip() != str(mid):
+        flash(request, "Para excluir, digite o número do protocolo.", "erro")
+        return ir(f"/membros/{mid}#excluir")
+    with db.engine().begin() as c:
+        m = _carregar(c, mid)
+        if not m or m["status"] in (db.EXCLUIDO, db.ANONIMIZADO):
+            return ir("/membros")
+        c.execute(update(db.membros).where(db.membros.c.id == mid).values(
+            status=db.EXCLUIDO, status_anterior=m["status_anterior"] if m["status"] == "Inativo" else m["status"],
+            excluido_em=datas.agora_utc(), excluido_por=u["nome"], motivo_exclusao=motivo, atualizado_em=datas.agora_utc()))
+        n = _suspender_login(c, mid, u["nome"], "Ficha excluída: " + motivo)
+        c.execute(update(db.regularizacoes).where(db.regularizacoes.c.membro_id == mid).values(revogado=True))
+        auditar(request, "MEMBRO_EXCLUIDO", f"Membro #{mid}",
+                f"{m['nome_completo']} · enviado para a lixeira · {motivo}" + (" · login desligado" if n else ""), conexao=c)
+    flash(request, f"Ficha #{mid} ({m['nome_completo']}) foi para a lixeira. Ela pode ser restaurada em Membros › 🗑️ Lixeira.")
+    return ir("/membros")
+
+
+@seguranca.exigir(*ADMIN_SECRETARIA)
+async def restaurar(request: Request):
+    mid = request.path_params["id"]
+    form = await request.form()
+    motivo = _justificativa(form)
+    if not motivo:
+        flash(request, f"Escreva a justificativa da restauração (mínimo {JUSTIFICATIVA_MINIMA} caracteres).", "erro")
+        return ir("/membros/lixeira")
+    with db.engine().begin() as c:
+        m = _carregar(c, mid)
+        if not m or m["status"] != db.EXCLUIDO:
+            return ir("/membros/lixeira")
+        # Se estava inativa antes da exclusão, volta inativa
+        volta = "Inativo" if m.get("inativado_em") else _status_de_volta(m)
+        c.execute(update(db.membros).where(db.membros.c.id == mid).values(
+            status=volta, excluido_em=None, excluido_por=None, motivo_exclusao=None, atualizado_em=datas.agora_utc(),
+            **({} if volta == "Inativo" else {"status_anterior": None})))
+        n = 0 if volta == "Inativo" else _religar_login(c, m)
+        auditar(request, "MEMBRO_RESTAURADO", f"Membro #{mid}", f"{m['nome_completo']} · status {volta} · {motivo}", conexao=c)
+    flash(request, f"Ficha #{mid} restaurada ({volta})." + (" O acesso ao sistema voltou." if n else ""))
+    return ir(f"/membros/{mid}")
+
+
+@seguranca.exigir(*ADMIN_SECRETARIA)
+async def lixeira(request: Request):
+    m = db.membros.c
+    with db.engine().connect() as c:
+        linhas = [dict(r) for r in c.execute(
+            select(m.id, m.nome_completo, m.excluido_em, m.excluido_por, m.motivo_exclusao)
+            .where(m.status == db.EXCLUIDO).order_by(m.excluido_em.desc())).mappings()]
+    hoje = datas.hoje()
+    for l in linhas:
+        quando = l["excluido_em"]
+        l["dias"] = (hoje - quando.date()).days if quando else None
+    return render(request, "membros/lixeira.html", {"linhas": linhas})
 
 
 @seguranca.exigir(*ADMIN_SECRETARIA)
@@ -486,26 +648,35 @@ async def anonimizar(request: Request):
 
 
 @seguranca.exigir("admin")
-async def excluir(request: Request):
+async def excluir_definitivo(request: Request):
+    """Só o Adm e só a partir da lixeira: apaga a ficha de vez (fica na auditoria o nome e a justificativa)."""
     mid = request.path_params["id"]
     form = await request.form()
+    motivo = _justificativa(form)
+    if not motivo:
+        flash(request, f"Escreva a justificativa da exclusão definitiva (mínimo {JUSTIFICATIVA_MINIMA} caracteres).", "erro")
+        return ir("/membros/lixeira")
     with db.engine().begin() as c:
         m = _carregar(c, mid)
         if not m:
-            return ir("/membros")
-        if (form.get("confirmacao") or "").strip() != str(mid):
-            flash(request, "Para excluir, digite o número do protocolo.", "erro")
+            return ir("/membros/lixeira")
+        if m["status"] != db.EXCLUIDO:
+            flash(request, "Só uma ficha que está na lixeira pode ser excluída definitivamente.", "erro")
             return ir(f"/membros/{mid}")
+        if (form.get("confirmacao") or "").strip() != str(mid):
+            flash(request, "Para excluir definitivamente, digite o número do protocolo.", "erro")
+            return ir("/membros/lixeira")
         c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == mid).values(membro_id=None))
-        c.execute(delete(db.membro_setores).where(db.membro_setores.c.membro_id == mid))
-        c.execute(delete(db.regularizacoes).where(db.regularizacoes.c.membro_id == mid))
-        c.execute(delete(db.membro_interesses).where(db.membro_interesses.c.membro_id == mid))
-        c.execute(delete(db.lembretes_cadastro).where(db.lembretes_cadastro.c.membro_id == mid))
-        c.execute(delete(db.pesquisa_satisfacao).where(db.pesquisa_satisfacao.c.membro_id == mid))
+        for t in (db.membro_setores, db.regularizacoes, db.membro_interesses, db.lembretes_cadastro,
+                  db.pesquisa_satisfacao, db.avisos, db.aniversario_envios):
+            c.execute(delete(t).where(t.c.membro_id == mid))
+        c.execute(update(db.inscricoes).where(db.inscricoes.c.membro_id == mid).values(membro_id=None))
         c.execute(delete(db.membros).where(db.membros.c.id == mid))
-        auditar(request, "EXCLUSAO_MEMBRO", f"Membro #{mid}", f"Nome: {m['nome_completo']}", conexao=c)
-    flash(request, f"Ficha #{mid} excluída.")
-    return ir("/membros")
+        auditar(request, "EXCLUSAO_DEFINITIVA_MEMBRO", f"Membro #{mid}",
+                f"Nome: {m['nome_completo']} · excluída por {m.get('excluido_por') or '-'} ({m.get('motivo_exclusao') or '-'}) · {motivo}",
+                conexao=c)
+    flash(request, f"Ficha #{mid} excluída definitivamente.")
+    return ir("/membros/lixeira")
 
 
 @seguranca.exigir("admin")
@@ -514,7 +685,7 @@ async def exportar_csv(request: Request):
               "bairro", "cidade", "batizado", "data_batismo", "status", "data_registro"]
     with db.engine().connect() as c:
         linhas = c.execute(select(*[db.membros.c[k] for k in campos])
-                           .where(db.membros.c.status != "Anonimizado (LGPD)").order_by(db.membros.c.nome_completo)).all()
+                           .where(db.membros.c.status.notin_((db.ANONIMIZADO, db.EXCLUIDO))).order_by(db.membros.c.nome_completo)).all()
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")
     w.writerow(campos)
@@ -543,7 +714,7 @@ async def credo(request: Request):
                       "mensagem": "Este link não é válido. Peça um novo link à Secretaria."}, 403)
     with db.engine().connect() as c:
         m = _carregar(c, mid)
-    if not m or m["status"] in ("Aguardando Análise", "Anonimizado (LGPD)", "Inativo"):
+    if not m or m["status"] in ("Aguardando Análise",) + db.STATUS_FORA:
         return render(request, "erro.html", {"titulo": "Ainda não disponível",
                       "mensagem": "Sua ficha ainda está em análise pela Secretaria."}, 403)
 
@@ -582,7 +753,7 @@ async def credo_pdf(request: Request):
         return render(request, "erro.html", {"titulo": "Link inválido", "mensagem": "Link inválido."}, 403)
     with db.engine().connect() as c:
         m = _carregar(c, mid)
-    if not m or not m["credo_aceito"] or m["status"] == "Anonimizado (LGPD)":
+    if not m or not m["credo_aceito"] or m["status"] in (db.ANONIMIZADO, db.EXCLUIDO):
         return render(request, "erro.html", {"titulo": "Indisponível", "mensagem": "Ficha indisponível."}, 404)
     auditar(request, "DOWNLOAD_PDF_TITULAR", f"Membro #{mid}", usuario=None)
     return Response(gerar_pdf_membro(_para_pdf(m)), media_type="application/pdf", headers={
@@ -610,6 +781,7 @@ rotas = [
     Route("/meu-cpf", meu_cpf, methods=["GET", "POST"]),
     Route("/membros", lista),
     Route("/membros/exportar.csv", exportar_csv),
+    Route("/membros/lixeira", lixeira),
     Route("/membros/{id:int}", detalhe),
     Route("/membros/{id:int}/editar", editar, methods=["GET", "POST"]),
     Route("/membros/{id:int}/validar", validar, methods=["POST"]),
@@ -618,7 +790,11 @@ rotas = [
     Route("/membros/{id:int}/setores", setores, methods=["POST"]),
     Route("/membros/{id:int}/pdf", pdf),
     Route("/membros/{id:int}/anonimizar", anonimizar, methods=["POST"]),
+    Route("/membros/{id:int}/inativar", inativar, methods=["POST"]),
+    Route("/membros/{id:int}/reativar", reativar, methods=["POST"]),
     Route("/membros/{id:int}/excluir", excluir, methods=["POST"]),
+    Route("/membros/{id:int}/restaurar", restaurar, methods=["POST"]),
+    Route("/membros/{id:int}/excluir-definitivo", excluir_definitivo, methods=["POST"]),
     Route("/credo/{id:int}", credo, methods=["GET", "POST"]),
     Route("/credo/{id:int}/pdf", credo_pdf),
 ]

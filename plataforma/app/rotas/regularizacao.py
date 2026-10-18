@@ -28,7 +28,7 @@ from .membros import (ERRO_CPF_REPETIDO, _carregar, _contexto_form, _cpf_em_uso,
 
 ADMIN_SECRETARIA = ("secretaria", "admin")
 ORIGEM_IMPRESSA = "ficha_impressa"  # membros.origem é único (exceto 'novo'): cada ficha leva um sufixo
-FORA_DA_REGULARIZACAO = ("Anonimizado (LGPD)", "Inativo")
+FORA_DA_REGULARIZACAO = db.STATUS_FORA
 TIPOS_ESCANEAMENTO = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
 LIMITE_ESCANEAMENTO = 6 * 1024 * 1024
 
@@ -202,7 +202,7 @@ async def painel(request: Request):
         tem_scan = (func.coalesce(func.length(db.membros.c.ficha_escaneada), 0) > 0).label("tem_escaneada")
         linhas = [dict(r) for r in c.execute(
             select(*[db.membros.c[k] for k in COLUNAS_PAINEL], tem_foto, tem_scan)
-            .where(db.membros.c.status.notin_(("Anonimizado (LGPD)",)))
+            .where(db.membros.c.status.notin_((db.ANONIMIZADO, db.EXCLUIDO)))
             .order_by(db.membros.c.nome_completo)).mappings()]
         ultimos = _ultimos_links(c)
     pend, venc, concl = [], [], []
@@ -407,7 +407,7 @@ async def gerar(request: Request):
     with db.engine().begin() as c:
         validos = {str(r[0]) for r in c.execute(select(db.membros.c.id).where(
             db.membros.c.id.in_([int(i) for i in ids if str(i).isdigit()]),
-            db.membros.c.status != "Anonimizado (LGPD)"))}
+            db.membros.c.status.notin_((db.ANONIMIZADO, db.EXCLUIDO))))}
         for mid in ids:
             if str(mid) in validos:
                 rids.append(_criar_link(c, int(mid), dias, u["nome"])["id"])
@@ -480,8 +480,15 @@ async def desfecho(request: Request):
             c.execute(update(db.regularizacoes).where(db.regularizacoes.c.id == reg["id"]).values(
                 desfecho="inativado" if acao == "inativar" else "em_analise"))
             if acao == "inativar":
+                from .membros import _suspender_login
+                atual = c.execute(select(db.membros.c.status).where(db.membros.c.id == mid)).scalar()
+                if atual in db.STATUS_FORA:
+                    continue
+                quem = seguranca.usuario_atual(request)["nome"]
                 c.execute(update(db.membros).where(db.membros.c.id == mid).values(
-                    status="Inativo", atualizado_em=datas.agora_utc()))
+                    status="Inativo", status_anterior=atual, inativado_em=datas.agora_utc(), inativado_por=quem,
+                    motivo_inativacao=f"Regularização vencida: {motivo}", atualizado_em=datas.agora_utc()))
+                _suspender_login(c, mid, quem, f"Membro inativado (regularização): {motivo}")
             auditar(request, "REGULARIZACAO_INATIVACAO" if acao == "inativar" else "REGULARIZACAO_EM_ANALISE",
                     f"Membro #{mid}", motivo, conexao=c)
     flash(request, f"{len(ids)} membro(s) " + ("inativado(s)." if acao == "inativar" else "marcado(s) para análise."))
@@ -517,7 +524,7 @@ async def atualizar(request: Request):
     with db.engine().connect() as c:
         m = _carregar(c, reg["membro_id"])
         interesses = interesses_de(c, reg["membro_id"]) if m else []
-    if not m or m["status"] == "Anonimizado (LGPD)":
+    if not m or m["status"] in (db.ANONIMIZADO, db.EXCLUIDO):
         return render(request, "erro.html", {"titulo": "Indisponível", "mensagem": "Cadastro indisponível."}, 404)
     faltas = pendencias(m)
     if request.method == "GET":

@@ -18,7 +18,7 @@ from .. import config, datas, db, envios, ficha, seguranca
 from ..web import auditar, flash, ir, render
 from .agenda import escopo_setores
 
-FORA = ("Inativo", "Anonimizado (LGPD)")
+FORA = db.STATUS_FORA
 LIMITE_CONVITES = 80  # a conta Gmail da Secretaria tem cota diária de envios
 
 

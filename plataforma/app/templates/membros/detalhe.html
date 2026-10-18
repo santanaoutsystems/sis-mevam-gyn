@@ -9,6 +9,13 @@
   <span class="pequeno">Anote agora: ela não será exibida de novo. A pessoa troca a senha no primeiro acesso.</span></div>
 {% endif %}
 
+{% if not propria and m.status == 'Excluído' %}
+<div class="msg erro lixeira-aviso"><b>🗑️ Esta ficha está na lixeira.</b> Excluída por {{ m.excluido_por or '-' }} em {{ m.excluido_em|data_hora_br }}.<br>
+  Justificativa: {{ m.motivo_exclusao or '-' }}<br><a href="/membros/lixeira">Abrir a lixeira para restaurar</a></div>
+{% elif not propria and m.status == 'Inativo' %}
+<div class="msg aviso"><b>⏸️ Membro inativo.</b>{% if m.inativado_em %} Inativado por {{ m.inativado_por or '-' }} em {{ m.inativado_em|data_hora_br }}.{% endif %}
+  {% if m.motivo_inativacao %}<br>Justificativa: {{ m.motivo_inativacao }}{% endif %}</div>
+{% endif %}
 <div class="cartao" style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
   <div class="foto3x4">{% if m.foto_3x4 %}<img src="{{ m.foto_3x4 }}" alt="Foto 3x4">{% else %}Sem foto{% endif %}</div>
   <div style="flex:1;min-width:220px">
@@ -19,13 +26,13 @@
     {% if setores %}<p class="pequeno">Setores: {% for s in setores %}<span class="selo validado">{{ s.nome }} · {{ s.funcao }}</span> {% endfor %}</p>{% endif %}
     <div class="acoes">
       <a class="botao secundario peq" href="/membros/{{ m.id }}/pdf" target="_blank">🖨️ PDF da ficha</a>
-      {% if not propria and m.status != 'Anonimizado (LGPD)' %}<a class="botao secundario peq" href="/membros/{{ m.id }}/editar">✏️ Editar</a>
+      {% if not propria and m.status not in ('Anonimizado (LGPD)', 'Excluído') %}<a class="botao secundario peq" href="/membros/{{ m.id }}/editar">✏️ Editar</a>
       <a class="botao secundario peq" href="/regularizacao/membro/{{ m.id }}">📋 Regularização</a>{% endif %}
     </div>
   </div>
 </div>
 
-{% if not propria and m.status != 'Anonimizado (LGPD)' %}
+{% if not propria and m.status not in ('Anonimizado (LGPD)', 'Excluído') %}
 <div class="cartao">
   <h2>Fluxo da Secretaria</h2>
   {% if m.status == 'Aguardando Análise' %}
@@ -69,11 +76,51 @@
     {% if deptos %}<button class="botao secundario peq" style="margin-top:.5rem">Salvar setores</button>{% endif %}
   </form>
 
-  <h3>Status</h3>
+  {% if m.status != 'Inativo' %}
+  <h3>Etapa da ficha</h3>
   <form method="post" action="/membros/{{ m.id }}/status" class="com-acao">{{ ui.csrf_input() }}
-    <select name="status" aria-label="Situação da ficha">{% for s in ['Ativo','Inativo','Validado pela Secretaria','Aguardando Análise'] %}<option {{ 'selected' if s == m.status }}>{{ s }}</option>{% endfor %}</select>
+    <select name="status" aria-label="Etapa da ficha">{% for s in ['Ativo','Validado pela Secretaria','Aguardando Análise'] %}<option {{ 'selected' if s == m.status }}>{{ s }}</option>{% endfor %}</select>
     <button class="botao secundario">Alterar</button>
   </form>
+  {% endif %}
+</div>
+
+<div class="cartao" id="inativar">
+  <h2>Situação do cadastro</h2>
+  <p class="pequeno suave" style="margin-top:0">Só Secretaria e Adm. Toda ação pede justificativa e fica registrada na auditoria.</p>
+  {% if m.status == 'Inativo' %}
+  <form method="post" action="/membros/{{ m.id }}/reativar">{{ ui.csrf_input() }}
+    <label for="r_motivo">Justificativa da reativação <span class="obrig">*</span></label>
+    <textarea id="r_motivo" name="motivo" required minlength="10" placeholder="Ex.: voltou a congregar em 10/2026"></textarea>
+    <button class="botao sucesso peq" style="margin-top:.4rem">▶️ Reativar membro</button>
+    {% if m.login_suspenso %}<p class="pequeno suave">O login da pessoa, desligado na inativação, volta a funcionar.</p>{% endif %}
+  </form>
+  {% else %}
+  <details>
+    <summary class="botao secundario peq" style="display:inline-flex">⏸️ Inativar membro</summary>
+    <form method="post" action="/membros/{{ m.id }}/inativar" style="margin-top:.5rem"
+      onsubmit="return confirm('Inativar {{ m.nome_completo }}?')">{{ ui.csrf_input() }}
+      <p class="pequeno">A ficha continua guardada, mas sai das listas de ativos, dos avisos de aniversário, dos convites e dos lembretes.
+        {% if login and login.perfil in ('membro', 'coordenacao') %}O login de {{ login.email }} é desligado e as coordenações dele são encerradas.{% endif %}
+        Pode ser reativada a qualquer momento.</p>
+      <label for="i_motivo">Justificativa <span class="obrig">*</span></label>
+      <textarea id="i_motivo" name="motivo" required minlength="10" placeholder="Ex.: mudou de cidade; pediu desligamento; não congrega há 6 meses"></textarea>
+      <button class="botao perigo peq" style="margin-top:.4rem">Inativar</button>
+    </form>
+  </details>
+  {% endif %}
+  <details id="excluir" style="margin-top:.6rem">
+    <summary class="botao perigo peq" style="display:inline-flex">🗑️ Excluir membro</summary>
+    <form method="post" action="/membros/{{ m.id }}/excluir" style="margin-top:.5rem"
+      onsubmit="return confirm('Mandar a ficha #{{ m.id }} para a lixeira?')">{{ ui.csrf_input() }}
+      <p class="pequeno">A ficha vai para a <b>lixeira</b>: some de todas as listas, relatórios e avisos, e o login é desligado.
+        A Secretaria ou o Adm pode restaurar. Só o Adm apaga de vez, a partir da lixeira.</p>
+      <label for="x_motivo">Justificativa <span class="obrig">*</span></label>
+      <textarea id="x_motivo" name="motivo" required minlength="10" placeholder="Ex.: ficha em duplicidade com a #123; cadastro de teste"></textarea>
+      <label for="confirmacao">Digite o protocolo <b>{{ m.id }}</b> para confirmar</label>
+      <div class="com-acao"><input id="confirmacao" name="confirmacao" inputmode="numeric" required><button class="botao perigo">Excluir</button></div>
+    </form>
+  </details>
 </div>
 {% endif %}
 
@@ -122,7 +169,7 @@
 </div>
 {% endif %}
 
-{% if not propria and m.status != 'Anonimizado (LGPD)' %}
+{% if not propria and m.status not in ('Anonimizado (LGPD)', 'Excluído') %}
 <details class="cartao">
   <summary><b>Direitos do titular (LGPD)</b></summary>
   <form method="post" action="/membros/{{ m.id }}/anonimizar" onsubmit="return confirm('Anonimizar remove os dados pessoais de forma definitiva. Continuar?')">
@@ -131,13 +178,6 @@
     <textarea id="motivo" name="motivo" required minlength="10"></textarea>
     <button class="botao perigo" style="margin-top:.5rem">Anonimizar dados</button>
   </form>
-  {% if pode('admin') %}
-  <form method="post" action="/membros/{{ m.id }}/excluir" style="margin-top:1rem" onsubmit="return confirm('Excluir a ficha definitivamente?')">
-    {{ ui.csrf_input() }}
-    <label for="confirmacao">Para excluir definitivamente, digite o protocolo <b>{{ m.id }}</b></label>
-    <div class="com-acao"><input id="confirmacao" name="confirmacao" inputmode="numeric" required><button class="botao perigo">Excluir</button></div>
-  </form>
-  {% endif %}
 </details>
 {% endif %}
 {% endblock %}

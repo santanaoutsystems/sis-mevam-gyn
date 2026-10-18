@@ -56,17 +56,40 @@ def _deptos(c) -> list[dict]:
     return [dict(r) for r in c.execute(select(db.departamentos).order_by(db.departamentos.c.nome)).mappings()]
 
 
+class Escopo(set):
+    """Nomes dos setores que a Coordenação gerencia + `eventos`: ids dos eventos de coordenação só para um evento."""
+    eventos: set[str]
+
+
 def escopo_setores(c, usuario: dict) -> set[str] | None:
-    """Setores (nomes) que o usuário pode gerenciar. None = todos (Secretaria e Adm)."""
+    """Setores (nomes) que o usuário pode gerenciar. None = todos (Secretaria e Adm).
+
+    Só valem as designações dentro do prazo (v2.9.0). A coordenação 'para um evento' não dá o setor inteiro:
+    entra em `escopo.eventos` e libera apenas aquele evento."""
     if usuario["perfil"] != "coordenacao":
         return None
-    return set(c.execute(select(db.departamentos.c.nome).select_from(
-        db.usuario_setores.join(db.departamentos, db.DEP_ID == db.usuario_setores.c.departamento_id))
-        .where(db.usuario_setores.c.usuario_id == usuario["id"])).scalars())
+    from ..coordenacao import filtro_ativo
+    us = db.usuario_setores.c
+    escopo = Escopo()
+    escopo.eventos = set()
+    for nome, tipo, evento_id in c.execute(
+            select(db.departamentos.c.nome, us.tipo, us.evento_id).select_from(
+                db.usuario_setores.join(db.departamentos, db.DEP_ID == us.departamento_id))
+            .where(us.usuario_id == usuario["id"], filtro_ativo())):
+        if tipo == "evento":
+            if evento_id:
+                escopo.eventos.add(str(evento_id))
+        else:
+            escopo.add(nome)
+    return escopo
 
 
 def _pode_gerir(escopo: set[str] | None, evento: dict | None) -> bool:
-    return bool(evento) and (escopo is None or evento.get("departamento") in escopo)
+    if not evento:
+        return False
+    if escopo is None or evento.get("departamento") in escopo:
+        return True
+    return str(evento.get("id")) in getattr(escopo, "eventos", set())
 
 
 def _fora_do_setor(request: Request):

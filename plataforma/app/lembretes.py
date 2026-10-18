@@ -25,7 +25,7 @@ from .web import auditar
 
 PRAZO_DIAS = 30
 ETAPAS_ANTES = (1, 10, 25, 29)
-FORA = ("Inativo", "Anonimizado (LGPD)")
+FORA = db.STATUS_FORA
 AUTOR = "Sistema (cadastro sem foto)"
 INTERVALO_SEGUNDOS = 30 * 60
 
@@ -204,6 +204,11 @@ def agendar() -> None:
                     log.info("Lembretes de cadastro enviados: %s", n)
         except Exception:  # noqa: BLE001
             log.exception("Falha na rodada de lembretes de cadastro")
+        try:
+            from . import coordenacao
+            coordenacao.encerrar_vencidas()
+        except Exception:  # noqa: BLE001
+            log.exception("Falha ao encerrar coordenações vencidas")
         try:
             from . import aniversarios
             r = aniversarios.rodar()

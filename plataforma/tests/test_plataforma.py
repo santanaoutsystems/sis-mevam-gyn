@@ -522,13 +522,17 @@ def _setor_id(nome):
         return str(c.execute(select(db.departamentos.c.id).where(db.departamentos.c.nome == nome)).scalar())
 
 
+def designar(cli, uid, setor, **extra):
+    dados = {"pessoa": f"u:{uid}", "departamento_id": _setor_id(setor), "tipo": "permanente", "disponibilidade": "sim", **extra}
+    return post(cli, "/coordenacao/designar", dados, pagina="/coordenacao")
+
+
 def test_secretaria_define_coordenador_e_setores():
     sec = logado("secretaria")
     criar_evento(sec)  # cria setores Família e Jovens
     membro = criar("membro", email="coord@mevam.test")
-    r = post(sec, "/coordenacao/adicionar", {"usuario_id": membro["id"]}, pagina="/coordenacao")
+    r = designar(sec, membro["id"], "Jovens")
     assert r.status_code == 303
-    post(sec, f"/coordenacao/{membro['id']}", {"setores": [_setor_id("Jovens")]}, pagina="/coordenacao")
     with db.engine().connect() as c:
         assert c.execute(select(db.usuarios.c.perfil).where(db.usuarios.c.id == membro["id"])).scalar() == "coordenacao"
         assert c.execute(select(db.usuario_setores.c.departamento_id)
@@ -598,14 +602,14 @@ def test_coordenador_entra_e_ve_seus_setores():
     sec = logado("secretaria")
     criar_evento(sec)
     membro = criar("membro", email="naira@mevam.test")
-    post(sec, "/coordenacao/adicionar", {"usuario_id": membro["id"]}, pagina="/coordenacao")
-    post(sec, f"/coordenacao/{membro['id']}", {"setores": [_setor_id("Jovens"), _setor_id("Família")]}, pagina="/coordenacao")
+    designar(sec, membro["id"], "Jovens")
+    designar(sec, membro["id"], "Família")
     c = novo_cliente()
     assert entrar(c, "naira@mevam.test").status_code == 303
     r = c.get("/inicio")
     assert r.status_code == 200 and "Minha coordenação" in r.text and "Jovens" in r.text and "Família" in r.text
     assert c.get("/eventos/novo").status_code == 200
-    assert 'checked' in sec.get("/coordenacao").text
+    assert "Ativa" in sec.get("/coordenacao").text
 
 
 def test_bloqueio_por_inatividade(monkeypatch):
@@ -639,7 +643,7 @@ def test_tela_de_setores_mostra_coordenadores():
     adm = logado("admin")
     criar_evento(adm)
     coord = criar("coordenacao", email="lia@mevam.test")
-    post(adm, f"/coordenacao/{coord['id']}", {"setores": [_setor_id("Jovens")]}, pagina="/coordenacao")
+    designar(adm, coord["id"], "Jovens")
     html = adm.get("/admin/setores").text
     assert "Pessoa Coordenacao" in html and "ninguém ainda" in html
 

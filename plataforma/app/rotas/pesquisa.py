@@ -33,7 +33,7 @@ async def responder(request: Request):
     with db.engine().begin() as c:
         m = c.execute(select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.status)
                       .where(db.membros.c.id == mid)).mappings().first()
-        if not m or m["status"] == "Anonimizado (LGPD)":
+        if not m or m["status"] in (db.ANONIMIZADO, db.EXCLUIDO):
             return render(request, "erro.html", {"titulo": "Pesquisa", "mensagem": "Cadastro indisponível."}, 404)
         anterior = c.execute(select(db.pesquisa_satisfacao.c.resposta)
                              .where(db.pesquisa_satisfacao.c.membro_id == mid)).scalar()

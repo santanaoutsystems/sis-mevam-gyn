@@ -38,13 +38,21 @@
 {% if pode('coordenacao') %}
 <div class="cartao">
   <h2>Minha coordenação</h2>
-  {% if meus_setores %}
-    <p>Setores: {% for n in meus_setores %}<b>{{ n }}</b>{{ ', ' if not loop.last }}{% endfor %}</p>
+  {% if minhas_coord %}
+    {% for d in minhas_coord %}
+    <div class="designacao">
+      <div class="designacao-cab"><b>{{ d.setor }}</b><span class="selo {{ d.classe }}">{{ d.situacao }}</span></div>
+      <p class="pequeno" style="margin:.2rem 0 0">{{ d.rotulo_tipo }}{% if d.inicio %} · desde {{ d.inicio|data_br }}{% endif %}{% if d.fim %} · até {{ d.fim|data_br }}{% endif %}
+        {% if d.evento %}<br>Evento: <a href="/eventos/{{ d.evento.id }}">{{ d.evento.titulo }}</a>{% endif %}</p>
+    </div>
+    {% endfor %}
     <div class="acoes nao-imprimir" style="margin-bottom:0">
-      <a class="botao" href="/eventos/novo">➕ Novo evento</a>
+      {% if meus_setores %}<a class="botao" href="/eventos/novo">➕ Novo evento</a>{% endif %}
       <a class="botao secundario" href="/relatorios">🖨️ Relatórios</a>
       <a class="botao secundario" href="/aniversariantes">🎂 Aniversariantes</a>
     </div>
+    <details style="margin-top:.6rem"><summary class="pequeno"><b>📜 Diretrizes da Coordenação</b></summary>
+      <ol class="pequeno">{% for t in DIRETRIZES %}<li>{{ t }}</li>{% endfor %}</ol></details>
   {% else %}
     <p class="suave">Nenhum setor atribuído ainda. Peça à Secretaria ou ao Adm para definir os setores que você coordena.</p>
   {% endif %}

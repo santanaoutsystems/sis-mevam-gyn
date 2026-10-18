@@ -11,6 +11,7 @@ from starlette.requests import Request
 from starlette.routing import Route
 
 from .. import config, datas, db, seguranca, uso
+from .. import coordenacao as coordenacao_regras
 from ..web import auditar, flash, ir, render
 
 
@@ -189,13 +190,22 @@ async def inicio(request: Request):
             numeros["aguardando"] = c.execute(select(func.count()).select_from(db.membros)
                                               .where(db.membros.c.status == "Aguardando Análise")).scalar()
             numeros["membros"] = c.execute(select(func.count()).select_from(db.membros)
-                                           .where(db.membros.c.status != "Anonimizado (LGPD)")).scalar()
+                                           .where(db.membros.c.status.notin_((db.ANONIMIZADO, db.EXCLUIDO)))).scalar()
             numeros["eventos_futuros"] = c.execute(select(func.count()).select_from(db.eventos)
                                                    .where(db.eventos.c.data_inicio >= hoje_iso)).scalar()
-        meus_setores = []
+        meus_setores, minhas_coord = [], []
         if u["perfil"] == "coordenacao":
             from .agenda import escopo_setores
             meus_setores = sorted(escopo_setores(c, u) or [])
+            us = db.usuario_setores.c
+            for l in c.execute(select(db.usuario_setores, db.departamentos.c.nome.label("setor"))
+                               .select_from(db.usuario_setores.join(db.departamentos, db.DEP_ID == us.departamento_id))
+                               .where(us.usuario_id == u["id"]).order_by(db.departamentos.c.nome)).mappings():
+                l = dict(l)
+                l["situacao"], l["classe"] = coordenacao_regras.situacao(l)
+                l["evento"] = coordenacao_regras._evento(c, l["evento_id"]) if l["tipo"] == "evento" else None
+                l["rotulo_tipo"] = coordenacao_regras.TIPOS.get(l["tipo"], l["tipo"])
+                minhas_coord.append(l)
         if u["perfil"] == "admin":
             numeros["usuarios"] = c.execute(select(func.count()).select_from(db.usuarios)).scalar()
             try:
@@ -208,7 +218,8 @@ async def inicio(request: Request):
                                     .where(db.membros.c.id == u["membro_id"])).mappings().first()
     eventos_fmt = [{**e, "quando": datas.parse_data_hora_local(e["data_inicio"])} for e in proximos]
     return render(request, "inicio.html", {"proximos": eventos_fmt, "numeros": numeros, "minha_ficha": minha_ficha,
-                                           "meus_setores": meus_setores,
+                                           "meus_setores": meus_setores, "minhas_coord": minhas_coord,
+                                           "DIRETRIZES": coordenacao_regras.DIRETRIZES,
                                            "falta_cpf": not (u.get("cpf") or (minha_ficha or {}).get("cpf"))})
 
 

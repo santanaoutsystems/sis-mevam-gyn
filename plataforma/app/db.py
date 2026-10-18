@@ -156,6 +156,15 @@ membros = Table(
     Column("ficha_escaneada_por", String),
     # LGPD: o membro pode recusar a homenagem de aniversário (some dos avisos, do calendário e das mensagens)
     Column("homenagem_aniversario", Boolean, nullable=False, default=True),
+    # v2.9.0: inativação e exclusão (lixeira) sempre com justificativa
+    Column("inativado_em", DateTime(timezone=True)),
+    Column("inativado_por", String(120)),
+    Column("motivo_inativacao", Text),
+    Column("excluido_em", DateTime(timezone=True)),
+    Column("excluido_por", String(120)),
+    Column("motivo_exclusao", Text),
+    Column("status_anterior", String(40)),  # para restaurar da lixeira ou reativar
+    Column("login_suspenso", Boolean, nullable=False, default=False),  # o login foi desligado pela inativação/exclusão
     Column("criado_em", DateTime(timezone=True), server_default=func.now()),
     Column("atualizado_em", DateTime(timezone=True), server_default=func.now()),
 )
@@ -176,7 +185,37 @@ usuario_setores = Table(
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False),
     Column("departamento_id", String, nullable=False),
+    # v2.9.0: cada linha é uma designação de Coordenação com tipo e prazo (migração 012)
+    Column("tipo", String(20), nullable=False, default="permanente"),  # permanente | periodo | evento
+    Column("inicio", Date),
+    Column("fim", Date),  # vazio = até nova decisão
+    Column("evento_id", String(64)),  # tipo 'evento': só este evento
+    Column("observacao", Text),
+    Column("disponibilidade", Boolean, nullable=False, default=False),  # a pessoa se dispôs a servir no setor
+    Column("criado_por", String(120)),
+    Column("criado_em", DateTime(timezone=True), server_default=func.now()),
     UniqueConstraint("usuario_id", "departamento_id", name="uq_usuario_setor"),
+)
+
+# Coordenações encerradas (pelo prazo ou por decisão da Secretaria/Adm). Nada se perde.
+coordenacoes_historico = Table(
+    "coordenacoes_historico", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("usuario_id", Integer),
+    Column("usuario_nome", String(160)),
+    Column("departamento_id", String(64)),
+    Column("setor_nome", String(160)),
+    Column("tipo", String(20)),
+    Column("inicio", Date),
+    Column("fim", Date),
+    Column("evento_id", String(64)),
+    Column("evento_titulo", String(200)),
+    Column("observacao", Text),
+    Column("criado_por", String(120)),
+    Column("criado_em", DateTime(timezone=True)),
+    Column("encerrado_em", DateTime(timezone=True), server_default=func.now()),
+    Column("encerrado_por", String(120)),
+    Column("motivo_encerramento", Text),
 )
 
 auditoria = Table(
@@ -310,6 +349,11 @@ uso_diario = Table(
 )
 
 STATUS_MEMBRO = ("Aguardando Análise", "Validado pela Secretaria", "Ativo", "Inativo", "Anonimizado (LGPD)")
+# Ficha na lixeira (v2.9.0): some das listas, relatórios e avisos; a Secretaria/Adm pode restaurar
+EXCLUIDO = "Excluído"
+ANONIMIZADO = "Anonimizado (LGPD)"
+# Fichas que não entram em avisos, lembretes, voluntários e listas de ativos
+STATUS_FORA = ("Inativo", ANONIMIZADO, EXCLUIDO)
 
 _engine: Engine | None = None
 
@@ -392,7 +436,8 @@ def aplicar_migracoes_aditivas() -> None:
     Hoje: 003 (Coordenação), 004 (id de setor como texto) e 005 (colunas que faltam na Agenda legada)
     006 (CPF em membros e usuários)
     007 (regularização de fichas antigas), 008 (lembretes de cadastro e setores de interesse)
-    009 (filtros salvos da Central de Relatórios), 010 (aniversariantes) e 011 (uso dos serviços).
+    009 (filtros salvos da Central de Relatórios), 010 (aniversariantes), 011 (uso dos serviços)
+    e 012 (Coordenação por período/evento e inativação/exclusão de membros).
     Só cria/alarga; nunca remove dados. Se falhar, o app sobe mesmo assim e registra o erro.
     """
     import logging
@@ -403,7 +448,7 @@ def aplicar_migracoes_aditivas() -> None:
     pasta = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes")
     for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql", "007_regularizacao.sql",
                  "008_lembretes_interesses.sql", "009_relatorios_salvos.sql", "010_aniversariantes.sql",
-                 "011_uso_servicos.sql"):
+                 "011_uso_servicos.sql", "012_coordenacao_membros.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()

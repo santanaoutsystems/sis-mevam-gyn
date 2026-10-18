@@ -22,7 +22,7 @@ from sqlalchemy.exc import IntegrityError
 
 from . import config, datas, db, envios, ficha
 
-FORA = ("Inativo", "Anonimizado (LGPD)")
+FORA = db.STATUS_FORA
 SEM_SETOR = "Sem setor"
 GESTORES = ("secretaria", "admin")
 AMANHA, HOJE = "aniversario_amanha", "aniversario_hoje"
@@ -141,12 +141,13 @@ def visivel(m: dict, esc: set[str] | None) -> bool:
 
 
 def coordenadores(c) -> dict[str, set[int]]:
-    """Setor padronizado → ids dos usuários ativos da Coordenação daquele setor."""
+    """Setor padronizado → ids dos usuários ativos da Coordenação daquele setor (designações dentro do prazo)."""
+    from .coordenacao import filtro_ativo
     u, us = db.usuarios.c, db.usuario_setores.c
     q = (select(u.id, db.departamentos.c.nome)
          .select_from(db.usuario_setores.join(db.usuarios, u.id == us.usuario_id)
                       .join(db.departamentos, db.DEP_ID == us.departamento_id))
-         .where(u.ativo.is_(True), u.perfil == "coordenacao"))
+         .where(u.ativo.is_(True), u.perfil == "coordenacao", us.tipo != "evento", filtro_ativo()))
     mapa: dict[str, set[int]] = {}
     for uid, nome in c.execute(q):
         mapa.setdefault(chave_setor(nome), set()).add(uid)
