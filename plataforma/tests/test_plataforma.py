@@ -371,11 +371,31 @@ def test_menos_de_2_horas_e_conflito_e_so_secretaria_ou_adm_liberam():
 def test_menu_do_celular_mostra_todas_as_ferramentas_do_perfil():
     adm = logado("admin")
     html = adm.get("/inicio").text
-    for rotulo in ("Membros", "Coordenação", "Relatórios", "Usuários", "Setores", "Auditoria", "Minha ficha", "Mais"):
+    for rotulo in ("Membros", "Coordenação", "Relatórios", "Usuários", "Setores", "Auditoria", "Minha ficha", "Menu"):
         assert rotulo in html
     coord = logado("coordenacao")
     html = coord.get("/inicio").text
     assert "Novo evento" in html and "Relatórios" in html and "Membros" not in html
+
+
+def test_menu_lateral_agrupa_por_processo_e_respeita_o_perfil():
+    """Menu lateral: Início solto, grupos por processo, Sistema (tema e letras), Sair com confirmação."""
+    adm = logado("admin")
+    html = adm.get("/membros/lixeira").text
+    assert 'aria-label="Menu principal"' in html and "/static/js/menu.js" in html and "/static/css/menu.css" in html
+    for grupo in ("Agenda", "Pessoas", "Cuidado", "Relatórios", "Minha área", "Administração", "Sistema"):
+        assert f'<span class="txt">{grupo}</span>' in html, grupo
+    # Tela atual: o prefixo mais longo vence (Lixeira, não Membros) e o grupo já vem aberto
+    assert 'class="menu-subitem ativo" aria-current="page"><span class="ic" aria-hidden="true">🗑️' in html
+    assert 'class="menu-grupo aberto" data-grupo="pessoas" data-tem-ativo' in html
+    assert "data-confirmar-sair" in html and 'id="dialogo-sair"' in html and "botao-letras" in html
+    membro = logado("membro")
+    html = membro.get("/inicio").text
+    for oculto in ("Administração", "Pessoas", "Cuidado", "/admin/usuarios", "/membros\"", "Novo evento"):
+        assert oculto not in html, oculto
+    # Grupo com um item só vira item solto (Agenda do Membro)
+    assert 'data-grupo="agenda"' not in html and 'href="/agenda"' in html
+    assert 'localStorage.getItem("letras")' in html
 
 
 def test_inscricoes_vagas_valores_e_financeiro():
@@ -462,7 +482,7 @@ def test_botao_de_tema_em_todas_as_telas():
     """Login, telas públicas e telas internas trazem o botão dia/noite e aplicam a escolha antes de pintar."""
     for c, url in ((novo_cliente(), "/entrar"), (novo_cliente(), "/ficha"), (logado("membro"), "/inicio")):
         html = c.get(url).text
-        assert 'class="botao-tema"' in html, url
+        assert 'botao-tema"' in html, url
         assert 'localStorage.getItem("tema")' in html, url
         assert "/static/js/tema.js" in html, url
     css = novo_cliente().get("/static/css/app.css").text

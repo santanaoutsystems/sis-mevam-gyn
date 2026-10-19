@@ -11,7 +11,7 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.templating import Jinja2Templates
 
-from . import config, datas, db, ficha, seguranca
+from . import config, datas, db, ficha, menu, seguranca
 
 BASE = os.path.dirname(__file__)
 templates = Jinja2Templates(directory=os.path.join(BASE, "templates"))
@@ -93,6 +93,7 @@ def render(request: Request, nome: str, contexto: dict | None = None, status_cod
         "versao": config.VERSAO,
         "voltar_para": voltar_para(request.url.path),
         "aniv": _aniversarios(request, usuario),
+        "menu": menu.montar(usuario, request.url.path) if usuario else None,
     }
     ctx.update(contexto or {})
     return templates.TemplateResponse(request, nome, ctx, status_code=status_code)

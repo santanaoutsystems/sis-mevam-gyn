@@ -49,7 +49,7 @@
     <form method="get" class="filtros-cal">
       <div class="abas" role="tablist">
         {% for v, r in [('mes', 'Mês'), ('semana', 'Semana'), ('lista', 'Lista')] %}
-        <a role="tab" class="botao peq {{ '' if visao == v else 'secundario' }}" href="/aniversariantes?visao={{ v }}&dia={{ ref.isoformat() }}{{ '&setor=' ~ setor|urlencode if setor }}"{{ ' aria-selected="true"' if visao == v }}>{{ r }}</a>
+        <a role="tab" class="botao peq {{ '' if visao == v else 'secundario' }}" href="/aniversariantes?visao={{ v }}&dia={{ ref.isoformat() }}{{ '&setor=' ~ setor|urlencode if setor }}"{% if visao == v %} aria-selected="true"{% endif %}>{{ r }}</a>
         {% endfor %}
       </div>
       <input type="hidden" name="visao" value="{{ visao }}"><input type="hidden" name="dia" value="{{ ref.isoformat() }}">

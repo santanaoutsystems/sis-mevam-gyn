@@ -8,7 +8,7 @@
     <nav class="catalogo-lista" aria-label="Relatórios disponíveis">
       {% for grupo, itens in catalogo %}
       <h3>{{ grupo }}</h3>
-      {% for r in itens %}<a href="/relatorios/{{ r.chave }}" class="{{ 'ativo' if r.chave == rel.chave }}"{{ ' aria-current="page"' if r.chave == rel.chave }}><span aria-hidden="true">{{ r.icone }}</span>{{ r.titulo }}</a>{% endfor %}
+      {% for r in itens %}<a href="/relatorios/{{ r.chave }}" class="{{ 'ativo' if r.chave == rel.chave }}"{% if r.chave == rel.chave %} aria-current="page"{% endif %}><span aria-hidden="true">{{ r.icone }}</span>{{ r.titulo }}</a>{% endfor %}
       {% endfor %}
       {% if salvos %}
       <h3>⭐ Meus filtros</h3>

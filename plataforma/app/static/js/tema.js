@@ -10,7 +10,9 @@
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", t === "escuro" ? "#0b1220" : "#1e3a8a");
     document.querySelectorAll(".botao-tema").forEach(function (b) {
-      b.textContent = t === "escuro" ? "☀️" : "🌙";
+      var ic = b.querySelector(".ic"), txt = b.querySelector(".txt");
+      if (ic) { ic.textContent = t === "escuro" ? "☀️" : "🌙"; if (txt) txt.textContent = t === "escuro" ? "Tema dia" : "Tema noite"; }
+      else b.textContent = t === "escuro" ? "☀️" : "🌙";
       b.setAttribute("aria-label", t === "escuro" ? "Usar tema claro (dia)" : "Usar tema escuro (noite)");
       b.title = b.getAttribute("aria-label");
     });
@@ -67,17 +69,6 @@
     });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", preparar); else preparar();
-})();
-
-/* Menu "Mais" do celular: fecha ao tocar fora ou com Esc. */
-(function () {
-  function fechar(exceto) {
-    document.querySelectorAll(".nav details.mais[open]").forEach(function (d) { if (d !== exceto) d.removeAttribute("open"); });
-  }
-  document.addEventListener("click", function (ev) {
-    fechar(ev.target.closest ? ev.target.closest(".nav details.mais") : null);
-  });
-  document.addEventListener("keydown", function (ev) { if (ev.key === "Escape") fechar(null); });
 })();
 
 /* Bloqueio por inatividade: sem uso pelo tempo do perfil, volta para a tela de entrada.
