@@ -37,9 +37,44 @@
 </div>
 
 {% if not propria and m.status not in ('Anonimizado (LGPD)', 'Excluído') %}
+<div class="cartao" id="integra">
+  <h2>🎓 INTEGRA</h2>
+  {% set sit = m.integra_situacao %}
+  <p>Situação: <span class="selo {{ 'ativo' if sit in ('concluido','dispensado') else ('nc-integra' if sit in ('nao_concluido','bloqueado') else 'aguardando') }}">{{ integra_rotulo(sit) }}</span>
+    {% if m.integra_data %} · concluído em {{ m.integra_data|data_br }}{% endif %}{% if turma_integra %} · {{ turma_integra.nome }}{% endif %}
+    {% if m.integra_registrado_por %}<br><span class="pequeno suave">Registrado por {{ m.integra_registrado_por }}{% if m.integra_registrado_em %} em {{ m.integra_registrado_em|data_hora_br }}{% endif %}</span>{% endif %}
+    {% if m.integra_justificativa %}<br><span class="pequeno">Justificativa: {{ m.integra_justificativa }}</span>{% endif %}
+    {% if not sit and m.integra_prazo %}<br><span class="pequeno">Pedido de atualização enviado · prazo {{ m.integra_prazo|data_br }}</span>{% endif %}</p>
+  {% if sit != 'bloqueado' %}
+  <details{{ ' open' if sit in ('aguardando', 'nao_concluido') or not sit }}><summary class="botao secundario peq" style="display:inline-flex">✅ Registrar conclusão</summary>
+    <form method="post" action="/membros/{{ m.id }}/integra" class="grade c3" style="align-items:end;margin-top:.6rem">{{ ui.csrf_input() }}
+      <input type="hidden" name="acao" value="registrar">
+      <div><label for="i_turma">Turma</label><select id="i_turma" name="turma_id"><option value="">Sem turma (informar data)</option>
+        {% for tt in turmas_integra %}<option value="{{ tt.id }}" {{ 'selected' if tt.id == m.integra_turma_id }}>{{ tt.nome }} · {{ tt.data_conclusao|data_br }}</option>{% endfor %}</select></div>
+      <div><label for="i_data">Data de conclusão</label><input id="i_data" name="data" data-mascara="data" placeholder="dd/mm/aaaa" value="{{ m.integra_data|data_br if m.integra_data else '' }}"></div>
+      <div><button class="botao sucesso">Registrar</button></div>
+    </form></details>
+  {% if sit not in ('concluido', 'dispensado') %}
+  <details><summary class="botao secundario peq" style="display:inline-flex">🕊️ Dispensar do INTEGRA</summary>
+    <form method="post" action="/membros/{{ m.id }}/integra" style="margin-top:.6rem">{{ ui.csrf_input() }}<input type="hidden" name="acao" value="dispensar">
+      <label for="i_disp">Justificativa <span class="obrig">*</span></label><textarea id="i_disp" name="motivo" rows="2" minlength="10" required placeholder="Ex.: pastor da igreja; membro desde 2010"></textarea>
+      <button class="botao secundario">Registrar dispensa</button></form></details>
+  {% endif %}
+  {% endif %}
+  {% if usuario.perfil == 'admin' %}
+  <details><summary class="botao perigo peq" style="display:inline-flex">{{ '🔓 Retirar bloqueio' if sit == 'bloqueado' else '⛔ Bloqueio administrativo' }}</summary>
+    <form method="post" action="/membros/{{ m.id }}/integra" style="margin-top:.6rem">{{ ui.csrf_input() }}<input type="hidden" name="acao" value="{{ 'desbloquear' if sit == 'bloqueado' else 'bloquear' }}">
+      <label for="i_bloq">Justificativa <span class="obrig">*</span></label><textarea id="i_bloq" name="motivo" rows="2" minlength="10" required></textarea>
+      <p class="pequeno suave">{{ 'A ficha volta ao fluxo e o acesso é religado.' if sit == 'bloqueado' else 'A ficha passa a N/C INTEGRA e o acesso de Membro/Coordenação é suspenso.' }}</p>
+      <button class="botao {{ 'secundario' if sit == 'bloqueado' else 'perigo' }}">Confirmar</button></form></details>
+  {% endif %}
+</div>
+
 <div class="cartao">
   <h2>Fluxo da Secretaria</h2>
-  {% if m.status == 'Aguardando Análise' %}
+  {% if m.status == 'N/C INTEGRA' %}
+    <p>⏳ Esta ficha está como <b>N/C INTEGRA</b>: ela entra na análise quando a conclusão do INTEGRA (ou a dispensa) for registrada no quadro acima.</p>
+  {% elif m.status == 'Aguardando Análise' %}
     <p>Confira os dados e valide a ficha para liberar o envio da Confissão de Fé.</p>
     <form method="post" action="/membros/{{ m.id }}/validar">{{ ui.csrf_input() }}<button class="botao sucesso">✅ Validar ficha</button></form>
   {% elif not m.credo_aceito %}

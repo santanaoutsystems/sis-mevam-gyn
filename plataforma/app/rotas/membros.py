@@ -7,6 +7,7 @@ import hashlib
 import io
 import json
 import os
+import threading
 from html import escape
 from urllib.parse import quote
 
@@ -15,7 +16,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route
 
-from .. import config, datas, db, envios, ficha, lembretes, profissional, seguranca
+from .. import config, datas, db, envios, ficha, integra, lembretes, profissional, seguranca
 from ..pdf import gerar_pdf_membro
 from ..web import auditar, flash, ir, render
 
@@ -183,7 +184,11 @@ def _valores_de(m: dict) -> dict:
 # ---------------------------------------------------------------------------
 async def ficha_publica(request: Request):
     if request.method == "GET":
-        return render(request, "membros/ficha.html", _contexto_form({"modo": "publico"}))
+        valores = {}
+        codigo = integra.normalizar_codigo(request.query_params.get("integra"))
+        if codigo:  # veio do QR Code do encerramento do INTEGRA
+            valores = {"integra": "Sim", "integra_codigo": codigo}
+        return render(request, "membros/ficha.html", _contexto_form({"modo": "publico", "valores": valores}))
 
     form = await request.form()
     if not await seguranca.conferir_csrf(request):
@@ -192,10 +197,15 @@ async def ficha_publica(request: Request):
 
     dados, erros = ficha.validar(form, exigir_foto=False)
     interesses = ficha.interesses_do_form(form)
-    if not erros.get("cpf"):
-        with db.engine().connect() as c:
-            if _cpf_em_uso(c, dados["cpf"]):
-                erros["cpf"] = ERRO_CPF_REPETIDO
+    with db.engine().connect() as c:
+        if not erros.get("cpf") and _cpf_em_uso(c, dados["cpf"]):
+            erros["cpf"] = ERRO_CPF_REPETIDO
+        resp_integra, erros_integra = integra.resposta_do_form(c, form)
+    erros.update(erros_integra)
+    if dados.get("data_nascimento") and not erros.get("data_nascimento") \
+            and (integra.idade(dados["data_nascimento"]) or 0) < integra.IDADE_MINIMA:
+        erros["data_nascimento"] = ("O cadastro de membro é a partir de 18 anos. "
+                                    "Menores de idade devem procurar a Secretaria com o responsável.")
     if erros:
         valores = dict(form)
         return render(request, "membros/ficha.html", _contexto_form(
@@ -212,7 +222,10 @@ async def ficha_publica(request: Request):
             lgpd_data_consentimento=agora,
             lgpd_ip_origem=seguranca.ip_cliente(request),
             status_lgpd="Consentimento Ativo",
-            status="Aguardando Análise",
+            status="Aguardando Análise" if resp_integra["integra_situacao"] == "concluido" else db.NC_INTEGRA,
+            **resp_integra,
+            integra_registrado_por="Código da turma" if resp_integra["integra_situacao"] == "concluido" else "Ficha",
+            integra_registrado_em=agora,
             credo_aceito=False,
             origem="novo",
             criado_em=agora, atualizado_em=agora,
@@ -232,6 +245,7 @@ async def ficha_publica(request: Request):
 
     request.session["protocolo"] = novo_id
     request.session["protocolo_sem_foto"] = sem_foto
+    request.session["protocolo_integra"] = resp_integra["integra_situacao"]
     return ir("/ficha/recebida")
 
 
@@ -240,7 +254,8 @@ async def ficha_recebida(request: Request):
     if not protocolo:
         return ir("/ficha")
     return render(request, "membros/recebida.html", {"protocolo": protocolo,
-                                                     "sem_foto": request.session.get("protocolo_sem_foto")})
+                                                     "sem_foto": request.session.get("protocolo_sem_foto"),
+                                                     "integra": request.session.get("protocolo_integra")})
 
 
 # ---------------------------------------------------------------------------
@@ -337,9 +352,14 @@ async def detalhe(request: Request):
         login = c.execute(select(db.usuarios.c.id, db.usuarios.c.email, db.usuarios.c.perfil,
                                  db.usuarios.c.trocar_senha, db.usuarios.c.bloqueado_ate)
                           .where(db.usuarios.c.membro_id == mid)).mappings().first()
+        turmas_integra = [dict(r) for r in c.execute(select(db.integra_turmas.c.id, db.integra_turmas.c.nome,
+                                                            db.integra_turmas.c.data_conclusao)
+                          .order_by(db.integra_turmas.c.data_conclusao.desc()).limit(30)).mappings()]
+        turma_integra = next((x for x in turmas_integra if x["id"] == m.get("integra_turma_id")), None)
     auditar(request, "VISUALIZACAO_FICHA", f"Membro #{mid}")
     return render(request, "membros/detalhe.html", {
         "m": m, "setores": setores, "deptos": deptos, "login": login,
+        "turmas_integra": turmas_integra, "turma_integra": turma_integra,
         "link_credo": _link_credo(mid), "STATUS": db.STATUS_MEMBRO,
         "senha_provisoria": request.session.pop("senha_provisoria", None)})
 
@@ -392,6 +412,9 @@ async def validar(request: Request):
         m = _carregar(c, mid)
         if not m:
             return ir("/membros")
+        if not integra.liberado(m):
+            flash(request, "Antes de validar, registre a conclusão do INTEGRA (ou a dispensa) no quadro INTEGRA desta ficha.", "erro")
+            return ir(f"/membros/{mid}")
         novo_status = "Ativo" if m["credo_aceito"] else "Validado pela Secretaria"
         c.execute(update(db.membros).where(db.membros.c.id == mid).values(
             status=novo_status, validado_por=u["nome"], data_validacao=datas.agora_utc()))
@@ -716,7 +739,7 @@ async def credo(request: Request):
                       "mensagem": "Este link não é válido. Peça um novo link à Secretaria."}, 403)
     with db.engine().connect() as c:
         m = _carregar(c, mid)
-    if not m or m["status"] in ("Aguardando Análise",) + db.STATUS_FORA:
+    if not m or m["status"] in ("Aguardando Análise", db.NC_INTEGRA) + db.STATUS_FORA:
         return render(request, "erro.html", {"titulo": "Ainda não disponível",
                       "mensagem": "Sua ficha ainda está em análise pela Secretaria."}, 403)
 
@@ -744,7 +767,12 @@ async def credo(request: Request):
             hash_autenticidade=_hash_rubrica(m, assinatura, quando, ip), status="Ativo",
             atualizado_em=quando))
         auditar(request, "ACEITE_CREDO", f"Membro #{mid}", f"Assinado por {nome}", conexao=c)
-    flash(request, "Assinatura registrada. Bem-vindo(a) à família MEVAM GYN!")
+    link_pdf = f"{config.URL_BASE}/credo/{mid}/pdf?t={seguranca.token_link('credo', mid)}"
+    if config.ENVIO_SINCRONO:
+        integra.enviar_copia_credo(m, link_pdf)
+    else:
+        threading.Thread(target=integra.enviar_copia_credo, args=(m, link_pdf), daemon=True).start()
+    flash(request, "Assinatura registrada. Bem-vindo(a) à família MEVAM GYN! Enviamos a cópia assinada para o seu e-mail.")
     return ir(f"/credo/{mid}?t={token}")
 
 
@@ -818,6 +846,7 @@ async def nova_senha(request: Request):
 from ..web import templates  # noqa: E402
 
 templates.env.globals["whatsapp_credo"] = whatsapp_credo
+templates.env.globals["integra_rotulo"] = integra.rotulo
 
 rotas = [
     Route("/ficha", ficha_publica, methods=["GET", "POST"]),

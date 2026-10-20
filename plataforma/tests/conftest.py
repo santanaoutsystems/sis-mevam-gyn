@@ -21,6 +21,7 @@ from app.main import app  # noqa: E402
 from app.rotas.admin import criar_usuario  # noqa: E402
 
 SENHA = "Senha1234"
+CODIGO_INTEGRA = "TESTE1"
 
 
 @pytest.fixture(autouse=True)
@@ -32,6 +33,13 @@ def banco_limpo():
         else:
             for t in reversed(db.metadata.sorted_tables):
                 c.execute(delete(t))
+    # Turma do INTEGRA com código válido: as fichas de teste (FICHA_OK) chegam com o INTEGRA confirmado
+    from datetime import timedelta
+    from app import datas
+    with db.engine().begin() as c:
+        c.execute(db.integra_turmas.insert().values(
+            nome="Turma de teste", data_conclusao=datas.hoje() - timedelta(days=1), codigo=CODIGO_INTEGRA,
+            codigo_valido_ate=datas.agora_utc() + timedelta(days=1)))
     seguranca.limpar_falhas_ip()
     aniversarios._garantido["dia"] = None
     uso._pendente.clear()

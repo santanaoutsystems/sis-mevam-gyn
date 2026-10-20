@@ -21,7 +21,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.staticfiles import StaticFiles
 
 from . import config, datas, db, lembretes, seguranca, uso
-from .rotas import (acesso, admin, agenda, aniversarios, coordenacao, instituto, membros, necessidades, pesquisa,
+from .rotas import (acesso, admin, agenda, aniversarios, coordenacao, instituto, integra, membros, necessidades, pesquisa,
                     regularizacao, relatorios, voluntarios)
 from .web import BASE, render
 
@@ -93,7 +93,7 @@ rotas = [
     Route("/privacidade", privacidade),
     Route("/sw.js", service_worker),
     Mount("/static", app=StaticFiles(directory=os.path.join(BASE, "static")), name="static"),
-    *acesso.rotas, *membros.rotas, *regularizacao.rotas, *voluntarios.rotas, *pesquisa.rotas, *relatorios.rotas, *aniversarios.rotas, *agenda.rotas, *coordenacao.rotas, *admin.rotas, *necessidades.rotas, *instituto.rotas,
+    *acesso.rotas, *membros.rotas, *regularizacao.rotas, *voluntarios.rotas, *pesquisa.rotas, *relatorios.rotas, *aniversarios.rotas, *agenda.rotas, *coordenacao.rotas, *admin.rotas, *necessidades.rotas, *instituto.rotas, *integra.rotas,
 ]
 
 middleware = [

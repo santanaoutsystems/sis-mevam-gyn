@@ -18,6 +18,7 @@ FICHA_OK = {
     "area_ministerial": "Louvor", "interesse_batismo_familia": "Não",
     "filhos_json": '[{"nome":"ana souza","data_nascimento":"01/02/2015"}]',
     "foto_3x4": FOTO, "lgpd_consentimento": "sim",
+    "integra": "Sim", "integra_data": "", "integra_codigo": "TESTE1",
 }
 
 

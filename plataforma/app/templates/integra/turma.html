@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}{{ t.nome }}{% endblock %}
+{% block cabeca %}<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>{% endblock %}
+{% block conteudo %}
+<h1>🎓 {{ t.nome }}</h1>
+<p class="suave">Encerramento em {{ t.data_conclusao|data_br }}{% if t.local %} · {{ t.local }}{% endif %} · criada por {{ t.criado_por or '-' }}</p>
+
+<div class="cartao" style="display:flex;gap:1.25rem;flex-wrap:wrap;align-items:center">
+  <div id="qrcode" style="background:#fff;padding:10px;border-radius:12px"></div>
+  <div style="flex:1;min-width:220px">
+    <p class="pequeno suave" style="margin:0">Código da turma</p>
+    <p style="font:800 2.4rem/1.1 monospace;letter-spacing:.2em;margin:.2rem 0">{{ t.codigo }}</p>
+    <p>{% if t.vigente %}<span class="selo ativo">Válido até {{ t.codigo_valido_ate|data_hora_br }}</span>{% else %}<span class="selo inativo">Vencido em {{ t.codigo_valido_ate|data_hora_br }}</span>{% endif %}</p>
+    <div class="acoes">
+      <a class="botao" href="/integra/turmas/{{ t.id }}/projetar" target="_blank">📽️ Mostrar no telão</a>
+      <form method="post" action="/integra/turmas/{{ t.id }}/prorrogar" style="display:inline-flex;gap:.4rem;align-items:center">{{ ui.csrf_input() }}
+        <select name="dias" aria-label="Prorrogar" style="width:auto">{% for d in [1,2,3,7] %}<option value="{{ d }}">{{ 'até hoje' if d == 1 else 'mais ' ~ (d-1) ~ ' dia(s)' }}</option>{% endfor %}</select>
+        <button class="botao secundario peq">⏱️ Prorrogar</button></form>
+    </div>
+  </div>
+</div>
+<script>document.addEventListener("DOMContentLoaded",function(){ if(window.QRCode) new QRCode(document.getElementById("qrcode"),{text:"{{ link }}",width:180,height:180,colorDark:"#0f172a"}); });</script>
+
+<div class="cartao">
+  <h2>Concluintes ({{ concluintes|length }})</h2>
+  {% if concluintes %}
+  <table class="tabela"><thead><tr><th>Nome</th><th>Ficha</th><th>Registro</th></tr></thead><tbody>
+  {% for m in concluintes %}
+    <tr><td data-rotulo="Nome"><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a></td><td data-rotulo="Ficha">{{ ui.selo(m.status) }}</td>
+      <td data-rotulo="Registro" class="pequeno">{{ m.integra_registrado_por or '-' }}{% if m.integra_registrado_em %} · {{ m.integra_registrado_em|data_hora_br }}{% endif %}</td></tr>
+  {% endfor %}</tbody></table>
+  {% else %}<p class="suave">Ainda ninguém. Os participantes aparecem aqui ao ler o QR Code e informar o CPF.</p>{% endif %}
+
+  <h3>Incluir à mão</h3>
+  <form method="get" class="opcoes" style="align-items:end"><div style="flex:1"><label for="q">Nome ou CPF</label><input id="q" name="q" value="{{ busca }}" placeholder="Pelo menos 3 letras"></div><button class="botao secundario">🔎 Buscar</button></form>
+  {% for a in achados %}
+  <form method="post" action="/integra/turmas/{{ t.id }}/incluir" class="opcoes" style="align-items:center;margin:.3rem 0">{{ ui.csrf_input() }}
+    <input type="hidden" name="membro_id" value="{{ a.id }}"><span style="flex:1">{{ a.nome_completo }} {{ ui.selo(a.status) }} <span class="pequeno suave">{{ SITUACOES.get(a.integra_situacao) }}</span></span>
+    <button class="botao secundario peq">➕ Incluir</button></form>
+  {% else %}{% if busca %}<p class="pequeno suave">Nenhuma ficha encontrada.</p>{% endif %}{% endfor %}
+</div>
+<p><a href="/integra">← Voltar ao INTEGRA</a></p>
+{% endblock %}

@@ -205,6 +205,13 @@ def agendar() -> None:
         except Exception:  # noqa: BLE001
             log.exception("Falha na rodada de lembretes de cadastro")
         try:
+            from . import integra
+            r = integra.rodar_prazos()
+            if any(r.values()):
+                log.info("INTEGRA: %s", r)
+        except Exception:  # noqa: BLE001
+            log.exception("Falha na rotina de prazos do INTEGRA")
+        try:
             from . import coordenacao
             coordenacao.encerrar_vencidas()
         except Exception:  # noqa: BLE001

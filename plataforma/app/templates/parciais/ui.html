@@ -31,7 +31,7 @@
 {%- endmacro %}
 
 {% macro selo(status) -%}
-{%- set classe = {'Aguardando Análise':'aguardando','Validado pela Secretaria':'validado','Ativo':'ativo','Inativo':'inativo','Anonimizado (LGPD)':'anonimizado'}.get(status, 'inativo') -%}
+{%- set classe = {'N/C INTEGRA':'nc-integra','Aguardando Análise':'aguardando','Validado pela Secretaria':'validado','Ativo':'ativo','Inativo':'inativo','Anonimizado (LGPD)':'anonimizado'}.get(status, 'inativo') -%}
 <span class="selo {{ classe }}">{{ status }}</span>
 {%- endmacro %}
 

@@ -5,6 +5,13 @@
 <h1>Paz, {{ usuario.nome.split(' ')[0] }}!</h1>
 <p class="suave" style="margin-top:0">Você está como <span class="selo {{ usuario.perfil }}">{{ PERFIS_ROTULO[usuario.perfil] }}</span></p>
 
+{% if pedido_integra %}
+<div class="cartao aviso-cpf nao-imprimir">
+  <h2 style="margin-top:0">🎓 Você fez o INTEGRA?</h2>
+  <p>O INTEGRA passou a ser a porta de entrada da membresia e dos ministérios. Responda até <b>{{ pedido_integra.prazo|data_br }}</b> para não ter o acesso suspenso.</p>
+  <a class="botao dourado" href="{{ pedido_integra.link }}">Responder agora</a>
+</div>
+{% endif %}
 {% if falta_cpf %}
 <div class="cartao aviso-cpf nao-imprimir">
   <h2 style="margin-top:0">📇 Informe seu CPF</h2>

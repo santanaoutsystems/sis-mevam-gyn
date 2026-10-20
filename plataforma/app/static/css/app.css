@@ -210,6 +210,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--t
 .selo.coordenacao { background: var(--superficie-2); color: var(--t-principal); border: 1px solid var(--borda-forte); }
 .selo.validado, .selo.secretaria { background: var(--info-fundo); color: var(--info-texto); }
 .selo.ativo, .selo.membro { background: var(--ok-fundo); color: var(--ok-texto); }
+.selo.nc-integra { background: var(--erro-fundo); color: var(--erro-texto); }
 .selo.inativo, .selo.anonimizado { background: var(--neutro-fundo); color: var(--neutro-texto); }
 
 /* Listas e tabelas (viram cartões no celular) */

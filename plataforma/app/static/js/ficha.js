@@ -50,6 +50,9 @@
     const cong = $("[name=congregava_antes]:checked")?.value === "Sim";
     const gCong = $("#grupoCongregava");
     if (gCong) { gCong.style.display = cong ? "" : "none"; $("[name=onde_congregava]").required = cong; }
+    const integ = $("[name=integra]:checked")?.value === "Sim";
+    const gInt = $("#grupoIntegra");
+    if (gInt) { gInt.style.display = integ ? "" : "none"; $("#dicaIntegra").style.display = integ ? "" : "none"; }
   }
   form.addEventListener("change", regras);
   regras();

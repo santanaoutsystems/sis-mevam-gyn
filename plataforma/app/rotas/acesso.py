@@ -63,6 +63,14 @@ async def entrar(request: Request):
         # trocado por travessão. Só para quem ainda está com a senha provisória, tolera isso.
         if u and u["trocar_senha"] and not seguranca.verificar_senha(senha, u["senha_hash"], u["salt"], u["iteracoes"]):
             senha = senha.strip().replace("\u2013", "-").replace("\u2014", "-").replace("\u2011", "-")
+        if u and not u["ativo"] and u["membro_id"] and seguranca.verificar_senha(senha, u["senha_hash"], u["salt"], u["iteracoes"]):
+            st = c.execute(select(db.membros.c.status).where(db.membros.c.id == u["membro_id"])).scalar()
+            if st == db.NC_INTEGRA:
+                auditar(request, "LOGIN_SUSPENSO_INTEGRA", f"Usuário #{u['id']}", usuario=dict(u), conexao=c)
+                return render(request, "entrar.html", {
+                    "erro": "Seu acesso está suspenso porque o INTEGRA não foi informado ou concluído. "
+                            "Procure a Secretaria do MEVAM GYN para atualizar seus dados e liberar o acesso.",
+                    "email": email, "proximo": proximo}, status_code=403)
         if not u or not u["ativo"] or not seguranca.verificar_senha(senha, u["senha_hash"], u["salt"], u["iteracoes"]):
             seguranca.registrar_falha_ip(ip)
             if u:
@@ -216,13 +224,23 @@ async def inicio(request: Request):
         pesquisa_pendente = not ja_respondeu(c, u["id"])
         minha_ficha = None
         if u["membro_id"]:
-            minha_ficha = c.execute(select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.status, db.membros.c.cpf)
+            minha_ficha = c.execute(select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.status, db.membros.c.cpf,
+                                           db.membros.c.integra_situacao, db.membros.c.integra_prazo)
                                     .where(db.membros.c.id == u["membro_id"])).mappings().first()
     eventos_fmt = [{**e, "quando": datas.parse_data_hora_local(e["data_inicio"])} for e in proximos]
     return render(request, "inicio.html", {"proximos": eventos_fmt, "numeros": numeros, "minha_ficha": minha_ficha,
                                            "meus_setores": meus_setores, "minhas_coord": minhas_coord, "pesquisa_pendente": pesquisa_pendente,
                                            "DIRETRIZES": coordenacao_regras.DIRETRIZES,
-                                           "falta_cpf": not (u.get("cpf") or (minha_ficha or {}).get("cpf"))})
+                                           "falta_cpf": not (u.get("cpf") or (minha_ficha or {}).get("cpf")),
+                                           "pedido_integra": _pedido_integra(minha_ficha)})
+
+
+def _pedido_integra(m) -> dict | None:
+    """Aviso da campanha do INTEGRA para quem já tinha cadastro e ainda não respondeu."""
+    if not m or m["integra_situacao"] or not m["integra_prazo"]:
+        return None
+    from .. import integra
+    return {"prazo": m["integra_prazo"], "link": integra.link_atualizar(m["id"]).replace(config.URL_BASE, "")}
 
 
 @seguranca.exigir()

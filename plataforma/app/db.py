@@ -170,6 +170,16 @@ membros = Table(
     Column("homenagem_profissional", Boolean, nullable=False, default=True),
     Column("deseja_dizimista", String(20)),  # Sim | Não | Já sou dizimista
     Column("dia_dizimo", Integer),  # dia do mês preferido para a entrega
+    # v2.12.0: INTEGRA como porta de entrada (ver app/integra.py)
+    Column("integra_situacao", String(30)),  # concluido | nao_concluido | aguardando | dispensado | bloqueado
+    Column("integra_data", Date),
+    Column("integra_turma_id", Integer),
+    Column("integra_registrado_por", String(120)),
+    Column("integra_registrado_em", DateTime(timezone=True)),
+    Column("integra_justificativa", Text),
+    Column("integra_pedido_em", DateTime(timezone=True)),  # campanha para quem já tinha cadastro
+    Column("integra_prazo", Date),
+    Column("integra_lembrete_em", DateTime(timezone=True)),
     Column("criado_em", DateTime(timezone=True), server_default=func.now()),
     Column("atualizado_em", DateTime(timezone=True), server_default=func.now()),
 )
@@ -402,7 +412,21 @@ instituto_matriculas = Table(
     UniqueConstraint("turma_id", "membro_id", name="instituto_matricula_unica"),
 )
 
-STATUS_MEMBRO = ("Aguardando Análise", "Validado pela Secretaria", "Ativo", "Inativo", "Anonimizado (LGPD)")
+integra_turmas = Table(
+    "integra_turmas", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("nome", String(120), nullable=False),
+    Column("data_conclusao", Date, nullable=False),
+    Column("local", String(120)),
+    Column("codigo", String(10), nullable=False, unique=True),
+    Column("codigo_valido_ate", DateTime(timezone=True), nullable=False),
+    Column("criado_por", String(120)),
+    Column("criado_em", DateTime(timezone=True), server_default=func.now()),
+)
+
+# v2.12.0: quem não concluiu o INTEGRA fica fora da análise, sem login e sem agenda
+NC_INTEGRA = "N/C INTEGRA"
+STATUS_MEMBRO = (NC_INTEGRA, "Aguardando Análise", "Validado pela Secretaria", "Ativo", "Inativo", "Anonimizado (LGPD)")
 # Ficha na lixeira (v2.9.0): some das listas, relatórios e avisos; a Secretaria/Adm pode restaurar
 EXCLUIDO = "Excluído"
 ANONIMIZADO = "Anonimizado (LGPD)"
@@ -492,7 +516,7 @@ def aplicar_migracoes_aditivas() -> None:
     007 (regularização de fichas antigas), 008 (lembretes de cadastro e setores de interesse)
     009 (filtros salvos da Central de Relatórios), 010 (aniversariantes), 011 (uso dos serviços)
     012 (Coordenação por período/evento e inativação/exclusão de membros) e 013 (Dia do Profissional,
-    intenção de dízimo, pesquisa mensal de necessidades e Instituto).
+    intenção de dízimo, pesquisa mensal de necessidades e Instituto) e 014 (INTEGRA).
     Só cria/alarga; nunca remove dados. Se falhar, o app sobe mesmo assim e registra o erro.
     """
     import logging
@@ -503,7 +527,7 @@ def aplicar_migracoes_aditivas() -> None:
     pasta = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes")
     for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql", "007_regularizacao.sql",
                  "008_lembretes_interesses.sql", "009_relatorios_salvos.sql", "010_aniversariantes.sql",
-                 "011_uso_servicos.sql", "012_coordenacao_membros.sql", "013_fase_a.sql"):
+                 "011_uso_servicos.sql", "012_coordenacao_membros.sql", "013_fase_a.sql", "014_integra.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()
