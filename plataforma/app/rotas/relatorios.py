@@ -212,7 +212,7 @@ def r_agenda(ctx: Ctx):
                        "titulo": e["titulo"], "setor": e["setor"], "local": e.get("local"),
                        "valor": e.get("valor_inscricao") or 0,
                        "vagas": "Livre" if not lim else f"{max(lim - ocupadas.get(str(e['id']), 0), 0)} de {lim}"})
-    ctx.resumo = [(len(linhas), "eventos"), (len({l["setor"] for l in linhas}), "setores")]
+    ctx.resumo = [(len(linhas), "eventos"), (len({l["setor"] for l in linhas}), "ministérios")]
     cols = [Coluna("quando", "Data e hora", "data"), Coluna("dia", "Dia", "lista"),
             Coluna("titulo", "Evento", "texto", link=_link_evento, destaque=True), Coluna("setor", "Ministério", "lista"),
             Coluna("local", "Local", "lista"), Coluna("valor", "Valor", "moeda"), Coluna("vagas", "Vagas", "texto", ordenavel=False)]
@@ -442,7 +442,7 @@ def r_membros_setor(ctx: Ctx):
     if ctx.setor:
         linhas = [l for l in linhas if l["setor"] == ctx.setor]
     linhas.sort(key=lambda l: (tabelas._norm(l["setor"]), l["funcao"] != "Líder", tabelas._norm(l["nome_completo"])))
-    ctx.resumo = [(len({l['id'] for l in linhas}), "pessoas servindo"), (len({l['setor'] for l in linhas}), "setores"),
+    ctx.resumo = [(len({l['id'] for l in linhas}), "pessoas servindo"), (len({l['setor'] for l in linhas}), "ministérios"),
                   (sum(1 for l in linhas if l["funcao"] == "Líder"), "líderes")]
     return [Coluna("setor", "Ministério", "lista"), Coluna("funcao", "Função", "lista"),
             Coluna("nome_completo", "Nome", "texto", link=lambda l: f"/membros/{l['id']}", destaque=True),
@@ -596,7 +596,7 @@ def r_coordenadores(ctx: Ctx):
     linhas = [{"setor": d["nome"], "responsavel": d.get("responsavel"), "coordenadores": sorted(nomes.get(str(d["id"]), [])),
                "qtd": len(nomes.get(str(d["id"]), []))}
               for d in ctx.c.execute(select(db.departamentos).order_by(db.departamentos.c.nome)).mappings()]
-    ctx.resumo = [(len(linhas), "setores"), (sum(1 for l in linhas if not l["qtd"]), "sem coordenador")]
+    ctx.resumo = [(len(linhas), "ministérios"), (sum(1 for l in linhas if not l["qtd"]), "sem coordenador")]
     return [Coluna("setor", "Ministério", "lista"), Coluna("responsavel", "Responsável", "texto"),
             Coluna("coordenadores", "Coordenadores no sistema", "lista"), Coluna("qtd", "Quantidade", "numero")], linhas
 

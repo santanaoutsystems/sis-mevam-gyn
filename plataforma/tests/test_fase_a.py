@@ -103,3 +103,13 @@ def test_termo_ministerio_no_lugar_de_setor():
         visivel = html.split("<main", 1)[-1]
         assert "Setor" not in visivel.replace("Bairro / Setor", ""), url
     assert "Ministérios em que deseja servir" in novo_cliente().get("/ficha").text
+
+
+def test_resumo_dos_relatorios_usa_ministerios():
+    """Os números do topo dos relatórios também dizem 'ministérios' (correção da v2.11.1)."""
+    import re
+    from app.rotas import relatorios as rel
+    adm = logado("admin")
+    for slug in [r.chave for r in rel.CATALOGO]:
+        html = adm.get(f"/relatorios/{slug}").text
+        assert not re.search(r"<span>[^<]*\bsetor(es)?\b", html), slug
