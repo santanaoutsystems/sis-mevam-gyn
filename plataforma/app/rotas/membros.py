@@ -15,7 +15,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route
 
-from .. import config, datas, db, envios, ficha, lembretes, seguranca
+from .. import config, datas, db, envios, ficha, lembretes, profissional, seguranca
 from ..pdf import gerar_pdf_membro
 from ..web import auditar, flash, ir, render
 
@@ -163,6 +163,7 @@ ERRO_CPF_REPETIDO = "Este CPF já está em outro cadastro. Se for o seu, fale co
 def _contexto_form(extra: dict | None = None) -> dict:
     ctx = {"ESTADOS_CIVIS": ficha.ESTADOS_CIVIS, "ESCOLARIDADES": ficha.ESCOLARIDADES,
            "SEXOS": ficha.SEXOS, "SIM_NAO": ficha.SIM_NAO, "SETORES_INTERESSE": ficha.SETORES_INTERESSE,
+           "DIZIMO_OPCOES": ficha.DIZIMO_OPCOES, "DIAS_PROFISSAO": [[k, d, n] for k, d, n in profissional.DIAS],
            "valores": {}, "erros": {}, "interesses": []}
     ctx.update(extra or {})
     return ctx

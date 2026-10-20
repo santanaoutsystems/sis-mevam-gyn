@@ -15,7 +15,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from .. import aniversarios as an
-from .. import datas, db, envios, ficha, seguranca
+from .. import datas, db, envios, ficha, profissional, seguranca
 from ..web import auditar, flash, ir, render
 
 GESTAO = db.PERFIS_AGENDA
@@ -112,9 +112,14 @@ async def avisos(request: Request):
     an.garantir(hoje)
     with db.engine().begin() as c:
         lista = an.avisos_do_usuario(c, u["id"], hoje)
-        dados = {m["id"]: m for m in an.membros(c, {a["membro_id"] for a in lista})}
+        dados = {m["id"]: m for m in an.membros(c, {a["membro_id"] for a in lista}, so_aniversario=False)}
         an.marcar_lidos(c, u["id"])
     itens = [{**a, "m": dados[a["membro_id"]]} for a in lista if a["membro_id"] in dados]
+    for i in itens:  # Dia do Profissional: mensagem pronta para o WhatsApp
+        if i["tipo"] == an.PROFISSIONAL:
+            nome_data = profissional.nome_da_data(i["m"]["dia_profissional"], i["m"]["profissao"] or "")
+            i["nome_data"] = nome_data
+            i["zap"] = an.link_whatsapp(i["m"]["whatsapp"], profissional.mensagem(i["m"]["primeiro"], nome_data, _remetente(u)))
     return render(request, "aniversarios/avisos.html", {"itens": itens, "hoje": hoje})
 
 

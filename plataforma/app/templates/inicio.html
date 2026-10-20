@@ -13,6 +13,14 @@
 </div>
 {% endif %}
 
+{% if pesquisa_pendente %}
+<div class="cartao nao-imprimir">
+  <h2 style="margin-top:0">📝 Pesquisa do mês</h2>
+  <p>Conte em que áreas você precisa de apoio. É anônimo e leva menos de um minuto.</p>
+  <a class="botao" href="/necessidades">Responder</a>
+</div>
+{% endif %}
+
 {% if pode('secretaria', 'admin') %}
 <div class="grade c2 c4" style="margin:1rem 0">
   <a class="numero" href="/membros?status=Aguardando+Análise"><b>{{ numeros.aguardando }}</b>Fichas aguardando análise</a>

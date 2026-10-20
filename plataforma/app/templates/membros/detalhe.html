@@ -141,6 +141,8 @@
     <div><b>WhatsApp:</b> {{ m.whatsapp or '-' }}</div><div><b>Telefone:</b> {{ m.telefone or '-' }}</div>
     <div><b>E-mail:</b> {{ m.email or '-' }}</div><div><b>Escolaridade:</b> {{ m.escolaridade or '-' }}</div>
     <div><b>Formação:</b> {{ m.formacao_academica or '-' }}</div><div><b>Profissão / empresa:</b> {{ m.profissao or '-' }} · {{ m.empresa or '' }}</div>
+    <div><b>Dia do Profissional:</b> {{ m.dia_profissional or '-' }}{% if m.homenagem_profissional == False %} (homenagem recusada){% endif %}</div>
+    {% if m.deseja_dizimista %}<div><b>Dízimo:</b> {{ m.deseja_dizimista }}{% if m.dia_dizimo %} · entrega no dia {{ m.dia_dizimo }}{% endif %}</div>{% endif %}
   </div>
   <h2>3. Vida cristã</h2>
   <div class="grade c2 pequeno">

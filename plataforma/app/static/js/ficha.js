@@ -178,3 +178,37 @@
     if (b) { b.disabled = true; b.textContent = "Enviando..."; }
   });
 })();
+
+/* Dia do Profissional: sugere a data pela profissão (a pessoa pode corrigir). Dízimo: mostra o dia só se for dizimista. */
+(function () {
+  var prof = document.getElementById("profissao"), dia = document.getElementById("dia_profissional");
+  var fonte = document.getElementById("diasProfissao"), dica = document.getElementById("sugestaoProf");
+  if (prof && dia && fonte) {
+    var tabela = [];
+    try { tabela = JSON.parse(fonte.textContent); } catch (e) {}
+    var automatico = !dia.value;
+    function normal(t) { return " " + (t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "") + " "; }
+    function sugerir() {
+      var t = normal(prof.value);
+      for (var i = 0; i < tabela.length; i++) {
+        var r = new RegExp("[^a-z]" + tabela[i][0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+        if (r.test(t)) return tabela[i];
+      }
+      return null;
+    }
+    function atualizar() {
+      var s = sugerir();
+      if (s && automatico) dia.value = s[1];
+      if (dica) dica.textContent = s ? "Sugestão: " + s[2] + " (" + s[1] + "). Corrija se quiser."
+                                     : "Dia e mês da homenagem à sua profissão (dd/mm). Deixe vazio se não souber.";
+    }
+    dia.addEventListener("input", function () { automatico = !dia.value; });
+    prof.addEventListener("change", atualizar);
+    prof.addEventListener("blur", atualizar);
+    if (prof.value) atualizar();
+  }
+  var quer = document.getElementById("deseja_dizimista"), grupo = document.getElementById("grupoDizimo");
+  if (quer && grupo) quer.addEventListener("change", function () {
+    grupo.style.display = (quer.value === "Sim" || quer.value === "Já sou dizimista") ? "" : "none";
+  });
+})();

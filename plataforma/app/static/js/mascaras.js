@@ -2,6 +2,7 @@
  *
  * Use nos inputs:
  *   data-mascara="data"     -> dd/mm/aaaa (teclado numérico; as barras entram sozinhas)
+ *   data-mascara="diames"   -> dd/mm (Dia do Profissional)
  *   data-mascara="hora"     -> HH:MM
  *   data-mascara="telefone" -> (62) 9 9999-9999 (obrigatório: DDD + 9 dígitos)
  *   data-mascara="cep"      -> 00000-000 e busca o endereço (ViaCEP)
@@ -19,6 +20,10 @@
       if (d.length <= 2) return d;
       if (d.length <= 4) return d.slice(0, 2) + "/" + d.slice(2);
       return d.slice(0, 2) + "/" + d.slice(2, 4) + "/" + d.slice(4);
+    },
+    diames(v) {
+      const d = soDigitos(v).slice(0, 4);
+      return d.length <= 2 ? d : d.slice(0, 2) + "/" + d.slice(2);
     },
     hora(v) {
       const d = soDigitos(v).slice(0, 4);
@@ -54,9 +59,9 @@
     },
   };
 
-  const teclados = { data: "numeric", hora: "numeric", telefone: "tel", cep: "numeric", moeda: "decimal", cpf: "numeric" };
-  const tamanhos = { data: 10, hora: 5, telefone: 16, cep: 9, cpf: 14 };
-  const exemplos = { data: "dd/mm/aaaa", hora: "HH:MM", telefone: "(62) 9 9999-9999", cep: "00000-000", moeda: "0,00", cpf: "000.000.000-00" };
+  const teclados = { diames: "numeric", data: "numeric", hora: "numeric", telefone: "tel", cep: "numeric", moeda: "decimal", cpf: "numeric" };
+  const tamanhos = { diames: 5, data: 10, hora: 5, telefone: 16, cep: 9, cpf: 14 };
+  const exemplos = { diames: "dd/mm", data: "dd/mm/aaaa", hora: "HH:MM", telefone: "(62) 9 9999-9999", cep: "00000-000", moeda: "0,00", cpf: "000.000.000-00" };
 
   function cpfValido(texto) {
     const d = soDigitos(texto);

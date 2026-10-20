@@ -93,6 +93,17 @@
       {{ ui.campo('profissao', 'Profissão', obrig=True, voz=True) }}
       {{ ui.campo('empresa', 'Empresa / ocupação', obrig=True, voz=True, dica="Ou 'Autônomo', 'Do lar', 'Aposentado'") }}
     </div>
+    <div class="grade c2">
+      <div class="{{ 'campo-erro' if erros.get('dia_profissional') }}">
+        <label for="dia_profissional">Dia do Profissional</label>
+        <input type="text" id="dia_profissional" name="dia_profissional" value="{{ valores.get('dia_profissional') or '' }}" data-mascara="diames" aria-describedby="sugestaoProf">
+        <div class="pequeno suave" id="sugestaoProf">Dia e mês da homenagem à sua profissão. Sugerimos pela profissão; corrija se quiser.</div>
+        {% if erros.get('dia_profissional') %}<div class="erro-campo">{{ erros['dia_profissional'] }}</div>{% endif %}
+      </div>
+      <label class="check" style="align-self:end"><input type="checkbox" name="sem_homenagem_prof" value="1" {{ 'checked' if valores.get('sem_homenagem_prof') or valores.get('homenagem_profissional') == False }}>
+        <span>Não quero homenagem no Dia do Profissional</span></label>
+    </div>
+    <script type="application/json" id="diasProfissao">{{ DIAS_PROFISSAO|tojson }}</script>
   </section>
 
   <!-- Etapa 3 -->
@@ -114,6 +125,15 @@
     </fieldset>
     <label class="check" style="margin:.5rem 0 1rem"><input type="checkbox" name="sem_homenagem" value="1" {{ 'checked' if valores.get('sem_homenagem') or valores.get('homenagem_aniversario') == False }}>
       <span>Não quero homenagem de aniversário<br><span class="pequeno suave">Marcado, seu aniversário (só dia e mês) não aparece para a equipe e você não recebe mensagens de parabéns.</span></span></label>
+    <fieldset class="interesses">
+      <legend>Dízimo <span class="pequeno suave">(opcional)</span></legend>
+      <p class="pequeno suave" style="margin:.1rem 0 .5rem">Só a Secretaria vê esta resposta. Ela ajuda a igreja a se organizar.</p>
+      <div class="grade c2">
+        {{ ui.selecao('deseja_dizimista', 'Deseja se tornar dizimista?', DIZIMO_OPCOES, vazio='Prefiro não responder') }}
+        <div id="grupoDizimo"{% if valores.get('deseja_dizimista') not in ('Sim', 'Já sou dizimista') %} style="display:none"{% endif %}>
+          {{ ui.campo('dia_dizimo', 'Dia do mês preferido para a entrega', attrs='inputmode="numeric" maxlength="2"', dica='Ex: 5') }}</div>
+      </div>
+    </fieldset>
     {{ ui.campo('area_ministerial', 'Experiência em outros ministérios', voz=True, dica='Onde já serviu antes. Ex: louvor em outra igreja') }}
     {{ ui.campo('interesse_batismo_familia', 'Alguém da família deseja se batizar?', voz=True, dica="Ex: Sim, meu filho / Não") }}
     {% if modo == 'editar' %}

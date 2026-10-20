@@ -165,6 +165,11 @@ membros = Table(
     Column("motivo_exclusao", Text),
     Column("status_anterior", String(40)),  # para restaurar da lixeira ou reativar
     Column("login_suspenso", Boolean, nullable=False, default=False),  # o login foi desligado pela inativação/exclusão
+    # v2.11.0: Dia do Profissional ("dd/mm") e intenção de dízimo (só Secretaria/Adm veem)
+    Column("dia_profissional", String(5)),
+    Column("homenagem_profissional", Boolean, nullable=False, default=True),
+    Column("deseja_dizimista", String(20)),  # Sim | Não | Já sou dizimista
+    Column("dia_dizimo", Integer),  # dia do mês preferido para a entrega
     Column("criado_em", DateTime(timezone=True), server_default=func.now()),
     Column("atualizado_em", DateTime(timezone=True), server_default=func.now()),
 )
@@ -348,6 +353,55 @@ uso_diario = Table(
     Column("valor", BigInteger, nullable=False, default=0),
 )
 
+# Pesquisa mensal de necessidades (v2.11.0). Respostas anônimas: a resposta não guarda quem respondeu;
+# o controle guarda só quem já respondeu em cada mês, sem ligação com a resposta.
+necessidades_controle = Table(
+    "necessidades_controle", metadata,
+    Column("mes", String(7), primary_key=True),  # AAAA-MM
+    Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), primary_key=True),
+)
+necessidades_respostas = Table(
+    "necessidades_respostas", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("mes", String(7), nullable=False),
+    Column("faixa", String(30)),
+    Column("comentario", Text),
+    Column("nenhuma", Boolean, nullable=False, default=False),  # "Neste mês estou bem"
+    Column("contato_usuario_id", Integer, ForeignKey("usuarios.id", ondelete="SET NULL")),  # só se pediu contato
+)
+necessidades_itens = Table(
+    "necessidades_itens", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("resposta_id", Integer, ForeignKey("necessidades_respostas.id", ondelete="CASCADE"), nullable=False),
+    Column("categoria", String(30), nullable=False),
+    Column("intensidade", Integer, nullable=False, default=2),  # 1 pouca · 2 média · 3 muita
+)
+
+# Instituto (v2.11.0): estrutura reservada para o futuro módulo; ainda sem telas de cadastro.
+instituto_cursos = Table(
+    "instituto_cursos", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("nome", String(160), nullable=False),
+    Column("descricao", Text),
+    Column("ativo", Boolean, nullable=False, default=True),
+    Column("criado_em", DateTime(timezone=True), server_default=func.now()),
+)
+instituto_turmas = Table(
+    "instituto_turmas", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("curso_id", Integer, ForeignKey("instituto_cursos.id", ondelete="CASCADE"), nullable=False),
+    Column("nome", String(160), nullable=False),
+    Column("inicio", Date), Column("fim", Date),
+)
+instituto_matriculas = Table(
+    "instituto_matriculas", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("turma_id", Integer, ForeignKey("instituto_turmas.id", ondelete="CASCADE"), nullable=False),
+    Column("membro_id", Integer, ForeignKey("membros.id", ondelete="CASCADE"), nullable=False),
+    Column("situacao", String(30), nullable=False, default="Matriculado"),
+    UniqueConstraint("turma_id", "membro_id", name="instituto_matricula_unica"),
+)
+
 STATUS_MEMBRO = ("Aguardando Análise", "Validado pela Secretaria", "Ativo", "Inativo", "Anonimizado (LGPD)")
 # Ficha na lixeira (v2.9.0): some das listas, relatórios e avisos; a Secretaria/Adm pode restaurar
 EXCLUIDO = "Excluído"
@@ -437,7 +491,8 @@ def aplicar_migracoes_aditivas() -> None:
     006 (CPF em membros e usuários)
     007 (regularização de fichas antigas), 008 (lembretes de cadastro e setores de interesse)
     009 (filtros salvos da Central de Relatórios), 010 (aniversariantes), 011 (uso dos serviços)
-    e 012 (Coordenação por período/evento e inativação/exclusão de membros).
+    012 (Coordenação por período/evento e inativação/exclusão de membros) e 013 (Dia do Profissional,
+    intenção de dízimo, pesquisa mensal de necessidades e Instituto).
     Só cria/alarga; nunca remove dados. Se falhar, o app sobe mesmo assim e registra o erro.
     """
     import logging
@@ -448,7 +503,7 @@ def aplicar_migracoes_aditivas() -> None:
     pasta = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes")
     for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql", "007_regularizacao.sql",
                  "008_lembretes_interesses.sql", "009_relatorios_salvos.sql", "010_aniversariantes.sql",
-                 "011_uso_servicos.sql", "012_coordenacao_membros.sql"):
+                 "011_uso_servicos.sql", "012_coordenacao_membros.sql", "013_fase_a.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()

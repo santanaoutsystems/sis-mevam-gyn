@@ -26,6 +26,7 @@ FORA = db.STATUS_FORA
 SEM_SETOR = "Sem setor"
 GESTORES = ("secretaria", "admin")
 AMANHA, HOJE = "aniversario_amanha", "aniversario_hoje"
+PROFISSIONAL = "profissional_hoje"  # Dia do Profissional (profissional.py)
 CANAIS = {"whatsapp": "WhatsApp", "email": "E-mail", "copia": "Texto copiado", "email_auto": "E-mail automático do Ministério"}
 REMETENTE_AUTO = "Ministério MEVAM GYN"
 
@@ -65,11 +66,14 @@ def nome_curto(nome: str) -> str:
     return partes[0] + (f" {partes[-1][0]}." if len(partes) > 1 else "")
 
 
-def membros(c, ids=None) -> list[dict]:
-    """Aniversariantes possíveis, com os setores (onde serve e de interesse). Data completa fica só aqui dentro."""
+def membros(c, ids=None, so_aniversario: bool = True) -> list[dict]:
+    """Aniversariantes possíveis, com os setores (onde serve e de interesse). Data completa fica só aqui dentro.
+    so_aniversario=False: qualquer membro ativo (usado pelo Dia do Profissional)."""
     m = db.membros.c
-    q = (select(m.id, m.nome_completo, m.data_nascimento, m.whatsapp, m.email)
-         .where(m.data_nascimento.isnot(None), m.status.notin_(FORA), m.homenagem_aniversario.isnot(False)))
+    q = (select(m.id, m.nome_completo, m.data_nascimento, m.whatsapp, m.email, m.profissao, m.dia_profissional)
+         .where(m.data_nascimento.isnot(None), m.status.notin_(FORA)))
+    if so_aniversario:
+        q = q.where(m.homenagem_aniversario.isnot(False))
     if ids is not None:
         q = q.where(m.id.in_(list(ids)))
     linhas = {r["id"]: dict(r) for r in c.execute(q).mappings()}
@@ -97,7 +101,8 @@ def membros(c, ids=None) -> list[dict]:
                 vistos.add(nome); setores.append({"nome": nome, "tipo": "interesse"})
         lista.append({"id": mid, "nome": r["nome_completo"], "primeiro": primeiro_nome(r["nome_completo"]),
                       "curto": nome_curto(r["nome_completo"]), "nasc": nasc, "dia": nasc.day, "mes": nasc.month,
-                      "whatsapp": r["whatsapp"], "email": r["email"], "setores": setores, "chaves": vistos})
+                      "whatsapp": r["whatsapp"], "email": r["email"], "setores": setores, "chaves": vistos,
+                      "profissao": r["profissao"], "dia_profissional": r["dia_profissional"]})
     lista.sort(key=lambda x: (x["mes"], x["dia"], (x["nome"] or "").lower()))
     return lista
 
@@ -202,6 +207,8 @@ def garantir(hoje: date | None = None) -> None:
     try:
         with db.engine().begin() as c:
             gerar_avisos(c, hoje)
+            from . import profissional
+            profissional.gerar_avisos(c, hoje)
         _garantido["dia"] = hoje
     except Exception:  # noqa: BLE001
         log.exception("Falha ao gerar os avisos de aniversário")
@@ -213,9 +220,12 @@ def avisos_do_usuario(c, usuario_id: int, hoje: date | None = None) -> list[dict
     a, m = db.avisos.c, db.membros.c
     q = (select(a.id, a.tipo, a.membro_id, a.referencia, a.janela, a.lido_em, m.nome_completo)
          .join(db.membros, m.id == a.membro_id)
-         .where(a.usuario_id == usuario_id, m.status.notin_(FORA), m.homenagem_aniversario.isnot(False),
-                or_(and_(a.tipo == AMANHA, a.referencia == hoje + timedelta(days=1)),
-                    and_(a.tipo == HOJE, a.referencia >= hoje - timedelta(days=1), a.referencia <= hoje)))
+         .where(a.usuario_id == usuario_id, m.status.notin_(FORA),
+                or_(and_(a.tipo == AMANHA, a.referencia == hoje + timedelta(days=1), m.homenagem_aniversario.isnot(False)),
+                    and_(a.tipo == HOJE, a.referencia >= hoje - timedelta(days=1), a.referencia <= hoje,
+                         m.homenagem_aniversario.isnot(False)),
+                    and_(a.tipo == PROFISSIONAL, a.referencia >= hoje - timedelta(days=1), a.referencia <= hoje,
+                         m.homenagem_profissional.isnot(False))))
          .order_by(a.referencia, m.nome_completo))
     lista = []
     for r in c.execute(q).mappings():
@@ -360,8 +370,10 @@ def _email_automatico(hoje: date) -> int:
 def rodar(hoje: date | None = None) -> dict:
     """Uma rodada: avisos (sempre) e e-mails (se o envio estiver configurado)."""
     hoje = hoje or datas.hoje()
+    from . import profissional
     with db.engine().begin() as c:
         criados = gerar_avisos(c, hoje)
+        criados += profissional.gerar_avisos(c, hoje)
     _garantido["dia"] = hoje
     resumo = automatico = 0
     if envios.email_configurado():

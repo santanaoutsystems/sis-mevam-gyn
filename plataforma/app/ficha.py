@@ -10,13 +10,14 @@ from __future__ import annotations
 import json
 import re
 
-from . import datas
+from . import datas, profissional
 
 ESTADOS_CIVIS = ["Solteiro(a)", "Casado(a)", "União Estável", "Divorciado(a)", "Viúvo(a)"]
 ESCOLARIDADES = ["Ensino Fundamental", "Ensino Médio", "Superior Incompleto", "Superior Completo",
                  "Pós-Graduação / Especialização", "Mestrado", "Doutorado"]
 SEXOS = ["Masculino", "Feminino"]
 SIM_NAO = ["Sim", "Não"]
+DIZIMO_OPCOES = ["Sim", "Não", "Já sou dizimista"]
 
 # Setores padronizados (proposta "Padronização dos Setores", Edição 02): nome completo e o que a equipe faz.
 SETORES_INTERESSE = [
@@ -167,6 +168,31 @@ def validar(form, exigir_foto: bool = True, exigir_lgpd: bool = True, exigir_cpf
     dados["cpf"] = cpf or None
 
     dados["homenagem_aniversario"] = not form.get("sem_homenagem")  # LGPD: recusa da homenagem de aniversário
+
+    # Dia do Profissional (dd/mm): se ficar vazio, usa a data sugerida pela profissão
+    texto_dia = (form.get("dia_profissional") or "").strip()
+    dia = profissional.normalizar(texto_dia)
+    if texto_dia and not dia:
+        erros["dia_profissional"] = "Dia do Profissional inválido (use dd/mm)."
+    if not texto_dia:
+        sug = profissional.sugerir(dados["profissao"])
+        dia = sug[0] if sug else None
+    dados["dia_profissional"] = dia
+    dados["homenagem_profissional"] = not form.get("sem_homenagem_prof")
+
+    # Intenção de dízimo (opcional; visível só para Secretaria/Adm)
+    quer = form.get("deseja_dizimista") or ""
+    dados["deseja_dizimista"] = quer if quer in DIZIMO_OPCOES else None
+    dados["dia_dizimo"] = None
+    if quer in ("Sim", "Já sou dizimista") and (form.get("dia_dizimo") or "").strip():
+        try:
+            d = int(so_digitos(form.get("dia_dizimo")))
+        except ValueError:
+            d = 0
+        if 1 <= d <= 31:
+            dados["dia_dizimo"] = d
+        else:
+            erros["dia_dizimo"] = "Informe um dia entre 1 e 31."
 
     nasc = datas.parse_data(form.get("data_nascimento"))
     if not nasc:

@@ -212,13 +212,15 @@ async def inicio(request: Request):
                 numeros["servicos"] = uso.painel()["alerta"]
             except Exception:  # noqa: BLE001
                 numeros["servicos"] = None
+        from .necessidades import ja_respondeu
+        pesquisa_pendente = not ja_respondeu(c, u["id"])
         minha_ficha = None
         if u["membro_id"]:
             minha_ficha = c.execute(select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.status, db.membros.c.cpf)
                                     .where(db.membros.c.id == u["membro_id"])).mappings().first()
     eventos_fmt = [{**e, "quando": datas.parse_data_hora_local(e["data_inicio"])} for e in proximos]
     return render(request, "inicio.html", {"proximos": eventos_fmt, "numeros": numeros, "minha_ficha": minha_ficha,
-                                           "meus_setores": meus_setores, "minhas_coord": minhas_coord,
+                                           "meus_setores": meus_setores, "minhas_coord": minhas_coord, "pesquisa_pendente": pesquisa_pendente,
                                            "DIRETRIZES": coordenacao_regras.DIRETRIZES,
                                            "falta_cpf": not (u.get("cpf") or (minha_ficha or {}).get("cpf"))})
 
