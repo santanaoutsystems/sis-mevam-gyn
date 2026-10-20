@@ -39,7 +39,7 @@ def _membro_visivel(c, u, mid) -> dict | None:
 
 def _negado(request: Request):
     return render(request, "erro.html", {"titulo": "Indisponível",
-                  "mensagem": "Este aniversariante não está nos seus setores, recusou a homenagem ou não está mais ativo."}, 404)
+                  "mensagem": "Este aniversariante não está nos seus ministérios, recusou a homenagem ou não está mais ativo."}, 404)
 
 
 @seguranca.exigir(*GESTAO)
@@ -101,7 +101,7 @@ async def calendario(request: Request):
         "proximos": proximos, "env": env, "sem_data": sem_data, "lista_mes": lista_mes, "email_avisos": email_avisos,
         "total": sum(len(v) for _, v in lista_mes), "escopo": esc,
         "DIAS_CURTOS": ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"], "CANAIS": an.CANAIS,
-        "filtros_texto": f"{titulo} · Setor: {setor or 'todos'}",
+        "filtros_texto": f"{titulo} · Ministério: {setor or 'todos'}",
     })
 
 

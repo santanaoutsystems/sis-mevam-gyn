@@ -42,7 +42,7 @@ GRUPOS = [
     ]),
     ("admin", "🔐", "Administração", [
         ("/admin/usuarios", "👤", "Usuários", ADM, ()),
-        ("/admin/setores", "🏢", "Setores", ADM, ()),
+        ("/admin/setores", "🏢", "Ministérios", ADM, ()),
         ("/admin/auditoria", "🔍", "Auditoria", ADM, ()),
         ("/admin/servicos", "📶", "Uso dos serviços", ADM, ()),
     ]),

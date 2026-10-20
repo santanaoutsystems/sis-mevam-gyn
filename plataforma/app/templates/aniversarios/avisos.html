@@ -16,7 +16,7 @@
     <span class="avatar" aria-hidden="true">🎂</span>
     <span><b>{{ a.m.nome }}</b><br><span class="pequeno suave">
       {{ 'Hoje' if a.hoje else ('Amanhã' if a.tipo == 'aniversario_amanha' else 'Ontem') }} ({{ a.referencia.strftime('%d/%m') }}) ·
-      {% for s in a.m.setores %}{{ s.nome }}{{ ' · interesse' if s.tipo == 'interesse' }}{{ ', ' if not loop.last }}{% else %}Sem setor{% endfor %}</span></span>
+      {% for s in a.m.setores %}{{ s.nome }}{{ ' · interesse' if s.tipo == 'interesse' }}{{ ', ' if not loop.last }}{% else %}Sem ministério{% endfor %}</span></span>
     {% if a.tipo == 'aniversario_hoje' %}<a class="botao peq zap" href="/aniversariantes/{{ a.m.id }}/mensagem">💬 Mensagem</a>{% endif %}
   </div>
   {% endif %}

@@ -114,8 +114,8 @@
     {{ ui.radios('congregava_antes', 'Congregava em outra igreja antes?', SIM_NAO, obrig=True) }}
     <div id="grupoCongregava"{% if valores.get('congregava_antes') != 'Sim' %} style="display:none"{% endif %}>{{ ui.campo('onde_congregava', 'Igreja anterior', voz=True) }}</div>
     <fieldset class="interesses">
-      <legend>Setores em que deseja servir <span class="pequeno suave">(marque quantos quiser)</span></legend>
-      <p class="pequeno suave" style="margin:.1rem 0 .5rem">Quando um setor precisar de voluntários, a coordenação poderá convidar você por e-mail.</p>
+      <legend>Ministérios em que deseja servir <span class="pequeno suave">(marque quantos quiser)</span></legend>
+      <p class="pequeno suave" style="margin:.1rem 0 .5rem">Quando um ministério precisar de voluntários, a coordenação poderá convidar você por e-mail.</p>
       <div class="grade-interesses">
         {% for nome, descricao in SETORES_INTERESSE %}
         <label class="check interesse"><input type="checkbox" name="interesses" value="{{ nome }}" {% if nome in interesses %}checked{% endif %}>

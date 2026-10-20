@@ -202,7 +202,7 @@ async def salvar_setor(request: Request):
     responsavel = (form.get("responsavel") or "").strip()
     sid = (form.get("id") or "").strip()
     if len(nome) < 2:
-        flash(request, "Informe o nome do setor.", "erro")
+        flash(request, "Informe o nome do ministério.", "erro")
         return ir("/admin/setores")
     with db.engine().begin() as c:
         if sid:
@@ -212,11 +212,11 @@ async def salvar_setor(request: Request):
             if antigo and antigo != nome:
                 # Os eventos guardam o nome do departamento: renomeia junto para não perder o vínculo
                 c.execute(update(db.eventos).where(db.eventos.c.departamento == antigo).values(departamento=nome))
-            auditar(request, "SETOR_ALTERADO", f"Setor #{sid}", f"{antigo} → {nome}", conexao=c)
+            auditar(request, "SETOR_ALTERADO", f"Ministério #{sid}", f"{antigo} → {nome}", conexao=c)
         else:
             novo = c.execute(insert(db.departamentos).values(nome=nome, responsavel=responsavel)).inserted_primary_key[0]
-            auditar(request, "SETOR_CRIADO", f"Setor #{novo}", nome, conexao=c)
-    flash(request, "Setor salvo.")
+            auditar(request, "SETOR_CRIADO", f"Ministério #{novo}", nome, conexao=c)
+    flash(request, "Ministério salvo.")
     return ir("/admin/setores")
 
 
@@ -227,13 +227,13 @@ async def excluir_setor(request: Request):
         nome = c.execute(select(db.departamentos.c.nome).where(db.DEP_ID == sid)).scalar()
         usados = c.execute(select(func.count()).select_from(db.eventos).where(db.eventos.c.departamento == nome)).scalar()
         if usados:
-            flash(request, f"O setor {nome} tem {usados} evento(s) na agenda e não pode ser excluído.", "erro")
+            flash(request, f"O ministério {nome} tem {usados} evento(s) na agenda e não pode ser excluído.", "erro")
             return ir("/admin/setores")
         c.execute(delete(db.membro_setores).where(db.membro_setores.c.departamento_id == sid))
         c.execute(delete(db.usuario_setores).where(db.usuario_setores.c.departamento_id == sid))
         c.execute(delete(db.departamentos).where(db.DEP_ID == sid))
-        auditar(request, "SETOR_EXCLUIDO", f"Setor #{sid}", nome or "", conexao=c)
-    flash(request, "Setor excluído.")
+        auditar(request, "SETOR_EXCLUIDO", f"Ministério #{sid}", nome or "", conexao=c)
+    flash(request, "Ministério excluído.")
     return ir("/admin/setores")
 
 

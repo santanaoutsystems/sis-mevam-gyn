@@ -94,7 +94,7 @@ def _pode_gerir(escopo: set[str] | None, evento: dict | None) -> bool:
 
 def _fora_do_setor(request: Request):
     return render(request, "erro.html", {"titulo": "Acesso restrito",
-                  "mensagem": "Este evento é de um setor que não está sob a sua coordenação."}, 403)
+                  "mensagem": "Este evento é de um ministério que não está sob a sua coordenação."}, 403)
 
 
 def _deptos_permitidos(c, escopo: set[str] | None) -> list[dict]:
@@ -268,8 +268,8 @@ async def novo(request: Request):
         escopo = escopo_setores(c, u)
         deptos = _deptos_permitidos(c, escopo)
     if escopo is not None and not deptos:
-        return render(request, "erro.html", {"titulo": "Nenhum setor atribuído",
-                      "mensagem": "Peça à Secretaria ou ao Adm para definir os setores que você coordena."}, 403)
+        return render(request, "erro.html", {"titulo": "Nenhum ministério atribuído",
+                      "mensagem": "Peça à Secretaria ou ao Adm para definir os ministérios que você coordena."}, 403)
     # Duplicar: /eventos/novo?copiar=<id> abre o formulário com os dados do evento original e a data em branco.
     # O original não muda; a cópia é um evento novo, com as mesmas regras de setor e de conflito de horário.
     original = None
@@ -288,7 +288,7 @@ async def novo(request: Request):
     form = await request.form()
     dados, erros = _ler_form_evento(form)
     if escopo is not None and dados["departamento"] not in escopo:
-        erros["departamento"] = "Escolha um dos setores que você coordena."
+        erros["departamento"] = "Escolha um dos ministérios que você coordena."
     with db.engine().begin() as c:
         liberacao = None if erros else _verificar_conflito(c, form, dados, u, erros)
         if erros:
@@ -338,7 +338,7 @@ async def editar(request: Request):
     if len(justificativa) < 5:
         erros["justificativa"] = "A justificativa é obrigatória para auditoria."
     if escopo is not None and dados["departamento"] not in escopo:
-        erros["departamento"] = "Escolha um dos setores que você coordena."
+        erros["departamento"] = "Escolha um dos ministérios que você coordena."
     with db.engine().begin() as c:
         liberacao = None if erros else _verificar_conflito(c, form, dados, u, erros, ignorar_id=eid)
         if erros:

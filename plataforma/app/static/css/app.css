@@ -490,3 +490,14 @@ main:focus { outline: none; }
 .designacao summary { list-style: none; cursor: pointer; }
 .designacao summary::-webkit-details-marker { display: none; }
 .lixeira-aviso { border-left: 4px solid var(--perigo, #b91c1c); }
+
+/* Pesquisa mensal de necessidades (v2.11.0): área e intensidade na mesma linha */
+.lista-necessidades { display: grid; gap: .35rem; margin-top: .5rem; }
+@media (min-width: 700px) { .lista-necessidades { grid-template-columns: 1fr 1fr; column-gap: 1.2rem; } }
+.necessidade { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .25rem 0;
+  border-bottom: 1px solid var(--borda); }
+.necessidade .check { margin: 0; flex: 1; min-width: 0; }
+.necessidade select { width: auto; min-width: 7.5rem; flex: none; }
+.necessidade select:disabled { opacity: .45; }
+blockquote.comentario { margin: .5rem 0; padding: .6rem .9rem; border-left: 4px solid var(--ouro); background: var(--superficie-2);
+  border-radius: 0 10px 10px 0; color: var(--t-principal); }

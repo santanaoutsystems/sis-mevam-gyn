@@ -371,7 +371,7 @@ def test_menos_de_2_horas_e_conflito_e_so_secretaria_ou_adm_liberam():
 def test_menu_do_celular_mostra_todas_as_ferramentas_do_perfil():
     adm = logado("admin")
     html = adm.get("/inicio").text
-    for rotulo in ("Membros", "Coordenação", "Relatórios", "Usuários", "Setores", "Auditoria", "Minha ficha", "Menu"):
+    for rotulo in ("Membros", "Coordenação", "Relatórios", "Usuários", "Ministérios", "Auditoria", "Minha ficha", "Menu"):
         assert rotulo in html
     coord = logado("coordenacao")
     html = coord.get("/inicio").text
@@ -580,7 +580,7 @@ def test_coordenacao_gerencia_somente_os_proprios_setores():
     eid_jovens = r.headers["location"].split("/")[-1]
     # Não cria em setor alheio
     r = post(coord, "/eventos/novo", {**EVENTO, "titulo": "Outro", "data": "21/11/2026"}, pagina="/eventos/novo")
-    assert r.status_code == 400 and "setores que você coordena" in r.text
+    assert r.status_code == 400 and "ministérios que você coordena" in r.text
     # Edita o próprio, não o alheio
     assert coord.get(f"/eventos/{eid_jovens}/editar").status_code == 200
     assert coord.get(f"/eventos/{eid_familia}/editar").status_code == 403
@@ -1227,7 +1227,7 @@ def test_voluntarios_coordenacao_ve_so_os_seus_setores_e_convida(monkeypatch):
     enviar_ficha(novo_cliente(), interesses=["Voluntariado", "Louvor"])
     caixa.clear()
     coord = logado("coordenacao")
-    assert "não coordena nenhum setor" in coord.get("/voluntarios").text
+    assert "não coordena nenhum ministério" in coord.get("/voluntarios").text
     with db.engine().begin() as c:  # nome antigo do setor continua valendo
         did = c.execute(insert(db.departamentos).values(nome="Líder dos Voluntários")).inserted_primary_key[0]
         c.execute(insert(db.usuario_setores).values(usuario_id=coord.usuario["id"], departamento_id=str(did)))

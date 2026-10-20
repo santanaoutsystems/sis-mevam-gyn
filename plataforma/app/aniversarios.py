@@ -23,7 +23,7 @@ from sqlalchemy.exc import IntegrityError
 from . import config, datas, db, envios, ficha
 
 FORA = db.STATUS_FORA
-SEM_SETOR = "Sem setor"
+SEM_SETOR = "Sem ministério"
 GESTORES = ("secretaria", "admin")
 AMANHA, HOJE = "aniversario_amanha", "aniversario_hoje"
 PROFISSIONAL = "profissional_hoje"  # Dia do Profissional (profissional.py)

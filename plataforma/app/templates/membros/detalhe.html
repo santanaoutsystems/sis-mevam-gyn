@@ -23,7 +23,7 @@
     <h1>{{ m.nome_completo }}</h1>
     {{ ui.selo(m.status) }}
     {% if m.credo_aceito %}<span class="selo ativo">✍️ Credo assinado em {{ m.data_assinatura|data_hora_br }}</span>{% endif %}
-    {% if setores %}<p class="pequeno">Setores: {% for s in setores %}<span class="selo validado">{{ s.nome }} · {{ s.funcao }}</span> {% endfor %}</p>{% endif %}
+    {% if setores %}<p class="pequeno">Ministérios: {% for s in setores %}<span class="selo validado">{{ s.nome }} · {{ s.funcao }}</span> {% endfor %}</p>{% endif %}
     <div class="acoes">
       <a class="botao secundario peq" href="/membros/{{ m.id }}/pdf" target="_blank">🖨️ PDF da ficha</a>
       {% if not propria and m.status not in ('Anonimizado (LGPD)', 'Excluído') %}<a class="botao secundario peq" href="/membros/{{ m.id }}/editar">✏️ Editar</a>
@@ -61,7 +61,7 @@
       <button class="botao secundario">🔐 Criar login de membro ({{ m.email or 'sem e-mail' }})</button></form>
   {% else %}<p class="suave pequeno">Valide a ficha para criar o login.</p>{% endif %}
 
-  <h3>Setores</h3>
+  <h3>Ministérios</h3>
   <form method="post" action="/membros/{{ m.id }}/setores">{{ ui.csrf_input() }}
     {% set meus = setores|map(attribute='departamento_id')|list %}
     <div class="grade c2">
@@ -71,9 +71,9 @@
         <label style="flex:1"><input type="checkbox" name="departamento_id" value="{{ d.id }}" {{ 'checked' if d.id|string in meus }}> {{ d.nome }}</label>
         <select name="funcao_{{ d.id }}" style="width:auto" aria-label="Função em {{ d.nome }}">{% for f in ['Voluntário','Líder','Apoio'] %}<option {{ 'selected' if f == funcao_atual }}>{{ f }}</option>{% endfor %}</select>
       </div>
-    {% else %}<p class="suave">Nenhum setor cadastrado.</p>{% endfor %}
+    {% else %}<p class="suave">Nenhum ministério cadastrado.</p>{% endfor %}
     </div>
-    {% if deptos %}<button class="botao secundario peq" style="margin-top:.5rem">Salvar setores</button>{% endif %}
+    {% if deptos %}<button class="botao secundario peq" style="margin-top:.5rem">Salvar ministérios</button>{% endif %}
   </form>
 
   {% if m.status != 'Inativo' %}
@@ -163,7 +163,7 @@
   <form method="post" action="/minha-ficha/homenagem"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="homenagem" value="sim">
     <button class="botao peq">Quero ser lembrado no meu aniversário</button></form>
   {% else %}
-  <p class="pequeno">A Coordenação do seu setor e a Secretaria veem só o <b>dia e o mês</b> do seu aniversário (nunca o ano ou a idade),
+  <p class="pequeno">A Coordenação do seu ministério e a Secretaria veem só o <b>dia e o mês</b> do seu aniversário (nunca o ano ou a idade),
     para enviar uma mensagem especial no dia.</p>
   <form method="post" action="/minha-ficha/homenagem"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="homenagem" value="nao">
     <button class="botao peq secundario">Não quero homenagem de aniversário</button></form>

@@ -173,7 +173,7 @@ def test_coordenacao_nao_designa_e_aviso_por_email(monkeypatch):
     membro = criar("membro", email="eva@mevam.test")
     designar(sec, membro["id"], "Jovens", avisar="sim")
     aviso = [e for e in enviados if e[0] == "eva@mevam.test"]
-    assert aviso and "Coordenação do setor Jovens" in aviso[0][1] and "Diretrizes" in aviso[0][2]
+    assert aviso and "Coordenação do ministério Jovens" in aviso[0][1] and "Diretrizes" in aviso[0][2]
     coord = novo_cliente()
     entrar(coord, "eva@mevam.test")
     assert coord.get("/coordenacao").status_code == 403

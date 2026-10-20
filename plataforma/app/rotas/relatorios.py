@@ -179,7 +179,7 @@ def colunas_membros(perfil: str, padrao: tuple) -> list[Coluna]:
         Coluna("credo_aceito", "Credo assinado", "simnao"),
         Coluna("batizado", "Batizado", "lista"),
         Coluna("foto", "Foto enviada", "simnao"),
-        Coluna("setores", "Setor em que serve", "lista"),
+        Coluna("setores", "Ministério em que serve", "lista"),
     ]
     if perfil == "admin":
         cols += [Coluna("origem", "Origem do cadastro", "lista"), Coluna("validado_por", "Validado por", "lista"),
@@ -214,7 +214,7 @@ def r_agenda(ctx: Ctx):
                        "vagas": "Livre" if not lim else f"{max(lim - ocupadas.get(str(e['id']), 0), 0)} de {lim}"})
     ctx.resumo = [(len(linhas), "eventos"), (len({l["setor"] for l in linhas}), "setores")]
     cols = [Coluna("quando", "Data e hora", "data"), Coluna("dia", "Dia", "lista"),
-            Coluna("titulo", "Evento", "texto", link=_link_evento, destaque=True), Coluna("setor", "Setor", "lista"),
+            Coluna("titulo", "Evento", "texto", link=_link_evento, destaque=True), Coluna("setor", "Ministério", "lista"),
             Coluna("local", "Local", "lista"), Coluna("valor", "Valor", "moeda"), Coluna("vagas", "Vagas", "texto", ordenavel=False)]
     return cols, linhas
 
@@ -242,7 +242,7 @@ def r_minhas_inscricoes(ctx: Ctx):
     linhas = _minhas(ctx)
     ctx.resumo = [(len(linhas), "inscrições"), (sum(1 for l in linhas if l["situacao"] == "Pendente"), "pendentes")]
     return [Coluna("quando", "Data e hora", "data"), Coluna("titulo", "Evento", "texto", link=_link_evento, destaque=True),
-            Coluna("setor", "Setor", "lista"), Coluna("ingresso", "Ingresso", "lista"),
+            Coluna("setor", "Ministério", "lista"), Coluna("ingresso", "Ingresso", "lista"),
             Coluna("situacao", "Pagamento", "lista"), Coluna("valor", "Valor", "moeda")], linhas
 
 
@@ -317,7 +317,7 @@ def r_financeiro(ctx: Ctx):
                   (tabelas.exibir(moeda, total["a_receber"]), "a receber")]
     ctx.resumo += [(tabelas.exibir(moeda, v), f"receita · {f}") for f, v in por_forma.items() if v]
     return [Coluna("quando", "Data", "data"), Coluna("titulo", "Evento", "texto", link=_link_evento, destaque=True),
-            Coluna("setor", "Setor", "lista"), Coluna("inscritos", "Inscritos", "numero"),
+            Coluna("setor", "Ministério", "lista"), Coluna("inscritos", "Inscritos", "numero"),
             Coluna("receita", "Receita", "moeda"), Coluna("despesa", "Despesas", "moeda"),
             Coluna("resultado", "Resultado", "moeda"), Coluna("a_receber", "A receber", "moeda")], linhas
 
@@ -340,7 +340,7 @@ def r_ocupacao(ctx: Ctx):
                   (f"{media}%", "ocupação média (com limite)")]
     pct = lambda v: "-" if v is None else f"{str(v).replace('.', ',').removesuffix(',0')}%"
     return [Coluna("quando", "Data", "data"), Coluna("titulo", "Evento", "texto", link=_link_evento, destaque=True),
-            Coluna("setor", "Setor", "lista"), Coluna("controle", "Controle", "lista"),
+            Coluna("setor", "Ministério", "lista"), Coluna("controle", "Controle", "lista"),
             Coluna("inscritos", "Inscritos", "numero"), Coluna("limite", "Limite", "numero"),
             Coluna("ocupacao", "Ocupação", "numero", fmt=pct)], linhas
 
@@ -355,9 +355,9 @@ def r_voluntarios(ctx: Ctx):
                            "email": p.get("email"), "desde": tabelas.local(p.get("criado_em")), "status": p.get("status")})
     linhas.sort(key=lambda l: (tabelas._norm(l["setor"]), tabelas._norm(l["nome"])))
     if not setores:
-        ctx.aviso = "Nenhum setor sob a sua coordenação. Peça à Secretaria ou ao Adm para definir seus setores."
-    ctx.resumo = [(len({l['nome'] for l in linhas}), "pessoas"), (len({l['setor'] for l in linhas}), "setores com interessados")]
-    cols = [Coluna("setor", "Setor de interesse", "lista"), Coluna("nome", "Nome", "texto", destaque=True),
+        ctx.aviso = "Nenhum ministério sob a sua coordenação. Peça à Secretaria ou ao Adm para definir seus ministérios."
+    ctx.resumo = [(len({l['nome'] for l in linhas}), "pessoas"), (len({l['setor'] for l in linhas}), "ministérios com interessados")]
+    cols = [Coluna("setor", "Ministério de interesse", "lista"), Coluna("nome", "Nome", "texto", destaque=True),
             Coluna("whatsapp", "WhatsApp", "texto", sensivel=True), Coluna("email", "E-mail", "texto", sensivel=True),
             Coluna("desde", "Marcado em", "data", padrao=False)]
     if ver_status:
@@ -426,7 +426,7 @@ def r_aniversariantes(ctx: Ctx):
     dia_mes = lambda v: v.strftime("%d/%m") if v else "-"  # LGPD: sem ano de nascimento nem idade
     cols = [Coluna("aniversario", "Aniversário", "aniversario", fmt=dia_mes),
             Coluna("nome", "Nome", "texto", destaque=True, link=lambda l: f"/aniversariantes/{l['id']}/mensagem"),
-            Coluna("setores", "Setores", "lista")]
+            Coluna("setores", "Ministérios", "lista")]
     if esc is None:  # telefone só para Secretaria e Adm; a Coordenação usa o botão de mensagem
         cols.append(Coluna("whatsapp", "WhatsApp", "texto", sensivel=True, padrao=False))
     return cols, linhas
@@ -444,7 +444,7 @@ def r_membros_setor(ctx: Ctx):
     linhas.sort(key=lambda l: (tabelas._norm(l["setor"]), l["funcao"] != "Líder", tabelas._norm(l["nome_completo"])))
     ctx.resumo = [(len({l['id'] for l in linhas}), "pessoas servindo"), (len({l['setor'] for l in linhas}), "setores"),
                   (sum(1 for l in linhas if l["funcao"] == "Líder"), "líderes")]
-    return [Coluna("setor", "Setor", "lista"), Coluna("funcao", "Função", "lista"),
+    return [Coluna("setor", "Ministério", "lista"), Coluna("funcao", "Função", "lista"),
             Coluna("nome_completo", "Nome", "texto", link=lambda l: f"/membros/{l['id']}", destaque=True),
             Coluna("whatsapp", "WhatsApp", "texto", sensivel=True, padrao=False), Coluna("status", "Situação", "lista")], linhas
 
@@ -461,7 +461,7 @@ def r_interesses(ctx: Ctx):
     linhas.sort(key=lambda l: (tabelas._norm(l["setor"]), tabelas._norm(l["nome_completo"])))
     cont = _contagem(linhas, "setor")
     ctx.resumo = [(len({l['id'] for l in linhas}), "pessoas")] + sorted([(n, s) for s, n in cont.items()], key=lambda x: -x[0])[:6]
-    return [Coluna("setor", "Setor de interesse", "lista"),
+    return [Coluna("setor", "Ministério de interesse", "lista"),
             Coluna("nome_completo", "Nome", "texto", link=lambda l: f"/membros/{l['id']}", destaque=True),
             Coluna("status", "Situação", "lista"), Coluna("whatsapp", "WhatsApp", "texto", sensivel=True),
             Coluna("email", "E-mail", "texto", sensivel=True, padrao=False), Coluna("criado_em", "Marcado em", "data", padrao=False)], linhas
@@ -529,7 +529,7 @@ def r_estatisticas(ctx: Ctx):
     grupos = [("Situação", lambda l: [l["status"]]), ("Faixa etária", lambda l: [_faixa(l["data_nascimento"])]),
               ("Sexo", lambda l: [l["sexo"] or "(não informado)"]), ("Estado civil", lambda l: [l["estado_civil"] or "(não informado)"]),
               ("Bairro", lambda l: [l["bairro"] or "(não informado)"]), ("Batizado", lambda l: [l["batizado"] or "(não informado)"]),
-              ("Setor em que serve", lambda l: l["setores"] or ["(nenhum)"])]
+              ("Ministério em que serve", lambda l: l["setores"] or ["(nenhum)"])]
     linhas = []
     for g, fn in grupos:
         cont: dict = {}
@@ -597,7 +597,7 @@ def r_coordenadores(ctx: Ctx):
                "qtd": len(nomes.get(str(d["id"]), []))}
               for d in ctx.c.execute(select(db.departamentos).order_by(db.departamentos.c.nome)).mappings()]
     ctx.resumo = [(len(linhas), "setores"), (sum(1 for l in linhas if not l["qtd"]), "sem coordenador")]
-    return [Coluna("setor", "Setor", "lista"), Coluna("responsavel", "Responsável", "texto"),
+    return [Coluna("setor", "Ministério", "lista"), Coluna("responsavel", "Responsável", "texto"),
             Coluna("coordenadores", "Coordenadores no sistema", "lista"), Coluna("qtd", "Quantidade", "numero")], linhas
 
 
@@ -668,7 +668,7 @@ def r_lgpd(ctx: Ctx):
 G_MEUS, G_EVENTOS, G_PESSOAS, G_ADM = "Meus dados e agenda", "Eventos", "Pessoas", "Administração"
 CATALOGO = [
     Relatorio("agenda", "Agenda do período", "📅", G_MEUS, TODOS, r_agenda, ("periodo", "setor"), dados_pessoais=False,
-              descricao="Eventos com data, local, setor e vagas. Bom para imprimir e fixar no mural."),
+              descricao="Eventos com data, local, ministério e vagas. Bom para imprimir e fixar no mural."),
     Relatorio("minhas-inscricoes", "Minhas inscrições", "🎟️", G_MEUS, TODOS, r_minhas_inscricoes, ("periodo",),
               descricao="Eventos em que você se inscreveu, com ingresso e situação do pagamento."),
     Relatorio("extrato", "Extrato dos meus pagamentos", "🧾", G_MEUS, TODOS, r_extrato, ("periodo",),
@@ -683,18 +683,18 @@ CATALOGO = [
     Relatorio("ocupacao", "Ocupação de vagas", "🎫", G_EVENTOS, GESTAO, r_ocupacao, ("periodo", "setor"), dados_pessoais=False,
               descricao="Inscritos x limite de vagas de cada evento."),
     Relatorio("voluntarios", "Voluntários interessados", "🙋", G_EVENTOS, GESTAO, r_voluntarios, (), periodo_padrao=False,
-              descricao="Quem marcou na ficha que deseja servir nos seus setores."),
+              descricao="Quem marcou na ficha que deseja servir nos seus ministérios."),
     Relatorio("membros", "Membros por situação", "👥", G_PESSOAS, SEC_ADM, r_membros, (), periodo_padrao=False,
               descricao="Lista de membros com as colunas que você escolher e total por situação."),
     Relatorio("pendencias", "Pendências de cadastro", "⚠️", G_PESSOAS, SEC_ADM, r_pendencias, (), periodo_padrao=False,
               descricao="Quem precisa de contato e qual é a pendência."),
     Relatorio("aniversariantes", "Aniversariantes", "🎂", G_PESSOAS, db.PERFIS_AGENDA, r_aniversariantes, ("mes",),
               periodo_padrao=False, descricao="Nome e dia/mês do aniversário, sem ano nem idade. A Coordenação vê só os seus "
-                                               "setores. Calendário completo em 🎂 Aniversariantes."),
-    Relatorio("membros-setor", "Membros por setor de serviço", "🛠️", G_PESSOAS, SEC_ADM, r_membros_setor, ("setor",),
-              periodo_padrao=False, descricao="Quem serve em cada setor e em qual função."),
-    Relatorio("interesses", "Setores de interesse", "💡", G_PESSOAS, SEC_ADM, r_interesses, (), periodo_padrao=False,
-              descricao="Total e lista de interessados em servir, por setor."),
+                                               "ministérios. Calendário completo em 🎂 Aniversariantes."),
+    Relatorio("membros-setor", "Membros por ministério de serviço", "🛠️", G_PESSOAS, SEC_ADM, r_membros_setor, ("setor",),
+              periodo_padrao=False, descricao="Quem serve em cada ministério e em qual função."),
+    Relatorio("interesses", "Ministérios de interesse", "💡", G_PESSOAS, SEC_ADM, r_interesses, (), periodo_padrao=False,
+              descricao="Total e lista de interessados em servir, por ministério."),
     Relatorio("batismo", "Batismo", "💧", G_PESSOAS, SEC_ADM, r_batismo, (), periodo_padrao=False,
               descricao="Batizados, data do batismo e interesse da família."),
     Relatorio("regularizacao", "Regularização", "📋", G_PESSOAS, SEC_ADM, r_regularizacao, ("periodo",), periodo_padrao=False,
@@ -706,8 +706,8 @@ CATALOGO = [
               dados_pessoais=False, descricao="Respostas da pesquisa enviada no e-mail de boas-vindas."),
     Relatorio("usuarios", "Usuários e perfis", "🔐", G_ADM, ("admin",), r_usuarios, (), periodo_padrao=False,
               descricao="Logins, perfil, último acesso e contas sem uso."),
-    Relatorio("coordenadores", "Coordenadores por setor", "🧭", G_ADM, ("admin",), r_coordenadores, (), periodo_padrao=False,
-              descricao="Quem coordena cada setor e setores sem coordenador."),
+    Relatorio("coordenadores", "Coordenadores por ministério", "🧭", G_ADM, ("admin",), r_coordenadores, (), periodo_padrao=False,
+              descricao="Quem coordena cada ministério e ministérios sem coordenador."),
     Relatorio("auditoria", "Auditoria", "🔍", G_ADM, ("admin",), r_auditoria, ("periodo",),
               descricao="Quem fez o quê e quando, inclusive emissões de relatórios e exportações."),
     Relatorio("emails", "E-mails e lembretes", "✉️", G_ADM, ("admin",), r_emails, ("periodo",),
@@ -782,9 +782,9 @@ async def central(request: Request):
     elif "periodo" in rel.filtros:
         filtros_texto.append("Período: todo o histórico")
     if ctx.setor:
-        filtros_texto.append(f"Setor: {ctx.setor}")
+        filtros_texto.append(f"Ministério: {ctx.setor}")
     elif ctx.escopo is not None and rel.grupo == G_EVENTOS:
-        filtros_texto.append("Setores: " + (", ".join(sorted(ctx.escopo)) or "nenhum atribuído"))
+        filtros_texto.append("Ministérios: " + (", ".join(sorted(ctx.escopo)) or "nenhum atribuído"))
     if ctx.evento:
         ev = next((e for e in eventos_opcoes if str(e["id"]) == ctx.evento), None)
         if ev:

@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% import "parciais/ui.html" as ui with context %}
-{% block titulo %}Setores{% endblock %}
+{% block titulo %}Ministérios{% endblock %}
 {% block conteudo %}
-<h1>Setores e departamentos</h1>
-<p class="suave" style="margin-top:0">Os mesmos departamentos da Agenda. Os membros são ligados aos setores na ficha de cada um.
-  Quem coordena cada setor é definido em <a href="/coordenacao">🧭 Coordenação</a>.</p>
+<h1>Ministérios e departamentos</h1>
+<p class="suave" style="margin-top:0">Os mesmos departamentos da Agenda. Os membros são ligados aos ministérios na ficha de cada um.
+  Quem coordena cada ministério é definido em <a href="/coordenacao">🧭 Coordenação</a>.</p>
 <form method="post" action="/admin/setores/salvar" class="cartao grade c3" style="align-items:end">
   {{ ui.csrf_input() }}
-  <div><label for="s_nome">Novo setor</label><input id="s_nome" name="nome" required></div>
+  <div><label for="s_nome">Novo ministério</label><input id="s_nome" name="nome" required></div>
   <div><label for="s_resp">Responsável</label><input id="s_resp" name="responsavel"></div>
   <button class="botao">➕ Adicionar</button>
 </form>
@@ -17,15 +17,15 @@
     <li>
       <form method="post" action="/admin/setores/salvar" class="grade c3" style="align-items:end">
         {{ ui.csrf_input() }}<input type="hidden" name="id" value="{{ s.id }}">
-        <div><label for="nome_{{ s.id }}">Setor ({{ s.qtd }} membro{{ 's' if s.qtd != 1 }})</label><input id="nome_{{ s.id }}" name="nome" value="{{ s.nome }}" required></div>
+        <div><label for="nome_{{ s.id }}">Ministério ({{ s.qtd }} membro{{ 's' if s.qtd != 1 }})</label><input id="nome_{{ s.id }}" name="nome" value="{{ s.nome }}" required></div>
         <div><label for="resp_{{ s.id }}">Responsável</label><input id="resp_{{ s.id }}" name="responsavel" value="{{ s.responsavel or '' }}"></div>
         <div class="acoes" style="margin:0"><button class="botao secundario peq">Salvar</button>
-          <button class="botao perigo peq" formaction="/admin/setores/{{ s.id }}/excluir" onclick="return confirm('Excluir o setor {{ s.nome }}?')">Excluir</button></div>
+          <button class="botao perigo peq" formaction="/admin/setores/{{ s.id }}/excluir" onclick="return confirm('Excluir o ministério {{ s.nome }}?')">Excluir</button></div>
       </form>
       <p class="pequeno" style="margin:.4rem 0 0">🧭 Coordenação: {% if s.coordenadores %}<b>{{ s.coordenadores|join(', ') }}</b>{% else %}<span class="suave">ninguém ainda</span>{% endif %}
         · <a href="/coordenacao">definir</a></p>
     </li>
-  {% else %}<li class="suave">Nenhum setor cadastrado.</li>{% endfor %}
+  {% else %}<li class="suave">Nenhum ministério cadastrado.</li>{% endfor %}
   </ul>
 </div>
 {% endblock %}

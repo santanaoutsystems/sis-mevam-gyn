@@ -93,3 +93,13 @@ def test_instituto_so_adm_e_menu():
     assert logado("secretaria").get("/instituto", follow_redirects=False).status_code in (302, 303, 403)
     html = logado("membro").get("/inicio").text
     assert "/instituto" not in html and "Pesquisa do mês" in html and "/necessidades/painel" not in html
+
+
+def test_termo_ministerio_no_lugar_de_setor():
+    """Ricardo, 20/10/2026: o termo visível 'Setor(es)' passou a ser 'Ministério(s)' (rotas e dados continuam iguais)."""
+    adm = logado("admin")
+    for url in ("/admin/setores", "/coordenacao", "/voluntarios", "/aniversariantes", "/relatorios"):
+        html = adm.get(url).text
+        visivel = html.split("<main", 1)[-1]
+        assert "Setor" not in visivel.replace("Bairro / Setor", ""), url
+    assert "Ministérios em que deseja servir" in novo_cliente().get("/ficha").text

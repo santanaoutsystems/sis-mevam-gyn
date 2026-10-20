@@ -2,14 +2,14 @@
 {% import "parciais/ui.html" as ui with context %}
 {% block titulo %}Voluntários{% endblock %}
 {% block conteudo %}
-<h1>Voluntários por setor</h1>
-<p class="suave" style="margin-top:0">Membros que marcaram na ficha os setores em que desejam servir. Escolha o setor e, se quiser, o evento:
+<h1>Voluntários por ministério</h1>
+<p class="suave" style="margin-top:0">Membros que marcaram na ficha os ministérios em que desejam servir. Escolha o ministério e, se quiser, o evento:
   o convite já vem escrito e você pode editar antes de enviar.</p>
 {% if not setores %}
-  <div class="msg aviso">Você ainda não coordena nenhum setor. Peça à Secretaria ou ao Adm para definir os seus setores.</div>
+  <div class="msg aviso">Você ainda não coordena nenhum ministério. Peça à Secretaria ou ao Adm para definir os seus ministérios.</div>
 {% else %}
 <form method="get" class="cartao com-acao" style="flex-wrap:wrap;gap:.5rem">
-  <label style="margin:0;flex:1;min-width:200px">Setor
+  <label style="margin:0;flex:1;min-width:200px">Ministério
     <select name="setor" onchange="this.form.evento && (this.form.evento.value=''); this.form.submit()">
       {% for s in setores %}<option value="{{ s }}" {{ 'selected' if s == setor }}>{{ s }} ({{ contagem[s] }})</option>{% endfor %}
     </select></label>
@@ -39,7 +39,7 @@
         <td data-rotulo="Desde" class="pequeno">{{ p.criado_em|data_hora_br }}</td></tr>
       {% endfor %}</tbody>
     </table>
-    {% else %}<p class="suave">Ninguém marcou este setor ainda.</p>{% endif %}
+    {% else %}<p class="suave">Ninguém marcou este ministério ainda.</p>{% endif %}
   </div>
 
   {% if pessoas %}

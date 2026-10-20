@@ -37,7 +37,7 @@
   <a class="botao secundario" href="/relatorios">🖨️ Relatórios</a>
   <a class="botao secundario" href="/aniversariantes">🎂 Aniversariantes</a>
   {% if pode('admin') %}
-    <a class="botao secundario" href="/admin/setores">🏢 Setores</a>
+    <a class="botao secundario" href="/admin/setores">🏢 Ministérios</a>
     <a class="botao secundario" href="/admin/auditoria">🔍 Auditoria</a>
     <a class="botao secundario" href="/admin/servicos">📶 Uso dos serviços</a>
   {% endif %}
@@ -62,7 +62,7 @@
     <details style="margin-top:.6rem"><summary class="pequeno"><b>📜 Diretrizes da Coordenação</b></summary>
       <ol class="pequeno">{% for t in DIRETRIZES %}<li>{{ t }}</li>{% endfor %}</ol></details>
   {% else %}
-    <p class="suave">Nenhum setor atribuído ainda. Peça à Secretaria ou ao Adm para definir os setores que você coordena.</p>
+    <p class="suave">Nenhum ministério atribuído ainda. Peça à Secretaria ou ao Adm para definir os ministérios que você coordena.</p>
   {% endif %}
 </div>
 {% endif %}

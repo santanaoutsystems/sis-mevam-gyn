@@ -9,8 +9,8 @@
 {% endif %}
 
 <h1>Coordenação</h1>
-<p class="suave" style="margin-top:0">Quem recebe a <span class="selo coordenacao">Coordenação</span> de um setor cria, edita e exclui eventos,
-  inscrições e despesas <b>somente daquele setor</b> (ou só do evento, na coordenação para um evento). Não vê fichas de membros nem usuários.
+<p class="suave" style="margin-top:0">Quem recebe a <span class="selo coordenacao">Coordenação</span> de um ministério cria, edita e exclui eventos,
+  inscrições e despesas <b>somente daquele ministério</b> (ou só do evento, na coordenação para um evento). Não vê fichas de membros nem usuários.
   Membro, Secretaria e Adm podem ser designados.</p>
 
 <details class="cartao" id="diretrizes">
@@ -23,14 +23,14 @@
   <ul class="pequeno">
     <li><b>Permanente:</b> vale a partir do início, até a Secretaria ou o Adm encerrar.</li>
     <li><b>Por período:</b> vale entre as datas de início e término (até 1 ano). No dia seguinte ao término, termina sozinha.</li>
-    <li><b>Para um evento:</b> vale até o dia do evento e libera só aquele evento (inscrições e despesas). Não permite criar outros eventos no setor.</li>
+    <li><b>Para um evento:</b> vale até o dia do evento e libera só aquele evento (inscrições e despesas). Não permite criar outros eventos no ministério.</li>
   </ul>
 </details>
 
 <form method="post" action="/coordenacao/designar" class="cartao" id="designar">
   {{ ui.csrf_input() }}
   <h2 style="margin-top:0">➕ Designar coordenador</h2>
-  {% if not deptos %}<div class="msg aviso">Nenhum setor cadastrado ainda.{% if pode('admin') %} <a href="/admin/setores">Cadastrar setores</a>.{% endif %}</div>{% endif %}
+  {% if not deptos %}<div class="msg aviso">Nenhum ministério cadastrado ainda.{% if pode('admin') %} <a href="/admin/setores">Cadastrar ministérios</a>.{% endif %}</div>{% endif %}
   <div class="grade c2">
     <div><label for="d_pessoa">Pessoa <span class="obrig">*</span></label>
       <select id="d_pessoa" name="pessoa" required>
@@ -42,7 +42,7 @@
           {% for f in fichas %}<option value="m:{{ f.id }}">{{ f.nome_completo }} · ficha #{{ f.id }} · {{ f.email }}</option>{% endfor %}
         </optgroup>{% endif %}
       </select></div>
-    <div><label for="d_setor">Setor <span class="obrig">*</span></label>
+    <div><label for="d_setor">Ministério <span class="obrig">*</span></label>
       <select id="d_setor" name="departamento_id" required>
         <option value="">Escolha…</option>
         {% for d in deptos %}<option value="{{ d.id }}" data-nome="{{ d.nome }}">{{ d.nome }}</option>{% endfor %}
@@ -57,20 +57,20 @@
       <input id="d_fim" name="fim" data-mascara="data" inputmode="numeric" placeholder="dd/mm/aaaa"></div>
     <div data-so="evento"><label for="d_evento">Evento <span class="obrig">*</span></label>
       <select id="d_evento" name="evento_id" data-eventos>
-        <option value="">Escolha o setor e depois o evento…</option>
+        <option value="">Escolha o ministério e depois o evento…</option>
         {% for e in eventos %}<option value="{{ e.id }}" data-setor="{{ e.departamento }}">{{ e.quando.strftime('%d/%m/%Y %H:%M') if e.quando }} · {{ e.titulo }} ({{ e.departamento }})</option>{% endfor %}
       </select></div>
   </div>
   <label for="d_obs">Observação (opcional)</label>
   <textarea id="d_obs" name="observacao" maxlength="500" placeholder="Ex.: coordena o louvor no culto de domingo; aprovado na reunião de 12/10"></textarea>
   <label class="check" style="margin-top:.5rem"><input type="checkbox" name="disponibilidade" value="sim" required>
-    <span>Confirmo que a pessoa <b>se disponibilizou a servir neste setor</b> e conhece as diretrizes da Coordenação. <span class="obrig">*</span></span></label>
+    <span>Confirmo que a pessoa <b>se disponibilizou a servir neste ministério</b> e conhece as diretrizes da Coordenação. <span class="obrig">*</span></span></label>
   <label class="check"><input type="checkbox" name="avisar" value="sim" checked> Avisar a pessoa por e-mail (com as diretrizes)</label>
   <div class="acoes" style="margin-bottom:0"><button class="botao">Designar</button></div>
 </form>
 
 {% for u in sem_setor %}
-<div class="msg aviso" id="u{{ u.id }}"><b>{{ u.nome }}</b> está com perfil Coordenação, mas sem nenhum setor. Designe um setor acima ou
+<div class="msg aviso" id="u{{ u.id }}"><b>{{ u.nome }}</b> está com perfil Coordenação, mas sem nenhum ministério. Designe um ministério acima ou
   <form method="post" action="/coordenacao/{{ u.id }}/remover" style="display:inline">{{ ui.csrf_input() }}
     <input type="hidden" name="motivo" value="Perfil Coordenação sem setor designado">
     <button class="botao secundario peq">devolver a Membro</button></form>.</div>
@@ -147,9 +147,9 @@
   <summary><b>🕘 Histórico de coordenações encerradas</b> ({{ historico|length }})</summary>
   {% if historico %}
   <div style="overflow-x:auto"><table class="tabela responsiva">
-    <thead><tr><th>Pessoa</th><th>Setor</th><th>Tipo</th><th>Período</th><th>Encerrada</th><th>Motivo</th></tr></thead>
+    <thead><tr><th>Pessoa</th><th>Ministério</th><th>Tipo</th><th>Período</th><th>Encerrada</th><th>Motivo</th></tr></thead>
     <tbody>{% for h in historico %}<tr>
-      <td data-rotulo="Pessoa">{{ h.usuario_nome }}</td><td data-rotulo="Setor">{{ h.setor_nome }}{% if h.evento_titulo %} · {{ h.evento_titulo }}{% endif %}</td>
+      <td data-rotulo="Pessoa">{{ h.usuario_nome }}</td><td data-rotulo="Ministério">{{ h.setor_nome }}{% if h.evento_titulo %} · {{ h.evento_titulo }}{% endif %}</td>
       <td data-rotulo="Tipo">{{ TIPOS.get(h.tipo, h.tipo) }}</td>
       <td data-rotulo="Período">{{ h.inicio|data_br or '-' }} a {{ h.fim|data_br or 'nova decisão' }}</td>
       <td data-rotulo="Encerrada">{{ h.encerrado_em|data_hora_br }} · {{ h.encerrado_por }}</td>

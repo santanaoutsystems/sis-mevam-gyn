@@ -17,7 +17,7 @@
     {% for a in itens %}
     <div class="pessoa-aniv">
       <span class="avatar" aria-hidden="true">{{ a.m.primeiro[:1] }}{{ a.m.curto.split(' ')[-1][:1] if ' ' in a.m.curto }}</span>
-      <span><b>{{ a.m.nome }}</b><br><span class="pequeno suave">{% for s in a.m.setores %}{{ s.nome }}{{ ' · interesse' if s.tipo == 'interesse' }}{{ ', ' if not loop.last }}{% else %}Sem setor{% endfor %}</span></span>
+      <span><b>{{ a.m.nome }}</b><br><span class="pequeno suave">{% for s in a.m.setores %}{{ s.nome }}{{ ' · interesse' if s.tipo == 'interesse' }}{{ ', ' if not loop.last }}{% else %}Sem ministério{% endfor %}</span></span>
       {% if e_hoje %}<a class="botao peq zap" href="/aniversariantes/{{ a.m.id }}/mensagem">💬 Mensagem</a>{% endif %}
     </div>
     {% endfor %}

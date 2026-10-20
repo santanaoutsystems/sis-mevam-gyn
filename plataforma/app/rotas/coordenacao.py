@@ -81,7 +81,7 @@ async def tela(request: Request):
             select(db.coordenacoes_historico).order_by(db.coordenacoes_historico.c.encerrado_em.desc()).limit(40)).mappings()]
     pessoas: dict[int, dict] = {}
     for l in linhas:
-        l["setor"] = nome_setor.get(str(l["departamento_id"]), "Setor removido")
+        l["setor"] = nome_setor.get(str(l["departamento_id"]), "Ministério removido")
         l["situacao"], l["classe"] = coord.situacao(l, hoje)
         l["evento"] = titulo_evento.get(str(l["evento_id"])) if l.get("evento_id") else None
         p = pessoas.setdefault(l["usuario_id"], {"id": l["usuario_id"], "nome": l["nome"], "email": l["email"],
@@ -104,13 +104,13 @@ def _avisar(destino: dict, setor: str, tipo: str, inicio, fim, evento: dict | No
         prazo = f"de {inicio.strftime('%d/%m/%Y')} a {fim.strftime('%d/%m/%Y')}"
     else:
         prazo = f"a partir de {inicio.strftime('%d/%m/%Y')}, até nova decisão"
-    corpo = (f"Paz, {primeiro}!\n\nVocê foi designado(a) para a Coordenação do setor {setor}, {prazo}.\n\n"
+    corpo = (f"Paz, {primeiro}!\n\nVocê foi designado(a) para a Coordenação do ministério {setor}, {prazo}.\n\n"
              "Diretrizes da função:\n" + "\n".join(f"• {d}" for d in coord.DIRETRIZES) +
              f"\n\nEntre no sistema: {config.URL_BASE}/entrar\n"
              f"O Manual da Coordenação explica cada passo.\n\nDesignado por {por}.\nMinistério MEVAM GYN")
 
     def tarefa():
-        erro = envios.enviar_email(destino["email"], f"Coordenação do setor {setor} · MEVAM GYN", corpo)
+        erro = envios.enviar_email(destino["email"], f"Coordenação do ministério {setor} · MEVAM GYN", corpo)
         auditar(None, "EMAIL_COORDENACAO", f"Usuário #{destino['id']}", erro or "enviado",
                 usuario={"id": None, "nome": "Sistema"})
     if config.ENVIO_SINCRONO:
@@ -129,7 +129,7 @@ def _ler_prazo(c, form, setor_nome: str):
         return None, None, None, None, "Data de término inválida. Use dd/mm/aaaa."
     evento = coord._evento(c, form.get("evento_id")) if tipo == "evento" else None
     if evento and evento.get("departamento") != setor_nome:
-        return None, None, None, None, f"O evento escolhido não é do setor {setor_nome}."
+        return None, None, None, None, f"O evento escolhido não é do ministério {setor_nome}."
     inicio, fim, erro = coord.validar_prazo(tipo, inicio, fim, evento)
     return tipo, inicio, fim, evento, erro
 
@@ -142,13 +142,13 @@ async def designar(request: Request):
     dep = (form.get("departamento_id") or "").strip()
     observacao = (form.get("observacao") or "").strip()[:500]
     if form.get("disponibilidade") != "sim":
-        flash(request, "Confirme que a pessoa se disponibilizou a servir no setor. É um dos critérios da Coordenação.", "erro")
+        flash(request, "Confirme que a pessoa se disponibilizou a servir no ministério. É um dos critérios da Coordenação.", "erro")
         return ir("/coordenacao#designar")
     senha_nova = None
     with db.engine().begin() as c:
         setor = c.execute(select(db.departamentos.c.nome).where(db.DEP_ID == dep)).scalar() if dep else None
         if not setor:
-            flash(request, "Escolha o setor.", "erro")
+            flash(request, "Escolha o ministério.", "erro")
             return ir("/coordenacao#designar")
         tipo, inicio, fim, evento, erro = _ler_prazo(c, form, setor)
         if erro:
@@ -182,7 +182,7 @@ async def designar(request: Request):
             return ir("/coordenacao#designar")
         us = db.usuario_setores.c
         if c.execute(select(us.id).where(us.usuario_id == uid, us.departamento_id == dep)).first():
-            flash(request, f"{alvo['nome']} já tem uma designação no setor {setor}. Use ✏️ Editar nela.", "erro")
+            flash(request, f"{alvo['nome']} já tem uma designação no ministério {setor}. Use ✏️ Editar nela.", "erro")
             return ir(f"/coordenacao#u{uid}")
         c.execute(insert(db.usuario_setores).values(
             usuario_id=uid, departamento_id=dep, tipo=tipo, inicio=inicio, fim=fim,
@@ -200,7 +200,7 @@ async def designar(request: Request):
                 c.execute(insert(db.membro_setores).values(membro_id=alvo["membro_id"], departamento_id=dep, funcao="Coordenação"))
         prazo = coord.TIPOS[tipo] + (f" · {inicio.strftime('%d/%m/%Y')}" if inicio else "") + (f" a {fim.strftime('%d/%m/%Y')}" if fim else "")
         auditar(request, "COORDENACAO_DESIGNADA", f"Usuário #{uid}",
-                f"Setor {setor} · {prazo}" + (f" · evento {evento['titulo']}" if evento else "")
+                f"Ministério {setor} · {prazo}" + (f" · evento {evento['titulo']}" if evento else "")
                 + (f" · {observacao}" if observacao else ""), conexao=c)
     if senha_nova:
         _mostrar_senha_uma_vez(request, alvo["nome"], alvo["email"], senha_nova)
@@ -230,7 +230,7 @@ async def editar(request: Request):
             tipo=tipo, inicio=inicio, fim=fim, evento_id=str(evento["id"]) if evento else None, observacao=observacao or None))
         depois = f"{coord.TIPOS[tipo]} {datas.fmt_data(inicio)}–{datas.fmt_data(fim)}"
         auditar(request, "COORDENACAO_ALTERADA", f"Usuário #{linha['usuario_id']}",
-                f"Setor {setor} · {antes} → {depois}" + (f" · {observacao}" if observacao else ""), conexao=c)
+                f"Ministério {setor} · {antes} → {depois}" + (f" · {observacao}" if observacao else ""), conexao=c)
     flash(request, f"Coordenação de {setor} atualizada.")
     return ir(f"/coordenacao#u{linha['usuario_id']}")
 
@@ -254,7 +254,7 @@ async def encerrar(request: Request):
             return ir(f"/coordenacao#u{linha['usuario_id']}")
         setor = c.execute(select(db.departamentos.c.nome).where(db.DEP_ID == str(linha["departamento_id"]))).scalar()
         coord.encerrar(c, dict(linha), eu["nome"], motivo)
-        auditar(request, "COORDENACAO_ENCERRADA", f"Usuário #{linha['usuario_id']}", f"Setor {setor} · {motivo}", conexao=c)
+        auditar(request, "COORDENACAO_ENCERRADA", f"Usuário #{linha['usuario_id']}", f"Ministério {setor} · {motivo}", conexao=c)
         perfil = c.execute(select(db.usuarios.c.perfil, db.usuarios.c.nome).where(db.usuarios.c.id == linha["usuario_id"])).first()
     flash(request, f"Coordenação de {setor} encerrada." + (f" {perfil[1]} voltou a ser Membro." if perfil and perfil[0] == "membro" else ""))
     return ir("/coordenacao")

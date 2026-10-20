@@ -12,7 +12,7 @@
       {% for d, pessoas in lista_mes %}{% for m in pessoas %}
       <li class="{{ 'hoje' if d == hoje }}">
         <b class="dia-destaque">{{ d.strftime('%d/%m') }}</b>
-        <span><b>{{ m.nome }}</b> {{ marca(m, d) }}<br><span class="pequeno suave">{% for s in m.setores %}{{ s.nome }}{{ ' (interesse)' if s.tipo == 'interesse' }}{{ ', ' if not loop.last }}{% else %}Sem setor{% endfor %}</span></span>
+        <span><b>{{ m.nome }}</b> {{ marca(m, d) }}<br><span class="pequeno suave">{% for s in m.setores %}{{ s.nome }}{{ ' (interesse)' if s.tipo == 'interesse' }}{{ ', ' if not loop.last }}{% else %}Sem ministério{% endfor %}</span></span>
         <a class="botao peq zap nao-imprimir" href="/aniversariantes/{{ m.id }}/mensagem">💬</a>
       </li>
       {% endfor %}{% endfor %}
@@ -28,13 +28,13 @@
     {% if pode('secretaria', 'admin') %}<a class="botao secundario" href="/aniversariantes/modelos">⚙️ Modelos de mensagem</a>{% endif %}
   </div>
 </div>
-<p class="suave pequeno nao-imprimir" style="margin-top:0">{% if escopo is none %}Todos os setores.{% else %}Membros dos seus setores: {{ escopo|sort|join(', ') or 'nenhum setor atribuído' }}.{% endif %}
+<p class="suave pequeno nao-imprimir" style="margin-top:0">{% if escopo is none %}Todos os ministérios.{% else %}Membros dos seus ministérios: {{ escopo|sort|join(', ') or 'nenhum ministério atribuído' }}.{% endif %}
   Só dia e mês, sem ano nem idade (LGPD).</p>
 
 <div class="cab-relatorio so-impressao">
   <img src="/static/img/logo_round.jpg" alt="">
   <div><h2>MINISTÉRIO MEVAM GYN · Aniversariantes · {{ titulo }}</h2>
-  <span class="pequeno">Emitido por {{ usuario.nome }} ({{ PERFIS_ROTULO[usuario.perfil] }}) · Setor: {{ setor or 'todos' }}</span></div>
+  <span class="pequeno">Emitido por {{ usuario.nome }} ({{ PERFIS_ROTULO[usuario.perfil] }}) · Ministério: {{ setor or 'todos' }}</span></div>
 </div>
 
 <div class="cal-aniv-grade">
@@ -53,9 +53,9 @@
         {% endfor %}
       </div>
       <input type="hidden" name="visao" value="{{ visao }}"><input type="hidden" name="dia" value="{{ ref.isoformat() }}">
-      <label class="sr" for="setor">Setor</label>
+      <label class="sr" for="setor">Ministério</label>
       <select id="setor" name="setor" onchange="this.form.submit()">
-        <option value="">{{ 'Todos os setores' if escopo is none else 'Todos os meus setores' }}</option>
+        <option value="">{{ 'Todos os ministérios' if escopo is none else 'Todos os meus ministérios' }}</option>
         {% for o in opcoes %}<option {{ 'selected' if o == setor }}>{{ o }}</option>{% endfor %}
       </select>
       <noscript><button class="botao peq">Filtrar</button></noscript>
@@ -90,7 +90,7 @@
     {% for d, pessoas in proximos %}{% for m in pessoas %}
     <div class="pessoa-aniv">
       <span class="avatar" aria-hidden="true">{{ m.primeiro[:1] }}{{ m.curto.split(' ')[-1][:1] if ' ' in m.curto }}</span>
-      <span><b>{{ m.nome }}</b> {{ marca(m, d) }}<br><span class="pequeno suave">{{ 'Hoje' if d == hoje else ('Amanhã' if (d - hoje).days == 1 else d.strftime('%d/%m')) }} · {% for s in m.setores %}{{ s.nome }}{{ ', ' if not loop.last }}{% else %}Sem setor{% endfor %}</span></span>
+      <span><b>{{ m.nome }}</b> {{ marca(m, d) }}<br><span class="pequeno suave">{{ 'Hoje' if d == hoje else ('Amanhã' if (d - hoje).days == 1 else d.strftime('%d/%m')) }} · {% for s in m.setores %}{{ s.nome }}{{ ', ' if not loop.last }}{% else %}Sem ministério{% endfor %}</span></span>
       <a class="botao peq zap" href="/aniversariantes/{{ m.id }}/mensagem" aria-label="Mensagem para {{ m.nome }}">💬</a>
     </div>
     {% endfor %}{% else %}<p class="suave">Ninguém faz aniversário nos próximos 7 dias.</p>{% endfor %}
@@ -99,7 +99,7 @@
   </div>
   <div class="cartao">
     <h2 style="margin-top:0">✉️ Resumo por e-mail</h2>
-    <p class="pequeno">Às 8h, um e-mail com os aniversariantes de amanhã {{ 'dos seus setores' if escopo is not none else 'sem setor ou sem coordenação' }}.</p>
+    <p class="pequeno">Às 8h, um e-mail com os aniversariantes de amanhã {{ 'dos seus ministérios' if escopo is not none else 'sem ministério ou sem coordenação' }}.</p>
     <form method="post" action="/aniversariantes/resumo-email"><input type="hidden" name="csrf" value="{{ csrf }}">
       <input type="hidden" name="ligar" value="{{ '0' if email_avisos else '1' }}">
       <button class="botao peq {{ 'secundario' if email_avisos }}">{{ 'Desligar o resumo' if email_avisos else 'Ligar o resumo' }}</button>

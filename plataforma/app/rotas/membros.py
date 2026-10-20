@@ -374,7 +374,7 @@ async def editar(request: Request):
     with db.engine().begin() as c:
         c.execute(update(db.membros).where(db.membros.c.id == mid).values(**dados, atualizado_em=datas.agora_utc()))
         if salvar_interesses(c, mid, interesses):
-            alterados.append("setores de interesse")
+            alterados.append("ministérios de interesse")
         if "cpf" in alterados:  # o login da mesma pessoa acompanha o CPF da ficha
             c.execute(update(db.usuarios).where(db.usuarios.c.membro_id == mid).values(cpf=dados["cpf"]))
         _ligar_pelo_cpf(c, dados["cpf"], membro_id=mid)
@@ -599,8 +599,8 @@ async def setores(request: Request):
             if did in validos:
                 funcao = form.get(f"funcao_{did}") or "Voluntário"
                 c.execute(insert(db.membro_setores).values(membro_id=mid, departamento_id=did, funcao=funcao[:40]))
-        auditar(request, "SETORES_MEMBRO", f"Membro #{mid}", f"Setores: {ids}", conexao=c)
-    flash(request, "Setores atualizados.")
+        auditar(request, "SETORES_MEMBRO", f"Membro #{mid}", f"Ministérios: {ids}", conexao=c)
+    flash(request, "Ministérios atualizados.")
     return ir(f"/membros/{mid}")
 
 

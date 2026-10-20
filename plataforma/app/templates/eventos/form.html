@@ -10,7 +10,7 @@
   {{ ui.csrf_input() }}
   {{ ui.campo('titulo', 'Título do evento', obrig=True, voz=True) }}
   <div class="{{ 'campo-erro' if erros.get('departamento') }}">
-    <label for="departamento">Setor responsável <span class="obrig">*</span></label>
+    <label for="departamento">Ministério responsável <span class="obrig">*</span></label>
     <select id="departamento" name="departamento" required>
       {% for d in deptos %}<option value="{{ d.nome }}" {{ 'selected' if valores.get('departamento') == d.nome }}>{{ d.nome }}{% if d.responsavel %} · {{ d.responsavel }}{% endif %}</option>
       {% else %}<option value="Geral">Geral</option>{% endfor %}

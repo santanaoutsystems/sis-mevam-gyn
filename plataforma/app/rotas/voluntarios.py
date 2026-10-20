@@ -61,10 +61,10 @@ def texto_padrao(setor: str, evento: dict | None, usuario: dict) -> tuple[str, s
         local = f", em {evento['local']}" if evento.get("local") else ""
         assunto = f"Convite especial para servir: {evento['titulo']}"
         convite = (f"Estamos preparando o evento {evento['titulo']}, no dia {quando}{local}, "
-                   f"e precisamos de voluntários do setor {setor}.")
+                   f"e precisamos de voluntários do ministério {setor}.")
     else:
         assunto = f"Convite especial: servir em {setor}"
-        convite = f"O setor {setor} está precisando de voluntários."
+        convite = f"O ministério {setor} está precisando de voluntários."
     corpo = (f"Paz, {{nome}}!\n\nNo seu cadastro você marcou que deseja servir em {setor}. {convite}\n\n"
              "Podemos contar com você? Responda este e-mail confirmando a sua participação.\n\n"
              f"Deus abençoe!\n{usuario['nome']}\nCoordenação · {setor} · MEVAM GYN")
@@ -105,7 +105,7 @@ async def convidar(request: Request):
     with db.engine().connect() as c:
         if setor not in setores_permitidos(c, u):
             return render(request, "erro.html", {"titulo": "Acesso restrito",
-                          "mensagem": "Este setor não está sob a sua coordenação."}, 403)
+                          "mensagem": "Este ministério não está sob a sua coordenação."}, 403)
         pessoas = {str(p["id"]): p for p in interessados(c, setor)}
     escolhidos = [pessoas[i] for i in form.getlist("membro") if i in pessoas and pessoas[i].get("email")]
     if not assunto or not corpo:

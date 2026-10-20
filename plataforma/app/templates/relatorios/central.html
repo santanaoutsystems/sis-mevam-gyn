@@ -42,8 +42,8 @@
           <div><label for="ate">Até</label><input id="ate" name="ate" data-mascara="data" placeholder="dd/mm/aaaa" value="{{ ctx.ate|data_br if ctx.ate else '' }}"></div>
           {% endif %}
           {% if 'setor' in rel.filtros %}
-          <div><label for="setor">Setor</label><select id="setor" name="setor">
-            <option value="">{{ 'Todos os meus setores' if ctx.escopo is not none and rel.grupo == 'Eventos' else 'Todos os setores' }}</option>
+          <div><label for="setor">Ministério</label><select id="setor" name="setor">
+            <option value="">{{ 'Todos os meus ministérios' if ctx.escopo is not none and rel.grupo == 'Eventos' else 'Todos os ministérios' }}</option>
             {% for s in setores %}<option {{ 'selected' if s == ctx.setor }}>{{ s }}</option>{% endfor %}</select></div>
           {% endif %}
           {% if 'evento' in rel.filtros %}

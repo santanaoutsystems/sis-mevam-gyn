@@ -32,16 +32,16 @@ CRITERIOS = [
     "Ter login ativo no sistema. Se a pessoa ainda não tem, o sistema cria o acesso a partir da ficha validada (com e-mail).",
     "Se a pessoa tem ficha, ela precisa estar validada (Ativo ou Validado pela Secretaria). Ficha inativa, "
     "na lixeira ou aguardando análise não pode receber Coordenação.",
-    "Ter se disponibilizado a servir no setor: a Secretaria/Adm confirma isso ao designar, e a pessoa passa a "
-    "constar no setor como Coordenação.",
-    "Uma designação por pessoa em cada setor. Para mudar o prazo ou o tipo, edite a designação que já existe.",
+    "Ter se disponibilizado a servir no ministério: a Secretaria/Adm confirma isso ao designar, e a pessoa passa a "
+    "constar no ministério como Coordenação.",
+    "Uma designação por pessoa em cada ministério. Para mudar o prazo ou o tipo, edite a designação que já existe.",
     "Por período: de 1 dia até 1 ano, renovável. Para um evento: vale até o dia do evento e só para ele.",
 ]
 
 # Diretrizes da função (proposta para a liderança validar; aparecem na tela e no manual)
 DIRETRIZES = [
-    "Servir no setor que coordena, participando da escala e das reuniões do setor.",
-    "Cadastrar e manter só os eventos dos seus setores, respeitando o intervalo de 2 horas entre eventos. "
+    "Servir no ministério que coordena, participando da escala e das reuniões do ministério.",
+    "Cadastrar e manter só os eventos dos seus ministérios, respeitando o intervalo de 2 horas entre eventos. "
     "Liberar conflito de horário é decisão da Secretaria ou do Adm.",
     "Toda edição ou exclusão de evento exige justificativa e fica registrada no histórico.",
     "Registrar inscrições e despesas do evento no sistema e conferir o resumo financeiro ao final.",
@@ -148,7 +148,7 @@ def encerrar_vencidas() -> int:
         for l in vencidas:
             encerrar(c, l, "Sistema", "Prazo encerrado")
             auditar(None, "COORDENACAO_ENCERRADA", f"Usuário #{l['usuario_id']}",
-                    f"Prazo encerrado em {l['fim'].strftime('%d/%m/%Y')} · setor {l['departamento_id']}",
+                    f"Prazo encerrado em {l['fim'].strftime('%d/%m/%Y')} · ministério {l['departamento_id']}",
                     usuario={"id": None, "nome": "Sistema"}, conexao=c)
             n += 1
     if n:
