@@ -334,7 +334,8 @@ async def detalhe(request: Request):
             return render(request, "erro.html", {"titulo": "Não encontrado", "mensagem": "Ficha não encontrada."}, 404)
         setores = _setores_do_membro(c, mid)
         deptos = [dict(r) for r in c.execute(select(db.departamentos).order_by(db.departamentos.c.nome)).mappings()]
-        login = c.execute(select(db.usuarios.c.id, db.usuarios.c.email, db.usuarios.c.perfil)
+        login = c.execute(select(db.usuarios.c.id, db.usuarios.c.email, db.usuarios.c.perfil,
+                                 db.usuarios.c.trocar_senha, db.usuarios.c.bloqueado_ate)
                           .where(db.usuarios.c.membro_id == mid)).mappings().first()
     auditar(request, "VISUALIZACAO_FICHA", f"Membro #{mid}")
     return render(request, "membros/detalhe.html", {
@@ -771,6 +772,49 @@ def whatsapp_credo(m: dict) -> str:
     return f"https://wa.me/{numero}?text={quote(texto)}"
 
 
+# Perfis cujo acesso a Secretaria pode recuperar; contas de Secretaria e Adm só o Adm redefine.
+PERFIS_RECUPERAVEIS_SECRETARIA = ("membro", "coordenacao")
+
+
+def whatsapp_senha(m: dict, email: str, senha: str) -> str:
+    numero = envios.numero_whatsapp(m.get("whatsapp"))
+    if not numero:
+        return ""
+    primeiro = (m.get("nome_completo") or "").split(" ")[0]
+    texto = (f"Paz, {primeiro}! Sua nova senha provisória do SIS MEVAM-GYN é: {senha}\n"
+             f"Entre em {config.URL_BASE}/entrar com o e-mail {email} e crie a sua senha pessoal no primeiro acesso. "
+             f"Não compartilhe esta mensagem.")
+    return f"https://wa.me/{numero}?text={quote(texto)}"
+
+
+@seguranca.exigir(*ADMIN_SECRETARIA)
+async def nova_senha(request: Request):
+    """Gera uma nova senha provisória para quem perdeu a sua (Secretaria e Adm)."""
+    mid = request.path_params["id"]
+    eu = seguranca.usuario_atual(request)
+    with db.engine().begin() as c:
+        m = _carregar(c, mid)
+        login = c.execute(select(db.usuarios).where(db.usuarios.c.membro_id == mid)).mappings().first()
+        if not m or not login:
+            flash(request, "Esta ficha não tem login. Crie o acesso primeiro.", "erro")
+            return ir(f"/membros/{mid}")
+        if eu["perfil"] != "admin" and login["perfil"] not in PERFIS_RECUPERAVEIS_SECRETARIA:
+            flash(request, "Só o Adm pode gerar nova senha para contas de Secretaria ou Adm.", "erro")
+            return ir(f"/membros/{mid}")
+        if login["id"] == eu["id"]:
+            flash(request, "Para a sua própria conta, use 🔑 Trocar senha.", "erro")
+            return ir(f"/membros/{mid}")
+        senha = seguranca.senha_temporaria()
+        h, s, it = seguranca.hash_senha(senha)
+        c.execute(update(db.usuarios).where(db.usuarios.c.id == login["id"]).values(
+            senha_hash=h, salt=s, iteracoes=it, trocar_senha=True, tentativas_falhas=0, bloqueado_ate=None))
+        auditar(request, "SENHA_REDEFINIDA", f"Usuário #{login['id']}",
+                f"Nova senha provisória pela ficha #{mid}", conexao=c)
+    request.session["senha_provisoria"] = {"nome": m["nome_completo"], "email": login["email"], "senha": senha,
+                                           "nova": True, "whatsapp": whatsapp_senha(m, login["email"], senha)}
+    return ir(f"/membros/{mid}")
+
+
 from ..web import templates  # noqa: E402
 
 templates.env.globals["whatsapp_credo"] = whatsapp_credo
@@ -790,6 +834,7 @@ rotas = [
     Route("/membros/{id:int}/link-enviado", link_enviado, methods=["POST"]),
     Route("/membros/{id:int}/setores", setores, methods=["POST"]),
     Route("/membros/{id:int}/pdf", pdf),
+    Route("/membros/{id:int}/nova-senha", nova_senha, methods=["POST"]),
     Route("/membros/{id:int}/anonimizar", anonimizar, methods=["POST"]),
     Route("/membros/{id:int}/inativar", inativar, methods=["POST"]),
     Route("/membros/{id:int}/reativar", reativar, methods=["POST"]),

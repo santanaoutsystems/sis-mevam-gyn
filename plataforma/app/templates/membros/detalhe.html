@@ -4,9 +4,13 @@
 {% block cabeca %}<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>{% endblock %}
 {% block conteudo %}
 {% if senha_provisoria %}
-<div class="msg aviso"><b>Acesso criado para {{ senha_provisoria.nome }}.</b><br>
-  E-mail: <b>{{ senha_provisoria.email }}</b> · Senha provisória: <b style="font-family:monospace;font-size:1.1rem">{{ senha_provisoria.senha }}</b><br>
-  <span class="pequeno">Anote agora: ela não será exibida de novo. A pessoa troca a senha no primeiro acesso.</span></div>
+<div class="msg aviso"><b>{{ 'Nova senha provisória gerada para' if senha_provisoria.nova else 'Acesso criado para' }} {{ senha_provisoria.nome }}.</b><br>
+  E-mail: <b>{{ senha_provisoria.email }}</b> · Senha provisória: <b id="senha-prov" style="font-family:monospace;font-size:1.1rem">{{ senha_provisoria.senha }}</b><br>
+  <span class="acoes" style="margin:.4rem 0">
+    <button type="button" class="botao secundario peq" onclick="navigator.clipboard.writeText(document.getElementById('senha-prov').textContent);this.textContent='✅ Copiada'">📋 Copiar senha</button>
+    {% if senha_provisoria.whatsapp %}<a class="botao secundario peq" href="{{ senha_provisoria.whatsapp }}" target="_blank" rel="noopener">💬 Enviar pelo WhatsApp</a>{% endif %}
+  </span>
+  <span class="pequeno">Anote ou envie agora: ela não será exibida de novo. A pessoa cria a senha pessoal no primeiro acesso{{ ' e a senha antiga deixa de funcionar' if senha_provisoria.nova }}.</span></div>
 {% endif %}
 
 {% if not propria and m.status == 'Excluído' %}
@@ -55,7 +59,13 @@
 
   <h3>Acesso ao sistema</h3>
   {% if login %}
-    <p>Login: <b>{{ login.email }}</b> <span class="selo {{ login.perfil }}">{{ PERFIS_ROTULO[login.perfil] }}</span></p>
+    <p>Login: <b>{{ login.email }}</b> <span class="selo {{ login.perfil }}">{{ PERFIS_ROTULO[login.perfil] }}</span>
+      {% if login.trocar_senha %}<span class="selo aguardando">Ainda com senha provisória</span>{% endif %}</p>
+    {% if usuario.perfil == 'admin' or login.perfil in ('membro', 'coordenacao') %}
+    <form method="post" action="/membros/{{ m.id }}/nova-senha" onsubmit="return confirm('Gerar uma nova senha provisória? A senha atual de {{ m.nome_completo|e }} deixa de funcionar.')">{{ ui.csrf_input() }}
+      <button class="botao secundario peq">🔑 Gerar nova senha provisória</button></form>
+    <p class="pequeno suave" style="margin-top:.35rem">Use quando a pessoa perdeu ou esqueceu a senha. Também desbloqueia o acesso.</p>
+    {% else %}<p class="pequeno suave">A senha desta conta só pode ser redefinida pelo Adm.</p>{% endif %}
   {% elif m.status != 'Aguardando Análise' %}
     <form method="post" action="/membros/{{ m.id }}/criar-acesso">{{ ui.csrf_input() }}
       <button class="botao secundario">🔐 Criar login de membro ({{ m.email or 'sem e-mail' }})</button></form>

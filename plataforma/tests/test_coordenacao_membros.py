@@ -267,3 +267,47 @@ def test_membro_comum_nao_inativa_nem_exclui():
         assert r.status_code in (400, 403)
     assert membro.get("/membros/lixeira").status_code == 403
     assert _status(mid)["status"] == "Ativo"
+
+
+# ---------------------------------------------------------------------------
+# v2.11.2: nova senha provisória pela ficha (Secretaria e Adm)
+# ---------------------------------------------------------------------------
+def test_secretaria_gera_nova_senha_provisoria_para_membro():
+    import re
+    sec = logado("secretaria")
+    mid = _ficha()
+    with db.engine().begin() as c:
+        c.execute(update(db.membros).where(db.membros.c.id == mid).values(whatsapp="(62) 9 9999-0000"))
+    membro = criar("membro", email="ana@mevam.test", membro_id=mid)
+    with db.engine().begin() as c:  # conta bloqueada por tentativas erradas
+        c.execute(update(db.usuarios).where(db.usuarios.c.id == membro["id"]).values(
+            tentativas_falhas=9, bloqueado_ate=datas.agora_utc() + timedelta(hours=1)))
+    assert "Gerar nova senha provisória" in sec.get(f"/membros/{mid}").text
+    r = post(sec, f"/membros/{mid}/nova-senha", {}, pagina=f"/membros/{mid}")
+    assert r.status_code == 303
+    html = sec.get(f"/membros/{mid}").text
+    senha = re.search(r'id="senha-prov"[^>]*>([^<]+)<', html).group(1)
+    assert "Nova senha provisória gerada" in html and "wa.me/5562999990000" in html
+    assert "Nova senha provisória gerada" not in sec.get(f"/membros/{mid}").text  # só uma vez
+    # Senha antiga deixa de funcionar; a nova entra e obriga a troca
+    assert entrar(novo_cliente(), "ana@mevam.test").headers.get("location") != "/inicio"
+    cli = novo_cliente()
+    r = entrar(cli, "ana@mevam.test", senha)
+    assert r.status_code == 303 and r.headers["location"] == "/trocar-senha"
+    with db.engine().connect() as c:
+        u = c.execute(select(db.usuarios).where(db.usuarios.c.id == membro["id"])).mappings().first()
+        log = c.execute(select(db.auditoria.c.acao).where(db.auditoria.c.acao == "SENHA_REDEFINIDA")).first()
+    assert u["trocar_senha"] and log
+
+
+def test_secretaria_nao_redefine_senha_de_adm_mas_adm_sim():
+    sec = logado("secretaria")
+    mid = _ficha("Naira Souza", email="naira@mevam.test")
+    criar("admin", email="naira@mevam.test", membro_id=mid)
+    html = sec.get(f"/membros/{mid}").text
+    assert "só pode ser redefinida pelo Adm" in html and "Gerar nova senha provisória" not in html
+    post(sec, f"/membros/{mid}/nova-senha", {}, pagina=f"/membros/{mid}")
+    assert entrar(novo_cliente(), "naira@mevam.test").status_code == 303  # senha intacta
+    adm = logado("admin", email="adm2@mevam.test")
+    assert post(adm, f"/membros/{mid}/nova-senha", {}, pagina=f"/membros/{mid}").status_code == 303
+    assert "Nova senha provisória gerada" in adm.get(f"/membros/{mid}").text
