@@ -396,6 +396,9 @@ def test_menu_lateral_agrupa_por_processo_e_respeita_o_perfil():
     # Grupo com um item só vira item solto (Agenda do Membro)
     assert 'data-grupo="agenda"' not in html and 'href="/agenda"' in html
     assert 'localStorage.getItem("letras")' in html
+    # Dia/noite sempre à vista: no topo do celular e ao lado do sino no menu do PC
+    assert '<button type="button" class="botao-tema" aria-label="Alternar tema">' in html
+    assert 'class="botao-tema menu-tema-rapido"' in html
 
 
 def test_inscricoes_vagas_valores_e_financeiro():

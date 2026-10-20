@@ -11,6 +11,7 @@
   <div class="menu-usuario">
     <div><b>{{ usuario.nome.split(' ')[0] }}</b><span>{{ PERFIS_ROTULO[usuario.perfil] }}</span></div>
     {% if pode('coordenacao', 'secretaria', 'admin') %}<a class="sino" href="/avisos" aria-label="Avisos{{ ': ' ~ aniv.avisos_n ~ ' novo(s)' if aniv.avisos_n }}" title="Avisos">🔔{% if aniv.avisos_n %}<i>{{ aniv.avisos_n }}</i>{% endif %}</a>{% endif %}
+    <button type="button" class="botao-tema menu-tema-rapido" aria-label="Alternar tema">🌙</button>
   </div>
   <nav class="menu-itens">
     {{ link(menu.inicio) }}
