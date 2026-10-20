@@ -36,7 +36,7 @@ MODELO_PADRAO = {
               "resplandecer o seu rosto sobre ti e te conceda graça\" (Nm 6.24-25).\n\nFeliz aniversário!\n"
               "Com carinho, {remetente} · MEVAM GYN"),
 }
-CAMPOS = ("{primeiro_nome}", "{nome}", "{setor}", "{remetente}")
+CAMPOS = ("{primeiro_nome}", "{nome}", "{ministerio}", "{remetente}")  # {setor} segue aceito nos modelos antigos
 
 log = logging.getLogger("mevam")
 _garantido = {"dia": None}
@@ -261,7 +261,7 @@ def modelo_padrao(c) -> dict:
 def preencher(texto: str, m: dict, remetente: str, setor: str = "") -> str:
     setor = setor or next((s["nome"] for s in m.get("setores", []) if s["tipo"] == "serve"), "") or "MEVAM GYN"
     return (texto.replace("{primeiro_nome}", m["primeiro"]).replace("{nome}", m["nome"] or "")
-            .replace("{setor}", setor).replace("{remetente}", remetente))
+            .replace("{ministerio}", setor).replace("{setor}", setor).replace("{remetente}", remetente))
 
 
 def link_whatsapp(numero: str | None, texto: str) -> str:

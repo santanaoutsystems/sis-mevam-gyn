@@ -113,3 +113,9 @@ def test_resumo_dos_relatorios_usa_ministerios():
     for slug in [r.chave for r in rel.CATALOGO]:
         html = adm.get(f"/relatorios/{slug}").text
         assert not re.search(r"<span>[^<]*\bsetor(es)?\b", html), slug
+
+
+def test_campo_ministerio_nos_modelos_de_mensagem():
+    m = {"primeiro": "Igor", "nome": "Igor Barbosa", "setores": [{"nome": "Louvor", "tipo": "serve"}]}
+    assert an.preencher("{primeiro_nome} · {ministerio} · {setor}", m, "Lia") == "Igor · Louvor · Louvor"
+    assert "{ministerio}" in an.CAMPOS and "{setor}" not in an.CAMPOS

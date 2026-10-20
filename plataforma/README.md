@@ -6,8 +6,8 @@ financeiro, relatórios) num único sistema, com **um login** e **três perfis**
 | Perfil | Ao entrar, vê |
 |---|---|
 | **Membro** | Agenda (sem dados financeiros nem inscritos), a própria ficha e o PDF dela |
-| **Secretaria** | Tudo do Membro + fichas de membros (validar, enviar Credo por WhatsApp/QR, setores, criar login de membro, anonimizar), eventos, inscrições, despesas e relatórios |
-| **Administrador** | Tudo da Secretaria + usuários e perfis, setores, auditoria, exportação CSV e exclusão definitiva |
+| **Secretaria** | Tudo do Membro + fichas de membros (validar, enviar Credo por WhatsApp/QR, ministérios, criar login de membro, anonimizar), eventos, inscrições, despesas e relatórios |
+| **Administrador** | Tudo da Secretaria + usuários e perfis, ministérios, auditoria, exportação CSV e exclusão definitiva |
 
 Banco único: **Supabase (Postgres)**. Em homologação e produção o app se recusa a subir sem ele, porque um arquivo SQLite
 no Render gratuito é apagado a cada publicação ou reinício (causa da perda de fichas de 14/10/2026 no app antigo). As tabelas da Agenda são usadas como estão; o app só acrescenta tabelas
