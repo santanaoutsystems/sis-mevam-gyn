@@ -105,7 +105,8 @@ async def turma(request: Request):
             if len(dig) == 11:
                 cond = or_(cond, db.membros.c.cpf == dig)
             achados = [dict(r) for r in c.execute(select(
-                db.membros.c.id, db.membros.c.nome_completo, db.membros.c.status, db.membros.c.integra_situacao)
+                db.membros.c.id, db.membros.c.nome_completo, db.membros.c.status, db.membros.c.integra_situacao,
+                db.membros.c.integra_turma_id)
                 .where(cond, db.membros.c.status.notin_((db.ANONIMIZADO, db.EXCLUIDO)))
                 .order_by(db.membros.c.nome_completo).limit(15)).mappings()]
     t["vigente"] = integra.codigo_vigente(t)

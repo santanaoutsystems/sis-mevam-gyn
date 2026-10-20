@@ -33,11 +33,11 @@
   {% else %}<p class="suave">Ainda ninguém. Os participantes aparecem aqui ao ler o QR Code e informar o CPF.</p>{% endif %}
 
   <h3>Incluir à mão</h3>
-  <form method="get" class="opcoes" style="align-items:end"><div style="flex:1"><label for="q">Nome ou CPF</label><input id="q" name="q" value="{{ busca }}" placeholder="Pelo menos 3 letras"></div><button class="botao secundario">🔎 Buscar</button></form>
+  <form method="get" style="display:flex;gap:.6rem;align-items:end;flex-wrap:wrap"><div style="flex:1;min-width:220px"><label for="q">Nome ou CPF</label><input id="q" name="q" value="{{ busca }}" placeholder="Pelo menos 3 letras"></div><button class="botao secundario">🔎 Buscar</button></form>
   {% for a in achados %}
   <form method="post" action="/integra/turmas/{{ t.id }}/incluir" class="opcoes" style="align-items:center;margin:.3rem 0">{{ ui.csrf_input() }}
     <input type="hidden" name="membro_id" value="{{ a.id }}"><span style="flex:1">{{ a.nome_completo }} {{ ui.selo(a.status) }} <span class="pequeno suave">{{ SITUACOES.get(a.integra_situacao) }}</span></span>
-    <button class="botao secundario peq">➕ Incluir</button></form>
+    {% if a.integra_turma_id == t.id %}<span class="pequeno suave">já está nesta turma</span>{% else %}<button class="botao secundario peq">➕ Incluir</button>{% endif %}</form>
   {% else %}{% if busca %}<p class="pequeno suave">Nenhuma ficha encontrada.</p>{% endif %}{% endfor %}
 </div>
 <p><a href="/integra">← Voltar ao INTEGRA</a></p>
