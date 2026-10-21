@@ -20,6 +20,14 @@
   {% else %}
     <h1 style="text-align:center;margin-bottom:.2rem">{{ lt.nome }}</h1>
     <p class="suave" style="text-align:center;margin-top:0">Voluntária: <b>{{ voluntaria }}</b> · fichas lançadas agora: <b>{{ lancadas }}</b></p>
+    <div class="ocr-caixa">
+      <b>📷 Ler a ficha</b>
+      <p class="pequeno suave" style="margin:.25rem 0 .5rem">Escolha o PDF que você digitalizou no Drive (ou tire uma foto). O que der para ler é preenchido abaixo para você conferir.</p>
+      <label class="botao secundario peq" style="display:inline-flex;margin:0">Escolher PDF ou tirar foto
+        <input type="file" id="docOcr" accept="image/*,.pdf" hidden></label>
+      <div class="barra"><i id="ocrBarra"></i></div>
+      <div id="ocrStatus" class="pequeno" style="margin-top:.35rem"></div>
+    </div>
     <form method="post" novalidate>{{ ui.csrf_input() }}
       {{ ui.campo('nome_completo', 'Nome completo', obrig=True, voz=True, attrs='autocomplete="off"') }}
       <div class="grade c2">
@@ -41,4 +49,5 @@
 </div>
 {% endmacro %}
 {% block conteudo %}{{ corpo() }}{% endblock %}
+{% block scripts %}{% if voluntaria and not erro_link %}<script src="/static/js/ocr_engine.js" defer></script><script src="/static/js/mutirao.js" defer></script>{% endif %}{% endblock %}
 {% block publico %}{{ corpo() }}{% endblock %}
