@@ -19,9 +19,31 @@
     }
   };
   const motor = new OcrEngine();
+  // Com o Drive ligado, a foto vai junto com a ficha: reduzimos a imagem (cerca de 300 KB) antes do envio
+  const paraDrive = entrada.name === "foto_ficha";
+  const reduzir = (arq) => new Promise((ok) => {
+    if (!arq.type.startsWith("image/")) return ok(arq);
+    const img = new Image(), url = URL.createObjectURL(arq);
+    img.onload = () => {
+      const lado = 1800, k = Math.min(1, lado / Math.max(img.width, img.height));
+      const cv = document.createElement("canvas"); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url);
+      cv.toBlob((b) => ok(b && b.size < arq.size ? new File([b], arq.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }) : arq),
+                "image/jpeg", 0.82);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); ok(arq); };
+    img.src = url;
+  });
+  let trocando = false;
   entrada.addEventListener("change", async () => {
+    if (trocando) return;
     const arquivo = entrada.files[0];
     if (!arquivo) return;
+    if (paraDrive && window.DataTransfer) {
+      const dt = new DataTransfer();
+      for (const f of Array.from(entrada.files).slice(0, 3)) dt.items.add(await reduzir(f));
+      trocando = true; entrada.files = dt.files; trocando = false;
+    }
     const arq = document.getElementById("arquivo");
     if (arq && !arq.value) arq.value = arquivo.name;
     status.textContent = "Preparando a leitura da ficha...";
@@ -35,10 +57,11 @@
           el.value = v; el.dispatchEvent(new Event("input", { bubbles: true })); n++;
         }
       }
-      status.textContent = n ? `✅ ${n} campo(s) lidos da ficha. Confira cada um com o papel e corrija o que estiver errado.`
-                             : "Não conseguimos ler os campos (letra à mão ou foto escura). Digite os dados.";
+      const fotos = paraDrive ? ` 📎 ${entrada.files.length} foto(s) prontas para o Drive.` : "";
+      status.textContent = (n ? `✅ ${n} campo(s) lidos da ficha. Confira cada um com o papel e corrija o que estiver errado.`
+                              : "Não conseguimos ler os campos (letra à mão ou foto escura). Digite os dados.") + fotos;
     } catch (e) {
-      status.textContent = "Não foi possível ler este arquivo. Digite os dados.";
+      status.textContent = "Não foi possível ler este arquivo. Digite os dados." + (paraDrive ? " A foto vai para o Drive mesmo assim." : "");
     }
   });
 })();

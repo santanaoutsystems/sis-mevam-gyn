@@ -20,15 +20,23 @@
   {% else %}
     <h1 style="text-align:center;margin-bottom:.2rem">{{ lt.nome }}</h1>
     <p class="suave" style="text-align:center;margin-top:0">Voluntária: <b>{{ voluntaria }}</b> · fichas lançadas agora: <b>{{ lancadas }}</b></p>
-    <div class="ocr-caixa">
+    <form method="post" novalidate{% if drive %} enctype="multipart/form-data"{% endif %}>{{ ui.csrf_input() }}
+    <div class="ocr-caixa{{ ' campo-erro' if erros.get('foto_ficha') }}">
+      {% if drive %}
+      <b>📷 Fotografar a ficha</b>
+      <p class="pequeno suave" style="margin:.25rem 0 .5rem">Tire a foto da frente (e do verso, se houver). A foto vai sozinha para o Drive da Secretaria e o que der para ler é preenchido abaixo para você conferir.</p>
+      <label class="botao secundario peq" style="display:inline-flex;margin:0">Tirar foto ou escolher arquivo
+        <input type="file" id="docOcr" name="foto_ficha" accept="image/*,.pdf" multiple hidden></label>
+      {% else %}
       <b>📷 Ler a ficha</b>
       <p class="pequeno suave" style="margin:.25rem 0 .5rem">Escolha o PDF que você digitalizou no Drive (ou tire uma foto). O que der para ler é preenchido abaixo para você conferir.</p>
       <label class="botao secundario peq" style="display:inline-flex;margin:0">Escolher PDF ou tirar foto
         <input type="file" id="docOcr" accept="image/*,.pdf" hidden></label>
+      {% endif %}
       <div class="barra"><i id="ocrBarra"></i></div>
-      <div id="ocrStatus" class="pequeno" style="margin-top:.35rem"></div>
+      <div id="ocrStatus" class="pequeno" style="margin-top:.35rem">{% if drive and erros and not erros.get('foto_ficha') %}Corrija o campo indicado e tire a foto de novo antes de salvar.{% endif %}</div>
+      {% if erros.get('foto_ficha') %}<div class="erro-campo">{{ erros.foto_ficha }}</div>{% endif %}
     </div>
-    <form method="post" novalidate>{{ ui.csrf_input() }}
       {{ ui.campo('nome_completo', 'Nome completo', obrig=True, voz=True, attrs='autocomplete="off"') }}
       <div class="grade c2">
         {{ ui.campo('data_nascimento', 'Data de nascimento', obrig=True, mascara='data', dica='dd/mm/aaaa', attrs='inputmode="numeric"') }}
@@ -37,7 +45,7 @@
         {{ ui.campo('email', 'E-mail', tipo='email', attrs='autocapitalize="none"') }}
       </div>
       <p class="pequeno suave" style="margin-top:0">Informe pelo menos o WhatsApp ou o e-mail: é por eles que o membro recebe os links. Ficha sem CPF pode ser lançada: o membro recebe um link para completar os dados.</p>
-      {{ ui.campo('arquivo', 'Nome do arquivo no Drive', dica='Ex.: Maria da Silva Souza.pdf') }}
+      {% if not drive %}{{ ui.campo('arquivo', 'Nome do arquivo no Drive', dica='Ex.: Maria da Silva Souza.pdf') }}{% endif %}
       <div class="{{ 'campo-erro' if erros.get('conferido') }}" style="margin-top:.6rem">
         <label class="check"><input type="checkbox" name="conferido" value="sim"> Conferi os dados com a ficha em papel.</label>
         {% if erros.get('conferido') %}<div class="erro-campo">{{ erros.conferido }}</div>{% endif %}

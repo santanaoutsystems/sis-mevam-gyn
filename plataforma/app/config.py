@@ -48,7 +48,7 @@ if not SECRET_KEY:
 FUSO_HORARIO = "America/Sao_Paulo"
 URL_BASE = os.getenv("URL_BASE", "http://localhost:8000").rstrip("/")
 
-VERSAO = "2.13.0"
+VERSAO = "2.13.1"
 
 # Sessão
 # Sem uso por este tempo, o acesso é bloqueado e é preciso entrar de novo.
@@ -74,6 +74,9 @@ SMTP_SENHA = os.getenv("SMTP_SENHA", "").replace(" ", "")  # senha de app do Goo
 EMAIL_GOOGLE_URL = os.getenv("EMAIL_GOOGLE_URL", "").strip()
 EMAIL_GOOGLE_SEGREDO = os.getenv("EMAIL_GOOGLE_SEGREDO", "").strip()
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "").strip()
+# Mutirão de fichas: ID da pasta do Drive da Secretaria que recebe as fotos das fichas (o mesmo script do
+# EMAIL_GOOGLE_URL grava o arquivo). Sem esta variável, a voluntária digitaliza pelo app do Drive.
+MUTIRAO_DRIVE_PASTA = os.getenv("MUTIRAO_DRIVE_PASTA", "").strip()
 EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE", "").strip() or SMTP_USUARIO
 EMAIL_NOME = os.getenv("EMAIL_NOME", "SIS MEVAM-GYN")
 

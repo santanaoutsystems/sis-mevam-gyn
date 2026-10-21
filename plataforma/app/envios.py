@@ -5,6 +5,7 @@ Cada função devolve None quando deu certo ou o motivo da falha, para registrar
 
 from __future__ import annotations
 
+import base64
 import json
 import smtplib
 import urllib.error
@@ -65,6 +66,33 @@ def _email_google(destino: str, assunto: str, corpo: str) -> str | None:
         return f"Google HTTP {e.code}"
     except Exception as e:  # noqa: BLE001
         return f"{type(e).__name__}: {e}"[:300]
+
+
+def drive_configurado() -> bool:
+    return _google_ok() and bool(config.MUTIRAO_DRIVE_PASTA)
+
+
+def salvar_no_drive(nome: str, mime: str, dados: bytes) -> tuple[str | None, str | None]:
+    """Grava um arquivo na pasta do mutirão (Drive da Secretaria) pelo Apps Script. Devolve (id, erro)."""
+    req = urllib.request.Request(
+        config.EMAIL_GOOGLE_URL,
+        data=json.dumps({"segredo": config.EMAIL_GOOGLE_SEGREDO, "acao": "drive", "pasta": config.MUTIRAO_DRIVE_PASTA,
+                         "nome": nome, "mime": mime, "dados": base64.b64encode(dados).decode()}).encode(),
+        headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            texto = r.read().decode("utf-8", "replace")
+        try:
+            resposta = json.loads(texto)
+        except ValueError:
+            return None, "resposta inesperada do Google"
+        if resposta.get("ok") and resposta.get("id"):
+            return str(resposta["id"]), None
+        return None, f"Google: {resposta.get('erro') or 'o script ainda não tem a função do Drive'}"[:300]
+    except urllib.error.HTTPError as e:
+        return None, f"Google HTTP {e.code}"
+    except Exception as e:  # noqa: BLE001
+        return None, f"{type(e).__name__}: {e}"[:300]
 
 
 def _email_brevo(destino: str, assunto: str, corpo: str) -> str | None:

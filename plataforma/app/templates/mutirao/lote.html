@@ -74,7 +74,7 @@
   {% if fichas %}
   <table class="tabela"><thead><tr><th>Nome</th><th>Nascimento</th><th>Contato</th><th>Situação</th><th>Credo</th></tr></thead><tbody>
   {% for m in fichas %}
-    <tr><td data-rotulo="Nome"><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a><br><span class="pequeno suave">{{ (m.integra_registrado_por or '')|replace('Mutirão · ', 'por ') }}</span></td>
+    <tr><td data-rotulo="Nome"><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a>{% for d in m.drive %} <a href="{{ d }}" target="_blank" rel="noopener" title="Ficha no Drive">📎</a>{% endfor %}<br><span class="pequeno suave">{{ (m.integra_registrado_por or '')|replace('Mutirão · ', 'por ') }}</span></td>
       <td data-rotulo="Nascimento">{{ m.data_nascimento|data_br }}</td>
       <td data-rotulo="Contato">{{ '✉️' if m.email }} {{ '💬' if m.whatsapp }}{% if not m.email and not m.whatsapp %}<span class="selo inativo">sem contato</span>{% endif %}</td>
       <td data-rotulo="Situação">{{ ui.selo(m.status) }}</td>

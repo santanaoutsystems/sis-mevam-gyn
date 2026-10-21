@@ -2,7 +2,8 @@
 
 A Secretaria/Adm cria um lote (ex.: "Fichas históricas · INTEGRA aprovado pelo pastor fundador") e recebe um
 link com código. As voluntárias abrem o link no celular, sem login, e lançam os dados de cada ficha em papel
-(as digitalizações ficam no Drive da Secretaria, não no banco). Cada ficha entra como Validado pela Secretaria,
+(as digitalizações ficam no Drive da Secretaria, não no banco: com MUTIRAO_DRIVE_PASTA, a foto tirada na própria
+tela vai para a pasta do mutirão pelo Apps Script da Secretaria; sem ela, a voluntária usa o app do Drive). Cada ficha entra como Validado pela Secretaria,
 com o INTEGRA concluído (registro histórico) e a justificativa do lote, pronta para o Credo. A Secretaria envia o
 link do Credo em lote (e-mail, até o limite diário) e pelo WhatsApp para quem não tem e-mail. Na assinatura, o
 membro também dá o consentimento LGPD que a ficha de papel não tinha.
@@ -15,6 +16,7 @@ A tela pública só grava fichas: não mostra nem devolve dados de ninguém.
 
 from __future__ import annotations
 
+import re
 import secrets
 import threading
 from datetime import timedelta
@@ -59,6 +61,9 @@ def _vigente(lote: dict, agora=None) -> bool:
     return integra._utc(lote["valido_ate"]) >= (agora or datas.agora_utc())
 
 
+_RE_DRIVE = re.compile(r"https://drive\.google\.com/file/d/[\w-]+/view")
+
+
 def link_lote(lote: dict) -> str:
     return f"{config.URL_BASE}/mutirao/{lote['codigo']}"
 
@@ -67,10 +72,13 @@ def _fichas(c, lote_id: int) -> list[dict]:
     q = (select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.data_nascimento, db.membros.c.email,
                 db.membros.c.whatsapp, db.membros.c.cpf, db.membros.c.status, db.membros.c.credo_aceito,
                 db.membros.c.credo_email_em, db.membros.c.link_credo_enviado, db.membros.c.integra_registrado_por,
-                db.membros.c.criado_em, db.membros.c.integra_situacao)
+                db.membros.c.criado_em, db.membros.c.integra_situacao, db.membros.c.observacoes)
          .where(db.membros.c.origem.like(_prefixo(lote_id) + "%"), db.membros.c.status != db.EXCLUIDO)
          .order_by(db.membros.c.criado_em.desc()))
-    return [dict(r) for r in c.execute(q).mappings()]
+    fichas = [dict(r) for r in c.execute(q).mappings()]
+    for m in fichas:
+        m["drive"] = _RE_DRIVE.findall(m.pop("observacoes") or "")
+    return fichas
 
 
 def enviados_hoje(c) -> int:
@@ -316,6 +324,54 @@ def _validar_ficha(c, valores: dict) -> tuple[dict, dict]:
     return dados, erros
 
 
+MAX_FOTOS = 3
+MAX_BYTES_FOTO = 8 * 1024 * 1024
+TIPOS_FOTO = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "application/pdf": ".pdf"}
+
+
+async def _ler_fotos(form) -> tuple[list[tuple[str, bytes]], str | None]:
+    """Fotos da ficha (frente, verso) enviadas pela voluntária, para gravar no Drive da Secretaria."""
+    fotos = []
+    for arq in form.getlist("foto_ficha")[:MAX_FOTOS]:
+        if not getattr(arq, "filename", None):
+            continue
+        mime = (arq.content_type or "").split(";")[0].strip().lower()
+        if mime not in TIPOS_FOTO:
+            return [], "Envie a foto (JPG ou PNG) ou o PDF da ficha."
+        dados = await arq.read()
+        if len(dados) > MAX_BYTES_FOTO:
+            return [], "Arquivo grande demais (máximo 8 MB). Tire a foto de novo."
+        if dados:
+            fotos.append((mime, dados))
+    return fotos, None
+
+
+def link_drive(arquivo_id: str) -> str:
+    return f"https://drive.google.com/file/d/{arquivo_id}/view"
+
+
+def _guardar_no_drive(mid: int, nome: str, fotos: list[tuple[str, bytes]]) -> int:
+    """Grava as fotos na pasta do mutirão e anota os links na ficha. Devolve quantas foram gravadas."""
+    ids, falhas = [], []
+    for i, (mime, dados) in enumerate(fotos, 1):
+        sufixo = f" ({i})" if len(fotos) > 1 else ""
+        arq_id, erro = envios.salvar_no_drive(f"{nome} - ficha {mid}{sufixo}{TIPOS_FOTO[mime]}", mime, dados)
+        if arq_id:
+            ids.append(arq_id)
+        else:
+            falhas.append(erro or "falha")
+    nota = (" Ficha no Drive: " + " ".join(link_drive(x) for x in ids)) if ids else ""
+    if falhas:
+        nota += " Foto não enviada ao Drive (" + "; ".join(falhas)[:150] + ")."
+    with db.engine().begin() as c:
+        m = c.execute(select(db.membros.c.observacoes).where(db.membros.c.id == mid)).first()
+        valores = {"observacoes": ((m.observacoes or "") + nota)[:2000]}
+        if ids:
+            valores["ocr_documento_nome"] = f"Drive: {nome} - ficha {mid}"[:200]
+        c.execute(update(db.membros).where(db.membros.c.id == mid).values(**valores))
+    return len(ids)
+
+
 async def voluntaria(request: Request):
     codigo = integra.normalizar_codigo(request.path_params["codigo"])
     with db.engine().connect() as c:
@@ -328,7 +384,7 @@ async def voluntaria(request: Request):
     chave = f"mutirao_{lt['id']}"
     sessao = request.session.get(chave) or {}
     ctx = {"lt": lt, "codigo": codigo, "voluntaria": sessao.get("nome"), "lancadas": sessao.get("n", 0),
-           "valores": {}, "erros": {}}
+           "valores": {}, "erros": {}, "drive": envios.drive_configurado()}
     if request.method == "GET":
         return render(request, "mutirao/voluntaria.html", ctx)
 
@@ -349,6 +405,9 @@ async def voluntaria(request: Request):
         return ir(f"/mutirao/{codigo}")
 
     valores = {k: (form.get(k) or "").strip() for k in CAMPOS}
+    fotos, erro_foto = await _ler_fotos(form)
+    if erro_foto:
+        return render(request, "mutirao/voluntaria.html", {**ctx, "valores": valores, "erros": {"foto_ficha": erro_foto}}, 400)
     if form.get("conferido") != "sim":
         erros = {"conferido": "Confira os dados com a ficha em papel e marque a caixa."}
         return render(request, "mutirao/voluntaria.html", {**ctx, "valores": valores, "erros": erros}, 400)
@@ -375,7 +434,15 @@ async def voluntaria(request: Request):
                 usuario={"id": None, "nome": por}, conexao=c)
     request.session[chave] = {"nome": sessao["nome"], "n": sessao.get("n", 0) + 1}
     request.session["mutirao_ultima"] = dados["nome_completo"].split(" ")[0]
-    flash(request, f"Ficha de {dados['nome_completo'].split(' ')[0]} salva. Pode lançar a próxima.")
+    primeiro = dados["nome_completo"].split(" ")[0]
+    if fotos and envios.drive_configurado():
+        enviadas = _guardar_no_drive(mid, dados["nome_completo"], fotos)
+        if enviadas == len(fotos):
+            flash(request, f"Ficha de {primeiro} salva e a foto foi para o Drive da Secretaria. Pode lançar a próxima.")
+        else:
+            flash(request, f"Ficha de {primeiro} salva, mas a foto não chegou ao Drive. Separe esta ficha para a Secretaria.", "aviso")
+        return ir(f"/mutirao/{codigo}")
+    flash(request, f"Ficha de {primeiro} salva. Pode lançar a próxima.")
     return ir(f"/mutirao/{codigo}")
 
 

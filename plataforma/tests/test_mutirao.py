@@ -177,3 +177,35 @@ def test_ficha_sem_cpf_segue_a_regularizacao(monkeypatch):
     post(sec, f"/mutirao/lotes/{lt['id']}/credo", {}, pagina=f"/mutirao/lotes/{lt['id']}")
     [m] = _fichas(lt["id"])
     assert m["status"] == "Validado pela Secretaria" and m["credo_email_em"]
+
+
+def test_foto_da_ficha_vai_para_o_drive(monkeypatch):
+    gravados = []
+    monkeypatch.setattr(envios, "drive_configurado", lambda: True)
+    monkeypatch.setattr(envios, "salvar_no_drive", lambda n, m, d: (gravados.append((n, m, d)) or f"ID{len(gravados)}x", None))
+    sec, lt = _criar_lote()
+    cli = _voluntaria(lt["codigo"])
+    pag = cli.get(f"/mutirao/{lt['codigo']}")
+    assert "Fotografar a ficha" in pag.text and 'name="arquivo"' not in pag.text
+    fotos = [("foto_ficha", ("a.jpg", b"frente", "image/jpeg")), ("foto_ficha", ("b.jpg", b"verso", "image/jpeg"))]
+    dados = {k: v for k, v in FICHA.items() if k != "arquivo"}
+    r = cli.post(f"/mutirao/{lt['codigo']}", data={**dados, "csrf": csrf_de(pag.text)}, files=fotos, follow_redirects=False)
+    assert r.status_code == 303 and "foi para o Drive" in cli.get(r.headers["location"]).text
+    [m] = _fichas(lt["id"])
+    assert [g[0] for g in gravados] == [f"Joana D'arc Pereira - ficha {m['id']} (1).jpg", f"Joana D'arc Pereira - ficha {m['id']} (2).jpg"]
+    assert gravados[0][2] == b"frente" and "https://drive.google.com/file/d/ID1x/view" in m["observacoes"]
+    assert m["ocr_documento_nome"].startswith("Drive: Joana")
+    assert "https://drive.google.com/file/d/ID2x/view" in sec.get(f"/mutirao/lotes/{lt['id']}").text
+    # Falha no Drive: a ficha fica salva e a voluntária é avisada para separar a ficha
+    monkeypatch.setattr(envios, "salvar_no_drive", lambda n, m, d: (None, "Google HTTP 500"))
+    pag = cli.get(f"/mutirao/{lt['codigo']}")
+    r = cli.post(f"/mutirao/{lt['codigo']}", data={**dados, "nome_completo": "Rita Souza", "csrf": csrf_de(pag.text)},
+                 files=fotos[:1], follow_redirects=False)
+    assert "não chegou ao Drive" in cli.get(r.headers["location"]).text
+    rita = [x for x in _fichas(lt["id"]) if x["nome_completo"] == "Rita Souza"][0]
+    assert "Foto não enviada ao Drive" in rita["observacoes"]
+    # Tipo de arquivo inválido não grava a ficha
+    pag = cli.get(f"/mutirao/{lt['codigo']}")
+    r = cli.post(f"/mutirao/{lt['codigo']}", data={**dados, "nome_completo": "Zeca Lima", "csrf": csrf_de(pag.text)},
+                 files=[("foto_ficha", ("x.exe", b"MZ", "application/octet-stream"))], follow_redirects=False)
+    assert r.status_code == 400 and "JPG ou PNG" in r.text and len(_fichas(lt["id"])) == 2
