@@ -754,18 +754,23 @@ async def credo(request: Request):
     form = await request.form()
     assinatura = form.get("assinatura") or ""
     nome = ficha.nome_proprio(form.get("nome_assinante") or "")
+    falta_lgpd = not m.get("lgpd_consentimento") and form.get("lgpd_consentimento") != "sim"
     if form.get("aceite") != "sim" or not assinatura.startswith("data:image/png;base64,") or len(assinatura) > 600_000 \
-            or len(nome.split()) < 2:
-        flash(request, "Leia o Credo, marque o aceite, informe seu nome completo e assine no quadro.", "erro")
+            or len(nome.split()) < 2 or falta_lgpd:
+        flash(request, "Leia o Credo, marque o aceite" + (" e o consentimento LGPD" if falta_lgpd else "")
+              + ", informe seu nome completo e assine no quadro.", "erro")
         return ir(f"/credo/{mid}?t={token}")
     quando = datas.agora_utc()
     ip = seguranca.ip_cliente(request)
     m["nome_assinante"] = nome
+    lgpd = {} if m.get("lgpd_consentimento") else dict(  # ficha de papel antiga: consentimento dado agora
+        lgpd_consentimento=True, lgpd_versao_termo=config.VERSAO_TERMO_LGPD, lgpd_data_consentimento=quando,
+        lgpd_ip_origem=ip, status_lgpd="Consentimento Ativo")
     with db.engine().begin() as c:
         c.execute(update(db.membros).where(db.membros.c.id == mid).values(
             credo_aceito=True, nome_assinante=nome, assinatura_rubrica=assinatura, data_assinatura=quando,
             hash_autenticidade=_hash_rubrica(m, assinatura, quando, ip), status="Ativo",
-            atualizado_em=quando))
+            atualizado_em=quando, **lgpd))
         auditar(request, "ACEITE_CREDO", f"Membro #{mid}", f"Assinado por {nome}", conexao=c)
     link_pdf = f"{config.URL_BASE}/credo/{mid}/pdf?t={seguranca.token_link('credo', mid)}"
     if config.ENVIO_SINCRONO:

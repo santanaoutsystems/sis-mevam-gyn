@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Mutirão de fichas{% endblock %}
+{% macro corpo() %}
+<div class="cartao" style="max-width:560px;margin:1.2rem auto">
+  <div style="font-size:2.4rem;text-align:center">📥</div>
+  {% if erro_link %}
+    <h1 style="text-align:center">Mutirão de fichas</h1>
+    <div class="msg erro">{{ erro_link }}</div>
+  {% elif not voluntaria %}
+    <h1 style="text-align:center">{{ lt.nome }}</h1>
+    <p>Obrigado por ajudar no mutirão! Antes de começar, informe o <b>seu</b> nome. Ele fica registrado em cada ficha que você lançar.</p>
+    <form method="post">{{ ui.csrf_input() }}<input type="hidden" name="acao" value="identificar">
+      <div class="{{ 'campo-erro' if erro_nome }}"><label for="voluntaria">Seu nome completo <span class="obrig">*</span></label>
+        <input id="voluntaria" name="voluntaria" required autocomplete="name">
+        {% if erro_nome %}<div class="erro-campo">{{ erro_nome }}</div>{% endif %}</div>
+      <button class="botao dourado" style="width:100%;margin-top:.8rem">Começar</button>
+    </form>
+    <p class="pequeno suave">Os dados das fichas são pessoais (LGPD): não fotografe pelo WhatsApp nem guarde cópias no celular.</p>
+  {% else %}
+    <h1 style="text-align:center;margin-bottom:.2rem">{{ lt.nome }}</h1>
+    <p class="suave" style="text-align:center;margin-top:0">Voluntária: <b>{{ voluntaria }}</b> · fichas lançadas agora: <b>{{ lancadas }}</b></p>
+    <form method="post" novalidate>{{ ui.csrf_input() }}
+      {{ ui.campo('nome_completo', 'Nome completo', obrig=True, voz=True, attrs='autocomplete="off"') }}
+      <div class="grade c2">
+        {{ ui.campo('data_nascimento', 'Data de nascimento', obrig=True, mascara='data', dica='dd/mm/aaaa', attrs='inputmode="numeric"') }}
+        {{ ui.campo('cpf', 'CPF (se tiver)', mascara='cpf', attrs='inputmode="numeric"') }}
+        {{ ui.campo('whatsapp', 'WhatsApp', mascara='telefone', dica='(62) 9 9999-9999', attrs='inputmode="tel"') }}
+        {{ ui.campo('email', 'E-mail', tipo='email', attrs='autocapitalize="none"') }}
+      </div>
+      <p class="pequeno suave" style="margin-top:0">Informe pelo menos o WhatsApp ou o e-mail: é por eles que o membro recebe o link do Credo.</p>
+      {{ ui.campo('arquivo', 'Nome do arquivo no Drive', dica='Ex.: Maria da Silva Souza.pdf') }}
+      <div class="{{ 'campo-erro' if erros.get('conferido') }}" style="margin-top:.6rem">
+        <label class="check"><input type="checkbox" name="conferido" value="sim"> Conferi os dados com a ficha em papel.</label>
+        {% if erros.get('conferido') %}<div class="erro-campo">{{ erros.conferido }}</div>{% endif %}
+      </div>
+      <button class="botao dourado" style="width:100%;margin-top:.8rem">💾 Salvar e lançar a próxima</button>
+    </form>
+    <p class="pequeno suave">Menor de 18 anos ou ficha ilegível? Não lance: separe para a Secretaria.</p>
+  {% endif %}
+</div>
+{% endmacro %}
+{% block conteudo %}{{ corpo() }}{% endblock %}
+{% block publico %}{{ corpo() }}{% endblock %}

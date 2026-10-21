@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}{{ lt.nome }}{% endblock %}
+{% block cabeca %}<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>{% endblock %}
+{% block conteudo %}
+<h1>📥 {{ lt.nome }}</h1>
+<p class="suave">Criado por {{ lt.criado_por or '-' }} · INTEGRA: {{ lt.justificativa }}</p>
+
+<div class="cartao" style="display:flex;gap:1.25rem;flex-wrap:wrap;align-items:center">
+  <div id="qrcode" style="background:#fff;padding:10px;border-radius:12px"></div>
+  <div style="flex:1;min-width:240px">
+    <p class="pequeno suave" style="margin:0">Link das voluntárias</p>
+    <p style="font:800 2rem/1.1 monospace;letter-spacing:.2em;margin:.2rem 0">{{ lt.codigo }}</p>
+    <p style="word-break:break-all"><code id="link-lote">{{ link }}</code></p>
+    <p>{% if lt.vigente %}<span class="selo ativo">Aberto até {{ lt.valido_ate|data_hora_br }}</span>{% else %}<span class="selo inativo">Encerrado em {{ lt.valido_ate|data_hora_br }}</span>{% endif %}</p>
+    <div class="acoes">
+      <button type="button" class="botao secundario peq" onclick="navigator.clipboard.writeText(document.getElementById('link-lote').textContent);this.textContent='✅ Copiado'">🔗 Copiar link</button>
+      <form method="post" action="/mutirao/lotes/{{ lt.id }}/validade" style="display:inline-flex;gap:.4rem;align-items:center">{{ ui.csrf_input() }}
+        <select name="dias" aria-label="Prorrogar" style="width:auto">{% for d in [7, 15, 30] %}<option value="{{ d }}">mais {{ d }} dias</option>{% endfor %}</select>
+        <button class="botao secundario peq" name="acao" value="prorrogar">⏱️ {{ 'Prorrogar' if lt.vigente else 'Reabrir' }}</button>
+        {% if lt.vigente %}<button class="botao secundario peq" name="acao" value="encerrar" onclick="return confirm('Encerrar o link? As voluntárias não conseguirão mais lançar fichas neste lote.')">⏹️ Encerrar</button>{% endif %}
+      </form>
+    </div>
+  </div>
+</div>
+<script>document.addEventListener("DOMContentLoaded",function(){ if(window.QRCode) new QRCode(document.getElementById("qrcode"),{text:"{{ link }}",width:160,height:160,colorDark:"#0f172a"}); });</script>
+
+<div class="grade c4">
+  <div class="cartao numero"><b>{{ numeros.total }}</b><span class="pequeno">Fichas lançadas</span></div>
+  <div class="cartao numero"><b>{{ numeros.email_enviado }}</b><span class="pequeno">Credo enviado por e-mail</span></div>
+  <div class="cartao numero"><b>{{ numeros.assinadas }}</b><span class="pequeno">Credo assinado (Ativo)</span></div>
+  <div class="cartao numero"><b>{{ numeros.sem_contato }}</b><span class="pequeno">Sem e-mail e sem WhatsApp</span></div>
+</div>
+
+<div class="cartao">
+  <h2>Enviar o Credo</h2>
+  <p>Pendentes com e-mail: <b>{{ pend_email|length }}</b>. Envios de hoje ainda disponíveis: <b>{{ restam_hoje }}</b> de {{ LIMITE }} (cota do Gmail da Secretaria).</p>
+  {% if email_ok %}
+  <form method="post" action="/mutirao/lotes/{{ lt.id }}/credo" onsubmit="return confirm('Enviar o link do Credo por e-mail para até {{ [restam_hoje, pend_email|length]|min }} pessoa(s)?')">{{ ui.csrf_input() }}
+    <button class="botao dourado" {{ 'disabled' if not pend_email or not restam_hoje }}>📨 Enviar Credo por e-mail</button></form>
+  <p class="pequeno suave">Com mais pendentes que o limite, repita nos dias seguintes até zerar.</p>
+  {% else %}<p class="msg aviso">O envio de e-mail não está configurado. Use a lista do WhatsApp.</p>{% endif %}
+
+  <h3 id="whatsapp">Sem e-mail: enviar pelo WhatsApp ({{ so_whats|length }})</h3>
+  {% for m in so_whats %}
+  <div class="opcoes" style="align-items:center;margin:.3rem 0">
+    <span style="flex:1"><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a> <span class="pequeno suave">{{ m.whatsapp }}</span>
+      {% if m.link_credo_enviado %}<span class="selo ativo">enviado</span>{% endif %}</span>
+    <a class="botao secundario peq" href="{{ m.wa }}" target="_blank" rel="noopener">💬 WhatsApp</a>
+    {% if not m.link_credo_enviado %}<form method="post" action="/mutirao/lotes/{{ lt.id }}/whatsapp/{{ m.id }}" style="display:inline">{{ ui.csrf_input() }}<button class="botao secundario peq">✔ Marcar enviado</button></form>{% endif %}
+  </div>
+  {% else %}<p class="pequeno suave">Ninguém nesta lista.</p>{% endfor %}
+</div>
+
+<div class="cartao">
+  <h2>Fichas do lote</h2>
+  {% if por_voluntaria %}<p class="pequeno">{% for nome, n in por_voluntaria %}<span class="selo">{{ nome }}: {{ n }}</span> {% endfor %}</p>{% endif %}
+  {% if fichas %}
+  <table class="tabela"><thead><tr><th>Nome</th><th>Nascimento</th><th>Contato</th><th>Situação</th><th>Credo</th></tr></thead><tbody>
+  {% for m in fichas %}
+    <tr><td data-rotulo="Nome"><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a><br><span class="pequeno suave">{{ (m.validado_por or '')|replace('Mutirão · ', 'por ') }}</span></td>
+      <td data-rotulo="Nascimento">{{ m.data_nascimento|data_br }}</td>
+      <td data-rotulo="Contato">{{ '✉️' if m.email }} {{ '💬' if m.whatsapp }}{% if not m.email and not m.whatsapp %}<span class="selo inativo">sem contato</span>{% endif %}</td>
+      <td data-rotulo="Situação">{{ ui.selo(m.status) }}</td>
+      <td data-rotulo="Credo">{% if m.credo_aceito %}✅ assinado{% elif m.credo_email_em %}✉️ {{ m.credo_email_em|data_br }}{% elif m.link_credo_enviado %}💬 enviado{% else %}<span class="suave">a enviar</span>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody></table>
+  {% else %}<p class="suave">Nenhuma ficha lançada ainda. Envie o link às voluntárias.</p>{% endif %}
+  <p class="pequeno suave">Lançou errado? Abra a ficha e corrija em ✏️ Editar, ou use 🗑️ Excluir com a justificativa.</p>
+</div>
+<p><a href="/mutirao">← Voltar ao Mutirão</a></p>
+{% endblock %}

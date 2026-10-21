@@ -17,6 +17,7 @@ GRUPOS = [
     ("pessoas", "👥", "Pessoas", [
         ("/membros", "📇", "Membros", SEC_ADM, ("/credo",)),
         ("/integra", "🎓", "INTEGRA", SEC_ADM, ()),
+        ("/mutirao", "📥", "Mutirão de fichas", SEC_ADM, ()),
         ("/regularizacao", "📋", "Regularização", SEC_ADM, ()),
         ("/coordenacao", "🧭", "Coordenação", SEC_ADM, ()),
         ("/membros/lixeira", "🗑️", "Lixeira", SEC_ADM, ()),

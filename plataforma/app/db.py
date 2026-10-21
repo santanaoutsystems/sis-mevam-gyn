@@ -180,6 +180,7 @@ membros = Table(
     Column("integra_pedido_em", DateTime(timezone=True)),  # campanha para quem já tinha cadastro
     Column("integra_prazo", Date),
     Column("integra_lembrete_em", DateTime(timezone=True)),
+    Column("credo_email_em", DateTime(timezone=True)),  # v2.13.0: e-mail com o link do Credo (mutirão)
     Column("criado_em", DateTime(timezone=True), server_default=func.now()),
     Column("atualizado_em", DateTime(timezone=True), server_default=func.now()),
 )
@@ -424,6 +425,18 @@ integra_turmas = Table(
     Column("criado_em", DateTime(timezone=True), server_default=func.now()),
 )
 
+# v2.13.0: mutirão de fichas históricas (lançadas por voluntárias com o link do lote)
+mutirao_lotes = Table(
+    "mutirao_lotes", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("nome", String(120), nullable=False),
+    Column("justificativa", Text, nullable=False),
+    Column("codigo", String(10), nullable=False, unique=True),
+    Column("valido_ate", DateTime(timezone=True), nullable=False),
+    Column("criado_por", String(120)),
+    Column("criado_em", DateTime(timezone=True), server_default=func.now()),
+)
+
 # v2.12.0: quem não concluiu o INTEGRA fica fora da análise, sem login e sem agenda
 NC_INTEGRA = "N/C INTEGRA"
 STATUS_MEMBRO = (NC_INTEGRA, "Aguardando Análise", "Validado pela Secretaria", "Ativo", "Inativo", "Anonimizado (LGPD)")
@@ -527,7 +540,8 @@ def aplicar_migracoes_aditivas() -> None:
     pasta = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migracoes")
     for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql", "007_regularizacao.sql",
                  "008_lembretes_interesses.sql", "009_relatorios_salvos.sql", "010_aniversariantes.sql",
-                 "011_uso_servicos.sql", "012_coordenacao_membros.sql", "013_fase_a.sql", "014_integra.sql"):
+                 "011_uso_servicos.sql", "012_coordenacao_membros.sql", "013_fase_a.sql", "014_integra.sql",
+                 "015_mutirao.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()
