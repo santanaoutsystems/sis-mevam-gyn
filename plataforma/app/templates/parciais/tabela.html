@@ -21,7 +21,7 @@
   {% if m.sem_ordem %}<a class="opcao" href="{{ m.sem_ordem }}">✕ Tirar da ordem ({{ m.nivel }}º)</a>{% endif %}
   {% endif %}
   {% if col.filtravel and not (col.tipo == 'lista' and col.sensivel) %}
-  <form method="get" action="{{ t.caminho }}" class="filtro-col">
+  <form method="get" action="{{ t.caminho }}" class="filtro-col" data-sem-voz>
     {{ _ocultos(m.ocultos) }}
     {% if col.tipo == 'lista' %}
       {% if m.opcoes|length > 6 %}<input type="search" class="busca-opcoes" placeholder="🔎 Procurar {{ col.rotulo|lower }}..." aria-label="Procurar {{ col.rotulo }}">{% endif %}

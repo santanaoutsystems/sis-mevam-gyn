@@ -1,10 +1,10 @@
 {# Componentes de formulário. Importar com: {% import "parciais/ui.html" as ui with context %} #}
-{% macro campo(nome, rotulo, tipo='text', obrig=False, mascara=None, voz=False, dica=None, attrs='') -%}
+{% macro campo(nome, rotulo, tipo='text', obrig=False, mascara=None, voz=True, dica=None, attrs='') -%}
 <div class="{{ 'campo-erro' if erros.get(nome) }}">
   <label for="{{ nome }}">{{ rotulo }}{% if obrig %} <span class="obrig">*</span>{% endif %}</label>
   <input type="{{ tipo }}" id="{{ nome }}" name="{{ nome }}" value="{{ valores.get(nome) or '' }}"
     {%- if obrig %} required{% endif %}{% if mascara %} data-mascara="{{ mascara }}"{% endif %}
-    {%- if voz %} data-voz{% endif %}{% if dica %} placeholder="{{ dica }}"{% endif %} {{ attrs|safe }}>
+    {%- if voz is string %} data-voz="{{ voz }}"{% elif not voz %} data-sem-voz{% endif %}{% if dica %} placeholder="{{ dica }}"{% endif %} {{ attrs|safe }}>
   {% if erros.get(nome) %}<div class="erro-campo">{{ erros[nome] }}</div>{% endif %}
 </div>
 {%- endmacro %}

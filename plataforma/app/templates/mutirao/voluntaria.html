@@ -45,7 +45,7 @@
         {{ ui.campo('email', 'E-mail', tipo='email', attrs='autocapitalize="none"') }}
       </div>
       <p class="pequeno suave" style="margin-top:0">Informe pelo menos o WhatsApp ou o e-mail: é por eles que o membro recebe os links. Ficha sem CPF pode ser lançada: o membro recebe um link para completar os dados.</p>
-      {% if not drive %}{{ ui.campo('arquivo', 'Nome do arquivo no Drive', dica='Ex.: Maria da Silva Souza.pdf') }}{% endif %}
+      {% if not drive %}{{ ui.campo('arquivo', 'Nome do arquivo no Drive', voz='arquivo', dica='Ex.: Maria da Silva Souza.pdf') }}{% endif %}
       <div class="{{ 'campo-erro' if erros.get('conferido') }}" style="margin-top:.6rem">
         <label class="check"><input type="checkbox" name="conferido" value="sim"> Conferi os dados com a ficha em papel.</label>
         {% if erros.get('conferido') %}<div class="erro-campo">{{ erros.conferido }}</div>{% endif %}

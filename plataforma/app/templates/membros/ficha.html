@@ -116,7 +116,7 @@
       {{ ui.radios('integra', 'Você fez o INTEGRA?', SIM_NAO, obrig=True) }}
       <div id="grupoIntegra"{% if valores.get('integra') != 'Sim' %} style="display:none"{% endif %} class="grade c2">
         {{ ui.campo('integra_data', 'Data de conclusão', mascara='data') }}
-        {{ ui.campo('integra_codigo', 'Código da turma', dica='Ex.: K7P3QX', attrs='autocapitalize="characters" maxlength="10" style="text-transform:uppercase;letter-spacing:.12em"') }}
+        {{ ui.campo('integra_codigo', 'Código da turma', voz='codigo', dica='Ex.: K7P3QX', attrs='autocapitalize="characters" maxlength="10" style="text-transform:uppercase;letter-spacing:.12em"') }}
       </div>
       <p class="pequeno suave" id="dicaIntegra"{% if valores.get('integra') != 'Sim' %} style="display:none"{% endif %}>O código aparece no encerramento do INTEGRA (QR Code). Sem o código, a Secretaria confere a lista da turma antes da análise.</p>
     </fieldset>

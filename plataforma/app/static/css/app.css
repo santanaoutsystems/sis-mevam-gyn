@@ -180,7 +180,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--t
 .opcoes input { width: 20px; height: 20px; accent-color: var(--marca); }
 .check { display: flex; gap: .6rem; align-items: flex-start; font-weight: 500; }
 .check input { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--marca); flex: none; }
-.com-acao { display: flex; gap: .5rem; } .com-acao input { flex: 1; }
+.com-acao { display: flex; gap: .5rem; align-items: flex-start; } .com-acao input, .com-acao textarea { flex: 1; min-width: 0; }
 :focus-visible { outline: 3px solid var(--foco); outline-offset: 2px; }
 
 /* Botões */
@@ -262,6 +262,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--t
   color: var(--t-principal); cursor: pointer; font-size: 1.1rem; }
 .voz.gravando { background: #b91c1c; color: #fff; border-color: #b91c1c; animation: pulsar 1s infinite; }
 @keyframes pulsar { 50% { opacity: .6; } }
+.voz-aviso { font-size: .85rem; margin-top: .3rem; color: var(--t-suave, var(--t-principal)); }
+.voz-aviso.erro { color: #b91c1c; }
+.com-acao .voz { align-self: stretch; max-height: 3.2rem; }
 
 /* Assinatura: o quadro fica sempre branco (como papel) nos dois temas */
 .quadro-assinatura { width: 100%; height: 200px; border: 2px solid var(--marca); border-radius: 10px; background: #fff; touch-action: none; }

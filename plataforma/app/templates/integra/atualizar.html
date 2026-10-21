@@ -18,7 +18,7 @@
       {{ ui.radios('integra', 'Você fez o INTEGRA?', SIM_NAO, obrig=True) }}
       <div class="grade c2">
         {{ ui.campo('integra_data', 'Data de conclusão (se Sim)', mascara='data', dica='dd/mm/aaaa') }}
-        {{ ui.campo('integra_codigo', 'Código da turma (se tiver)', dica='Ex.: K7P3QX') }}
+        {{ ui.campo('integra_codigo', 'Código da turma (se tiver)', voz='codigo', dica='Ex.: K7P3QX') }}
       </div>
       <p class="pequeno suave">Fez o INTEGRA há muito tempo e não tem o código? Informe a data aproximada: a Secretaria confere.</p>
       <button class="botao dourado" style="width:100%">Enviar resposta</button>
