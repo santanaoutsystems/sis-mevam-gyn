@@ -39,8 +39,8 @@
     <label class="check"><input type="checkbox" name="aceite" value="sim" required> {{ credo.declaracao }}</label>
     {% if not m.lgpd_consentimento %}
     <label class="check"><input type="checkbox" name="lgpd_consentimento" value="sim" required>
-      Li e concordo com o tratamento dos meus dados pessoais pela Secretaria e pela liderança do MEVAM GYN para cadastro de membresia,
-      comunicação ministerial e organização de atividades, conforme a LGPD (Lei 13.709/2018). <a href="/privacidade" target="_blank">Política de privacidade</a>.</label>
+      <span>Li e concordo com o tratamento dos meus dados pessoais pela Secretaria e pela liderança do MEVAM GYN para cadastro de membresia,
+      comunicação ministerial e organização de atividades, conforme a LGPD (Lei 13.709/2018). <a href="/privacidade" target="_blank">Política de privacidade</a>.</span></label>
     {% endif %}
     <label for="nome_assinante">Nome completo de quem assina</label>
     <input id="nome_assinante" name="nome_assinante" value="{{ m.nome_completo }}" required>
