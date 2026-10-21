@@ -7,6 +7,9 @@ com o INTEGRA concluído (registro histórico) e a justificativa do lote, pronta
 link do Credo em lote (e-mail, até o limite diário) e pelo WhatsApp para quem não tem e-mail. Na assinatura, o
 membro também dá o consentimento LGPD que a ficha de papel não tinha.
 
+Ficha sem CPF entra como Aguardando Análise e segue o padrão da Regularização: link para o membro completar
+os dados no prazo padrão (REGULARIZACAO_PRAZO_DIAS); depois a Secretaria valida e o Credo segue normalmente.
+
 A tela pública só grava fichas: não mostra nem devolve dados de ninguém.
 """
 
@@ -22,6 +25,7 @@ from starlette.routing import Route
 
 from .. import config, datas, db, envios, ficha, integra, seguranca
 from ..web import auditar, flash, ir, render
+from . import regularizacao
 from .membros import ERRO_CPF_REPETIDO, _cpf_em_uso, _ligar_pelo_cpf, _link_credo, whatsapp_credo
 
 ADMIN_SECRETARIA = ("secretaria", "admin")
@@ -62,8 +66,8 @@ def link_lote(lote: dict) -> str:
 def _fichas(c, lote_id: int) -> list[dict]:
     q = (select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.data_nascimento, db.membros.c.email,
                 db.membros.c.whatsapp, db.membros.c.cpf, db.membros.c.status, db.membros.c.credo_aceito,
-                db.membros.c.credo_email_em, db.membros.c.link_credo_enviado, db.membros.c.validado_por,
-                db.membros.c.criado_em)
+                db.membros.c.credo_email_em, db.membros.c.link_credo_enviado, db.membros.c.integra_registrado_por,
+                db.membros.c.criado_em, db.membros.c.integra_situacao)
          .where(db.membros.c.origem.like(_prefixo(lote_id) + "%"), db.membros.c.status != db.EXCLUIDO)
          .order_by(db.membros.c.criado_em.desc()))
     return [dict(r) for r in c.execute(q).mappings()]
@@ -149,16 +153,28 @@ async def lote(request: Request):
                 and m["status"] == "Validado pela Secretaria"]
     for m in so_whats:
         m["wa"] = whatsapp_credo(m)
+    sem_cpf = [m for m in fichas if not m["cpf"] and m["status"] == "Aguardando Análise"]
+    with db.engine().connect() as c:
+        links = regularizacao._ultimos_links(c, [m["id"] for m in sem_cpf]) if sem_cpf else {}
+    for m in sem_cpf:
+        reg = links.get(m["id"])
+        m["situacao_link"] = regularizacao.situacao(reg)
+        m["reg"] = reg
+        m["wa_link"] = regularizacao.link_whatsapp(m, reg) if reg and m["situacao_link"] in ("ativo", "enviado") \
+            and m["whatsapp"] else None
     por_voluntaria: dict[str, int] = {}
     for m in fichas:
-        quem = (m["validado_por"] or "").replace("Mutirão · ", "") or "-"
+        quem = (m["integra_registrado_por"] or "").replace("Mutirão · ", "") or "-"
         por_voluntaria[quem] = por_voluntaria.get(quem, 0) + 1
     numeros = {"total": len(fichas), "assinadas": sum(1 for m in fichas if m["credo_aceito"]),
                "email_enviado": sum(1 for m in fichas if m["credo_email_em"]),
-               "sem_contato": sum(1 for m in fichas if not m["email"] and not m["whatsapp"])}
+               "sem_contato": sum(1 for m in fichas if not m["email"] and not m["whatsapp"]),
+               "sem_cpf": len(sem_cpf)}
     return render(request, "mutirao/lote.html", {
         "lt": lt, "fichas": fichas, "link": link_lote(lt), "pend_email": pend_email, "so_whats": so_whats,
-        "numeros": numeros, "por_voluntaria": sorted(por_voluntaria.items(), key=lambda x: -x[1]),
+        "numeros": numeros, "sem_cpf": sem_cpf, "PRAZO_REG": config.REGULARIZACAO_PRAZO_DIAS,
+        "sem_link": sum(1 for m in sem_cpf if m["situacao_link"] in ("sem_link", "vencido", "revogado")),
+        "por_voluntaria": sorted(por_voluntaria.items(), key=lambda x: -x[1]),
         "restam_hoje": max(0, LIMITE_DIARIO - hoje_enviados), "LIMITE": LIMITE_DIARIO,
         "email_ok": envios.email_configurado()})
 
@@ -218,6 +234,33 @@ async def enviar_credo(request: Request):
         threading.Thread(target=_enviar_emails, args=(lista,), daemon=True).start()
     flash(request, f"Link do Credo enviado por e-mail para {len(lista)} pessoa(s). Volte amanhã para o próximo grupo.")
     return ir(f"/mutirao/lotes/{lid}")
+
+
+@seguranca.exigir(*ADMIN_SECRETARIA)
+async def complemento(request: Request):
+    """Fichas sem CPF: gera o link da Regularização (prazo padrão) e envia por e-mail/WhatsApp automático."""
+    lid = request.path_params["id"]
+    u = seguranca.usuario_atual(request)
+    dias = config.REGULARIZACAO_PRAZO_DIAS
+    with db.engine().begin() as c:
+        lt = _lote(c, lid)
+        if not lt:
+            return ir("/mutirao")
+        alvo = [m for m in _fichas(c, lt["id"]) if not m["cpf"] and m["status"] == "Aguardando Análise"]
+        links = regularizacao._ultimos_links(c, [m["id"] for m in alvo]) if alvo else {}
+        rids = [regularizacao._criar_link(c, m["id"], dias, u["nome"])["id"] for m in alvo
+                if regularizacao.situacao(links.get(m["id"])) in ("sem_link", "vencido", "revogado")]
+        auditar(request, "MUTIRAO_COMPLEMENTO", f"Lote do mutirão #{lt['id']}",
+                f"{len(rids)} link(s) de complemento (sem CPF), prazo {dias} dias", conexao=c)
+    if not rids:
+        flash(request, "Todas as fichas sem CPF já têm link de complemento válido.")
+    elif envios.email_configurado() or envios.whatsapp_configurado():
+        regularizacao.disparar(rids, u)
+        flash(request, f"{len(rids)} link(s) de complemento gerado(s), válidos por {dias} dias. Envio automático iniciado; "
+                       "para quem não tem e-mail, use o botão de WhatsApp da lista.")
+    else:
+        flash(request, f"{len(rids)} link(s) gerado(s), válidos por {dias} dias. Envie pelo botão de WhatsApp da lista.", "aviso")
+    return ir(f"/mutirao/lotes/{lid}#sem-cpf")
 
 
 @seguranca.exigir(*ADMIN_SECRETARIA)
@@ -317,9 +360,11 @@ async def voluntaria(request: Request):
             return render(request, "mutirao/voluntaria.html", {**ctx, "valores": valores, "erros": erros}, 400)
         agora = datas.agora_utc()
         por = f"Mutirão · {sessao['nome']}"
+        # Sem CPF: fica em análise e segue a Regularização (complemento de dados no prazo padrão)
+        validada = bool(dados["cpf"])
         mid = c.execute(insert(db.membros).values(
-            **dados, data_registro=datas.hoje(), status="Validado pela Secretaria",
-            validado_por=por, data_validacao=agora, origem=origem_do_lote(lt["id"]),
+            **dados, data_registro=datas.hoje(), status="Validado pela Secretaria" if validada else "Aguardando Análise",
+            validado_por=por if validada else None, data_validacao=agora if validada else None, origem=origem_do_lote(lt["id"]),
             credo_aceito=False, lgpd_consentimento=False, status_lgpd=PENDENTE_LGPD, filhos=[],
             integra_situacao="concluido", integra_justificativa=lt["justificativa"],
             integra_registrado_por=por, integra_registrado_em=agora,
@@ -340,6 +385,7 @@ rotas = [
     Route("/mutirao/lotes/{id:int}", lote),
     Route("/mutirao/lotes/{id:int}/validade", validade, methods=["POST"]),
     Route("/mutirao/lotes/{id:int}/credo", enviar_credo, methods=["POST"]),
+    Route("/mutirao/lotes/{id:int}/complemento", complemento, methods=["POST"]),
     Route("/mutirao/lotes/{id:int}/whatsapp/{mid:int}", whatsapp_enviado, methods=["POST"]),
     Route("/mutirao/{codigo}", voluntaria, methods=["GET", "POST"]),
 ]

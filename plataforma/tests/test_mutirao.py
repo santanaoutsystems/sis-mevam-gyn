@@ -52,7 +52,7 @@ def _fichas(lid):
 def test_voluntaria_lanca_ficha_validada_com_integra_historico():
     sec, lt = _criar_lote()
     cli = _voluntaria(lt["codigo"].lower())
-    r = _lancar(cli, lt["codigo"])
+    r = _lancar(cli, lt["codigo"], cpf=gerar_cpf(111222333))
     assert r.status_code == 303
     assert "Ficha de Joana salva" in cli.get(r.headers["location"]).text
     [m] = _fichas(lt["id"])
@@ -101,7 +101,7 @@ def test_credo_em_lote_por_email_e_assinatura_com_lgpd(monkeypatch):
     enviados = _email(monkeypatch)
     sec, lt = _criar_lote()
     cli = _voluntaria(lt["codigo"])
-    _lancar(cli, lt["codigo"], email="joana@mevam.test", whatsapp="")
+    _lancar(cli, lt["codigo"], email="joana@mevam.test", whatsapp="", cpf=gerar_cpf(444555666))
     [m] = _fichas(lt["id"])
     assert post(sec, f"/mutirao/lotes/{lt['id']}/credo", {}, pagina=f"/mutirao/lotes/{lt['id']}").status_code == 303
     [m] = _fichas(lt["id"])
@@ -128,7 +128,8 @@ def test_limite_diario_de_emails(monkeypatch):
     sec, lt = _criar_lote()
     cli = _voluntaria(lt["codigo"])
     for i in range(3):
-        _lancar(cli, lt["codigo"], nome_completo=f"Pessoa Numero {chr(65 + i)}", email=f"p{i}@mevam.test")
+        _lancar(cli, lt["codigo"], nome_completo=f"Pessoa Numero {chr(65 + i)}", email=f"p{i}@mevam.test",
+                cpf=gerar_cpf(700000001 + i))
     from app.rotas import mutirao
     antigo = mutirao.LIMITE_DIARIO
     mutirao.LIMITE_DIARIO = 2
@@ -145,3 +146,34 @@ def test_membro_e_coordenacao_nao_acessam_painel():
     for perfil in ("membro", "coordenacao"):
         r = logado(perfil).get("/mutirao", follow_redirects=False)
         assert r.status_code in (302, 303, 403)
+
+
+def test_ficha_sem_cpf_segue_a_regularizacao(monkeypatch):
+    enviados = _email(monkeypatch)
+    sec, lt = _criar_lote()
+    cli = _voluntaria(lt["codigo"])
+    _lancar(cli, lt["codigo"], email="sem.cpf@mevam.test")
+    [m] = _fichas(lt["id"])
+    assert m["status"] == "Aguardando Análise" and m["integra_situacao"] == "concluido" and not m["validado_por"]
+    html = sec.get(f"/mutirao/lotes/{lt['id']}").text
+    assert "Sem CPF: complemento de dados (1)" in html and "sem link" in html
+    # Fora do envio do Credo enquanto não tiver CPF e validação
+    post(sec, f"/mutirao/lotes/{lt['id']}/credo", {}, pagina=f"/mutirao/lotes/{lt['id']}")
+    assert not _fichas(lt["id"])[0]["credo_email_em"]
+    # Link de complemento da Regularização, com o prazo padrão
+    post(sec, f"/mutirao/lotes/{lt['id']}/complemento", {}, pagina=f"/mutirao/lotes/{lt['id']}")
+    with db.engine().connect() as c:
+        regs = c.execute(select(db.regularizacoes).where(db.regularizacoes.c.membro_id == m["id"])).mappings().all()
+    assert len(regs) == 1 and any("/atualizar/" in e[2] for e in enviados)
+    assert (regs[0]["expira_em"] - regs[0]["criado_em"]).days == config.REGULARIZACAO_PRAZO_DIAS
+    # Segundo clique não gera outro link
+    post(sec, f"/mutirao/lotes/{lt['id']}/complemento", {}, pagina=f"/mutirao/lotes/{lt['id']}")
+    with db.engine().connect() as c:
+        assert c.execute(select(db.regularizacoes).where(db.regularizacoes.c.membro_id == m["id"])).all().__len__() == 1
+    # Depois do complemento a Secretaria valida (INTEGRA já concluído) e o Credo entra no envio em lote
+    with db.engine().begin() as c:
+        c.execute(update(db.membros).where(db.membros.c.id == m["id"]).values(cpf=gerar_cpf(987123654)))
+    post(sec, f"/membros/{m['id']}/validar", {}, pagina=f"/membros/{m['id']}")
+    post(sec, f"/mutirao/lotes/{lt['id']}/credo", {}, pagina=f"/mutirao/lotes/{lt['id']}")
+    [m] = _fichas(lt["id"])
+    assert m["status"] == "Validado pela Secretaria" and m["credo_email_em"]

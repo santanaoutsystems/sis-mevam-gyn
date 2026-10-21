@@ -29,7 +29,7 @@
   <div class="cartao numero"><b>{{ numeros.total }}</b><span class="pequeno">Fichas lançadas</span></div>
   <div class="cartao numero"><b>{{ numeros.email_enviado }}</b><span class="pequeno">Credo enviado por e-mail</span></div>
   <div class="cartao numero"><b>{{ numeros.assinadas }}</b><span class="pequeno">Credo assinado (Ativo)</span></div>
-  <div class="cartao numero"><b>{{ numeros.sem_contato }}</b><span class="pequeno">Sem e-mail e sem WhatsApp</span></div>
+  <div class="cartao numero"><b>{{ numeros.sem_cpf }}</b><span class="pequeno">Sem CPF (complemento)</span></div>
 </div>
 
 <div class="cartao">
@@ -52,13 +52,29 @@
   {% else %}<p class="pequeno suave">Ninguém nesta lista.</p>{% endfor %}
 </div>
 
+<div class="cartao" id="sem-cpf">
+  <h2>Sem CPF: complemento de dados ({{ sem_cpf|length }})</h2>
+  <p class="pequeno suave">Estas fichas ficam em <b>Aguardando Análise</b>. O membro recebe o link da Regularização para completar CPF, foto e o que faltar em até {{ PRAZO_REG }} dias. Depois, valide a ficha normalmente e o Credo entra na lista acima.</p>
+  {% if sem_cpf %}
+  <form method="post" action="/mutirao/lotes/{{ lt.id }}/complemento">{{ ui.csrf_input() }}
+    <button class="botao" {{ 'disabled' if not sem_link }}>🔗 Gerar e enviar links de complemento ({{ sem_link }})</button></form>
+  {% for m in sem_cpf %}
+  <div class="opcoes" style="align-items:center;margin:.3rem 0">
+    <span style="flex:1"><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a>
+      <span class="pequeno suave">{% if m.situacao_link == 'concluido' %}✅ dados completados: valide a ficha{% elif m.situacao_link in ('ativo', 'enviado') %}link válido até {{ m.reg.expira_em|data_br }}{% if m.situacao_link == 'enviado' %} · enviado{% endif %}{% elif m.situacao_link == 'vencido' %}⚠️ link vencido{% else %}sem link{% endif %}</span></span>
+    {% if m.wa_link %}<a class="botao secundario peq" href="{{ m.wa_link }}" target="_blank" rel="noopener">💬 WhatsApp</a>{% endif %}
+  </div>
+  {% endfor %}
+  {% else %}<p class="pequeno suave">Nenhuma ficha sem CPF neste lote.</p>{% endif %}
+</div>
+
 <div class="cartao">
   <h2>Fichas do lote</h2>
   {% if por_voluntaria %}<p class="pequeno">{% for nome, n in por_voluntaria %}<span class="selo">{{ nome }}: {{ n }}</span> {% endfor %}</p>{% endif %}
   {% if fichas %}
   <table class="tabela"><thead><tr><th>Nome</th><th>Nascimento</th><th>Contato</th><th>Situação</th><th>Credo</th></tr></thead><tbody>
   {% for m in fichas %}
-    <tr><td data-rotulo="Nome"><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a><br><span class="pequeno suave">{{ (m.validado_por or '')|replace('Mutirão · ', 'por ') }}</span></td>
+    <tr><td data-rotulo="Nome"><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a><br><span class="pequeno suave">{{ (m.integra_registrado_por or '')|replace('Mutirão · ', 'por ') }}</span></td>
       <td data-rotulo="Nascimento">{{ m.data_nascimento|data_br }}</td>
       <td data-rotulo="Contato">{{ '✉️' if m.email }} {{ '💬' if m.whatsapp }}{% if not m.email and not m.whatsapp %}<span class="selo inativo">sem contato</span>{% endif %}</td>
       <td data-rotulo="Situação">{{ ui.selo(m.status) }}</td>
