@@ -212,6 +212,24 @@ async def validade(request: Request):
 
 
 @seguranca.exigir(*ADMIN_SECRETARIA)
+async def renomear(request: Request):
+    lid = request.path_params["id"]
+    form = await request.form()
+    nome = " ".join((form.get("nome") or "").split())[:120]
+    if len(nome) < 3:
+        flash(request, "Informe o novo nome do lote (pelo menos 3 letras).", "erro")
+        return ir(f"/mutirao/lotes/{lid}")
+    with db.engine().begin() as c:
+        lt = _lote(c, lid)
+        if not lt:
+            return ir("/mutirao")
+        c.execute(update(db.mutirao_lotes).where(db.mutirao_lotes.c.id == lt["id"]).values(nome=nome))
+        auditar(request, "MUTIRAO_RENOMEADO", f"Lote do mutirão #{lt['id']}", f"{lt['nome']} → {nome}", conexao=c)
+    flash(request, "Nome do lote alterado. O link e o código continuam os mesmos.")
+    return ir(f"/mutirao/lotes/{lid}")
+
+
+@seguranca.exigir(*ADMIN_SECRETARIA)
 async def enviar_credo(request: Request):
     """Envia o link do Credo por e-mail para as fichas do lote, respeitando o limite diário."""
     lid = request.path_params["id"]
@@ -451,6 +469,7 @@ rotas = [
     Route("/mutirao/lotes", novo_lote, methods=["POST"]),
     Route("/mutirao/lotes/{id:int}", lote),
     Route("/mutirao/lotes/{id:int}/validade", validade, methods=["POST"]),
+    Route("/mutirao/lotes/{id:int}/nome", renomear, methods=["POST"]),
     Route("/mutirao/lotes/{id:int}/credo", enviar_credo, methods=["POST"]),
     Route("/mutirao/lotes/{id:int}/complemento", complemento, methods=["POST"]),
     Route("/mutirao/lotes/{id:int}/whatsapp/{mid:int}", whatsapp_enviado, methods=["POST"]),

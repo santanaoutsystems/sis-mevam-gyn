@@ -4,6 +4,10 @@
 {% block cabeca %}<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>{% endblock %}
 {% block conteudo %}
 <h1>📥 {{ lt.nome }}</h1>
+<details class="pequeno" style="margin:-.4rem 0 .4rem"><summary style="cursor:pointer">✏️ Renomear o lote</summary>
+  <form method="post" action="/mutirao/lotes/{{ lt.id }}/nome" style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.4rem">{{ ui.csrf_input() }}
+    <input name="nome" value="{{ lt.nome }}" required minlength="3" maxlength="120" aria-label="Novo nome do lote" style="flex:1;min-width:220px">
+    <button class="botao secundario peq">Salvar nome</button></form></details>
 <p class="suave">Criado por {{ lt.criado_por or '-' }} · INTEGRA: {{ lt.justificativa }}</p>
 
 <div class="cartao" style="display:flex;gap:1.25rem;flex-wrap:wrap;align-items:center">

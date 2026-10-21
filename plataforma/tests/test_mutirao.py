@@ -209,3 +209,15 @@ def test_foto_da_ficha_vai_para_o_drive(monkeypatch):
     r = cli.post(f"/mutirao/{lt['codigo']}", data={**dados, "nome_completo": "Zeca Lima", "csrf": csrf_de(pag.text)},
                  files=[("foto_ficha", ("x.exe", b"MZ", "application/octet-stream"))], follow_redirects=False)
     assert r.status_code == 400 and "JPG ou PNG" in r.text and len(_fichas(lt["id"])) == 2
+
+
+def test_renomear_lote():
+    sec, lt = _criar_lote()
+    url = f"/mutirao/lotes/{lt['id']}"
+    assert "Renomear o lote" in sec.get(url).text
+    r = post(sec, url + "/nome", {"nome": "  Fichas   2026 (Templo) "}, pagina=url)
+    assert r.status_code == 303
+    with db.engine().connect() as c:
+        assert c.execute(select(db.mutirao_lotes.c.nome).where(db.mutirao_lotes.c.id == lt["id"])).scalar() == "Fichas 2026 (Templo)"
+    assert novo_cliente().get(f"/mutirao/{lt['codigo']}").status_code == 200  # link continua o mesmo
+    assert logado("membro").post(url + "/nome", data={"nome": "X"}, follow_redirects=False).status_code in (302, 303, 403)
