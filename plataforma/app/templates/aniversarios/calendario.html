@@ -34,7 +34,7 @@
 <div class="cab-relatorio so-impressao">
   <img src="/static/img/logo_round.jpg" alt="">
   <div><h2>MINISTÉRIO MEVAM GYN · Aniversariantes · {{ titulo }}</h2>
-  <span class="pequeno">Emitido por {{ usuario.nome }} ({{ PERFIS_ROTULO[usuario.perfil] }}) · Ministério: {{ setor or 'todos' }}</span></div>
+  <span class="pequeno">Emitido por {{ usuario.nome }} ({{ PERFIS_ROTULO[usuario.perfil] }}) · Ministério / Área: {{ setor or 'todos' }}</span></div>
 </div>
 
 <div class="cal-aniv-grade">
@@ -53,9 +53,9 @@
         {% endfor %}
       </div>
       <input type="hidden" name="visao" value="{{ visao }}"><input type="hidden" name="dia" value="{{ ref.isoformat() }}">
-      <label class="sr" for="setor">Ministério</label>
+      <label class="sr" for="setor">Ministério / Área</label>
       <select id="setor" name="setor" onchange="this.form.submit()">
-        <option value="">{{ 'Todos os ministérios' if escopo is none else 'Todos os meus ministérios' }}</option>
+        <option value="">{{ 'Todos os ministérios e áreas' if escopo is none else 'Todas as minhas áreas' }}</option>
         {% for o in opcoes %}<option {{ 'selected' if o == setor }}>{{ o }}</option>{% endfor %}
       </select>
       <noscript><button class="botao peq">Filtrar</button></noscript>

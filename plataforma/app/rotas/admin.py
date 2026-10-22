@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from starlette.requests import Request
 from starlette.routing import Route
 
-from .. import config, datas, db, envios, ficha, seguranca, uso
+from .. import areas, config, coordenacao, datas, db, envios, ficha, seguranca, uso
 from ..web import auditar, flash, ir, render
 
 
@@ -45,7 +45,8 @@ async def usuarios(request: Request):
     busca = (request.query_params.get("q") or "").strip().lower()
     q = (select(db.usuarios.c.id, db.usuarios.c.nome, db.usuarios.c.email, db.usuarios.c.perfil,
                 db.usuarios.c.ativo, db.usuarios.c.ultimo_login, db.usuarios.c.trocar_senha,
-                db.usuarios.c.membro_id, db.usuarios.c.cpf, db.membros.c.nome_completo.label("membro_nome"))
+                db.usuarios.c.membro_id, db.usuarios.c.cpf, db.usuarios.c.area_id,
+                db.membros.c.nome_completo.label("membro_nome"))
          .select_from(db.usuarios.outerjoin(db.membros, db.membros.c.id == db.usuarios.c.membro_id))
          .order_by(db.usuarios.c.nome))
     if busca:
@@ -53,7 +54,12 @@ async def usuarios(request: Request):
                         func.lower(db.usuarios.c.email).like(f"%{busca}%")))
     with db.engine().connect() as c:
         linhas = [dict(r) for r in c.execute(q).mappings()]
+        lista_areas = areas.lista(c)
+    nome_area = {str(a["id"]): a["nome"] for a in lista_areas}
+    for u in linhas:
+        u["area_nome"] = nome_area.get(u["area_id"] or "")
     return render(request, "admin/usuarios.html", {"linhas": linhas, "busca": busca, "PERFIS": db.PERFIS,
+                                                   "grupos_areas": areas.agrupar(lista_areas),
                                                    "senha_provisoria": request.session.pop("senha_provisoria", None)})
 
 
@@ -70,6 +76,9 @@ async def novo_usuario(request: Request):
         with db.engine().begin() as c:
             membro = c.execute(select(db.membros.c.id).where(func.lower(db.membros.c.email) == email)).first()
             uid, senha = criar_usuario(c, nome, email, perfil, membro_id=membro[0] if membro else None)
+            lotacao = areas.lotacao_padrao(c, perfil)
+            if lotacao:
+                c.execute(update(db.usuarios).where(db.usuarios.c.id == uid).values(area_id=lotacao))
             auditar(request, "USUARIO_CRIADO", f"Usuário #{uid}", f"{email} / perfil {perfil}", conexao=c)
     except IntegrityError:
         flash(request, "Já existe um usuário com este e-mail.", "erro")
@@ -121,6 +130,19 @@ async def alterar_usuario(request: Request):
                         c.execute(update(db.membros).where(db.membros.c.id == nova).values(cpf=alvo["cpf"]))
                 valores["membro_id"] = nova
                 detalhes.append(f"ficha {alvo['membro_id'] or '-'} → {nova or '-'}")
+        if "area_id" in form:
+            area = (form.get("area_id") or "").strip() or None
+            if area and not c.execute(select(db.DEP_ID).where(db.DEP_ID == area)).first():
+                flash(request, "Ministério / Área inválido.", "erro")
+                return ir("/admin/usuarios")
+            if area != alvo["area_id"]:
+                valores["area_id"] = area
+                detalhes.append(f"lotação {alvo['area_id'] or '-'} → {area or '-'}")
+        if perfil != alvo["perfil"] and not valores.get("area_id", alvo["area_id"]):
+            lotacao = areas.lotacao_padrao(c, perfil)  # Secretaria e Adm ficam nas suas áreas
+            if lotacao:
+                valores["area_id"] = lotacao
+                detalhes.append(f"lotação → {lotacao}")
         if form.get("apagar_cpf") == "sim" and alvo["cpf"]:
             valores["cpf"] = None
             detalhes.append("CPF do login apagado")
@@ -182,41 +204,67 @@ async def criar_acesso_membro(request: Request):
 @seguranca.exigir("admin")
 async def setores(request: Request):
     with db.engine().connect() as c:
-        linhas = [dict(r) for r in c.execute(
-            select(db.departamentos, func.count(db.membro_setores.c.id).label("qtd"))
-            .select_from(db.departamentos.outerjoin(db.membro_setores,
-                                                    db.membro_setores.c.departamento_id == db.DEP_ID))
-            .group_by(*db.departamentos.c).order_by(db.departamentos.c.nome)).mappings()]
+        qtd = dict(c.execute(select(db.membro_setores.c.departamento_id, func.count())
+                             .group_by(db.membro_setores.c.departamento_id)).all())
+        eventos = dict(c.execute(select(db.eventos.c.departamento, func.count())
+                                 .group_by(db.eventos.c.departamento)).all())
+        lista = areas.lista(c)
         coords = c.execute(select(db.usuario_setores.c.departamento_id, db.usuarios.c.nome)
                            .join(db.usuarios, db.usuarios.c.id == db.usuario_setores.c.usuario_id)
-                           .where(db.usuarios.c.perfil == "coordenacao").order_by(db.usuarios.c.nome)).all()
-    for s in linhas:
-        s["coordenadores"] = [n for d, n in coords if d == str(s["id"])]
-    return render(request, "admin/setores.html", {"linhas": linhas})
+                           .where(db.usuarios.c.perfil == "coordenacao", coordenacao.filtro_ativo())
+                           .order_by(db.usuarios.c.nome)).all()
+        lotados = dict(c.execute(select(db.usuarios.c.area_id, func.count()).where(db.usuarios.c.ativo.is_(True))
+                                 .group_by(db.usuarios.c.area_id)).all())
+    for s in lista:
+        s["qtd"] = qtd.get(str(s["id"]), 0)
+        s["eventos"] = eventos.get(s["nome"], 0)
+        s["lotados"] = lotados.get(str(s["id"]), 0)
+        s["coordenadores"] = sorted({n for d, n in coords if d == str(s["id"])})
+        s["oficial"] = s["nome"] in areas.CATEGORIA_DE
+    return render(request, "admin/setores.html", {"grupos": areas.agrupar(lista), "CATEGORIAS": areas.CATEGORIAS,
+                                                  "total": len(lista)})
 
 
 @seguranca.exigir("admin")
 async def salvar_setor(request: Request):
     form = await request.form()
-    nome = (form.get("nome") or "").strip()
+    nome = " ".join((form.get("nome") or "").split())
     responsavel = (form.get("responsavel") or "").strip()
+    categoria = (form.get("categoria") or "").strip()
+    ativo = form.get("ativo") == "1"
     sid = (form.get("id") or "").strip()
     if len(nome) < 2:
-        flash(request, "Informe o nome do ministério.", "erro")
+        flash(request, "Informe o nome do ministério ou da área.", "erro")
+        return ir("/admin/setores")
+    if categoria not in areas.CATEGORIAS:
+        flash(request, "Escolha a categoria.", "erro")
         return ir("/admin/setores")
     with db.engine().begin() as c:
+        mesmo_nome = c.execute(select(db.DEP_ID).where(func.lower(db.departamentos.c.nome) == nome.lower())).scalar()
+        if mesmo_nome and mesmo_nome != sid:
+            flash(request, f"Já existe uma área chamada {nome}.", "erro")
+            return ir("/admin/setores")
         if sid:
-            antigo = c.execute(select(db.departamentos.c.nome).where(db.DEP_ID == sid)).scalar()
+            antigo = c.execute(select(db.departamentos).where(db.DEP_ID == sid)).mappings().first()
+            if not antigo:
+                return ir("/admin/setores")
             c.execute(update(db.departamentos).where(db.DEP_ID == sid)
-                      .values(nome=nome, responsavel=responsavel))
-            if antigo and antigo != nome:
+                      .values(nome=nome, responsavel=responsavel, categoria=categoria, ativo=ativo))
+            if antigo["nome"] != nome:
                 # Os eventos guardam o nome do departamento: renomeia junto para não perder o vínculo
-                c.execute(update(db.eventos).where(db.eventos.c.departamento == antigo).values(departamento=nome))
-            auditar(request, "SETOR_ALTERADO", f"Ministério #{sid}", f"{antigo} → {nome}", conexao=c)
+                c.execute(update(db.eventos).where(db.eventos.c.departamento == antigo["nome"]).values(departamento=nome))
+            mudou = [f"{antigo['nome']} → {nome}"] if antigo["nome"] != nome else []
+            if (antigo.get("categoria") or "") != categoria:
+                mudou.append(f"categoria: {antigo.get('categoria') or '—'} → {categoria}")
+            if (antigo.get("ativo") is not False) != ativo:
+                mudou.append("reativada" if ativo else "desativada")
+            auditar(request, "SETOR_ALTERADO", f"Área #{sid}", "; ".join(mudou) or nome, conexao=c)
         else:
-            novo = c.execute(insert(db.departamentos).values(nome=nome, responsavel=responsavel)).inserted_primary_key[0]
-            auditar(request, "SETOR_CRIADO", f"Ministério #{novo}", nome, conexao=c)
-    flash(request, "Ministério salvo.")
+            ordem = (c.execute(select(func.max(db.departamentos.c.ordem))).scalar() or 0) + 1
+            novo = c.execute(insert(db.departamentos).values(nome=nome, responsavel=responsavel, categoria=categoria,
+                                                             ordem=ordem, ativo=True)).inserted_primary_key[0]
+            auditar(request, "SETOR_CRIADO", f"Área #{novo}", f"{nome} ({categoria})", conexao=c)
+    flash(request, f"{nome} salvo.")
     return ir("/admin/setores")
 
 
@@ -227,13 +275,13 @@ async def excluir_setor(request: Request):
         nome = c.execute(select(db.departamentos.c.nome).where(db.DEP_ID == sid)).scalar()
         usados = c.execute(select(func.count()).select_from(db.eventos).where(db.eventos.c.departamento == nome)).scalar()
         if usados:
-            flash(request, f"O ministério {nome} tem {usados} evento(s) na agenda e não pode ser excluído.", "erro")
+            flash(request, f"{nome} tem {usados} evento(s) na agenda e não pode ser excluído. Desative a área para tirá-la das listas.", "erro")
             return ir("/admin/setores")
         c.execute(delete(db.membro_setores).where(db.membro_setores.c.departamento_id == sid))
         c.execute(delete(db.usuario_setores).where(db.usuario_setores.c.departamento_id == sid))
         c.execute(delete(db.departamentos).where(db.DEP_ID == sid))
         auditar(request, "SETOR_EXCLUIDO", f"Ministério #{sid}", nome or "", conexao=c)
-    flash(request, "Ministério excluído.")
+    flash(request, f"{nome} excluído.")
     return ir("/admin/setores")
 
 

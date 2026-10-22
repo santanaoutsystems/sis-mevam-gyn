@@ -26,7 +26,7 @@ GRUPOS = [
         ("/aniversariantes", "🎂", "Aniversariantes", GESTAO, ()),
         ("/voluntarios", "🙋", "Voluntários", GESTAO, ()),
         ("/avisos", "🔔", "Avisos", GESTAO, ()),
-        ("/necessidades/painel", "📊", "Necessidades da igreja", GESTAO, ()),
+        ("/necessidades/painel", "📊", "Necessidades da igreja", SEC_ADM, ()),
     ]),
     ("relatorios", "🖨️", "Relatórios", [
         ("/relatorios", "📊", "Central de relatórios", (), ()),
@@ -44,7 +44,7 @@ GRUPOS = [
     ]),
     ("admin", "🔐", "Administração", [
         ("/admin/usuarios", "👤", "Usuários", ADM, ()),
-        ("/admin/setores", "🏢", "Ministérios", ADM, ()),
+        ("/admin/setores", "🏢", "Ministérios e Áreas", ADM, ()),
         ("/admin/auditoria", "🔍", "Auditoria", ADM, ()),
         ("/admin/servicos", "📶", "Uso dos serviços", ADM, ()),
     ]),

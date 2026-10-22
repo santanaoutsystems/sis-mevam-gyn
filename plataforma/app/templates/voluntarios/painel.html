@@ -9,7 +9,7 @@
   <div class="msg aviso">Você ainda não coordena nenhum ministério. Peça à Secretaria ou ao Adm para definir os seus ministérios.</div>
 {% else %}
 <form method="get" class="cartao com-acao" style="flex-wrap:wrap;gap:.5rem">
-  <label style="margin:0;flex:1;min-width:200px">Ministério
+  <label style="margin:0;flex:1;min-width:200px">Ministério / Área
     <select name="setor" onchange="this.form.evento && (this.form.evento.value=''); this.form.submit()">
       {% for s in setores %}<option value="{{ s }}" {{ 'selected' if s == setor }}>{{ s }} ({{ contagem[s] }})</option>{% endfor %}
     </select></label>

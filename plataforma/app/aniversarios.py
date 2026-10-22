@@ -86,7 +86,7 @@ def membros(c, ids=None, so_aniversario: bool = True) -> list[dict]:
         serve.setdefault(mid, []).append(chave_setor(nome))
     interesse: dict[int, list[str]] = {}
     for mid, setor in c.execute(select(db.membro_interesses.c.membro_id, db.membro_interesses.c.setor)):
-        interesse.setdefault(mid, []).append(setor)
+        interesse.setdefault(mid, []).append(chave_setor(setor))
     lista = []
     for mid, r in linhas.items():
         nasc = datas.parse_data(r["data_nascimento"])

@@ -38,6 +38,7 @@ def _membro_visivel(c, u, mid) -> dict | None:
 
 
 def _negado(request: Request):
+    auditar(request, "ACESSO_NEGADO_AREA", request.url.path, "aniversariante fora das áreas, sem homenagem ou inativo")
     return render(request, "erro.html", {"titulo": "Indisponível",
                   "mensagem": "Este aniversariante não está nos seus ministérios, recusou a homenagem ou não está mais ativo."}, 404)
 

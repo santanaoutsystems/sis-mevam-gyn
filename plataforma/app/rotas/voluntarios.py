@@ -14,7 +14,7 @@ from sqlalchemy import select
 from starlette.requests import Request
 from starlette.routing import Route
 
-from .. import config, datas, db, envios, ficha, seguranca
+from .. import areas, config, datas, db, envios, ficha, seguranca
 from ..web import auditar, flash, ir, render
 from .agenda import escopo_setores
 
@@ -34,9 +34,13 @@ def interessados(c, setor: str) -> list[dict]:
     q = (select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.whatsapp, db.membros.c.email,
                 db.membros.c.status, db.membro_interesses.c.criado_em)
          .join(db.membro_interesses, db.membro_interesses.c.membro_id == db.membros.c.id)
-         .where(db.membro_interesses.c.setor == setor, db.membros.c.status.notin_(FORA))
+         .where(db.membro_interesses.c.setor.in_(areas.equivalentes(setor)), db.membros.c.status.notin_(FORA))
          .order_by(db.membros.c.nome_completo))
-    return [dict(r) for r in c.execute(q).mappings()]
+    vistos, lista = set(), []
+    for r in c.execute(q).mappings():  # quem marcou o nome antigo e o oficial aparece uma vez só
+        if r["id"] not in vistos:
+            vistos.add(r["id"]); lista.append(dict(r))
+    return lista
 
 
 def _eventos_do_setor(c, setor: str) -> list[dict]:
@@ -104,8 +108,9 @@ async def convidar(request: Request):
     volta = f"/voluntarios?setor={setor}"
     with db.engine().connect() as c:
         if setor not in setores_permitidos(c, u):
+            auditar(request, "ACESSO_NEGADO_AREA", "/voluntarios/convidar", f"convite para {setor[:80] or '-'}")
             return render(request, "erro.html", {"titulo": "Acesso restrito",
-                          "mensagem": "Este ministério não está sob a sua coordenação."}, 403)
+                          "mensagem": "Este ministério ou área não está sob a sua coordenação."}, 403)
         pessoas = {str(p["id"]): p for p in interessados(c, setor)}
     escolhidos = [pessoas[i] for i in form.getlist("membro") if i in pessoas and pessoas[i].get("email")]
     if not assunto or not corpo:

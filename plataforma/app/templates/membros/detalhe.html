@@ -27,7 +27,7 @@
     <h1>{{ m.nome_completo }}</h1>
     {{ ui.selo(m.status) }}
     {% if m.credo_aceito %}<span class="selo ativo">✍️ Credo assinado em {{ m.data_assinatura|data_hora_br }}</span>{% endif %}
-    {% if setores %}<p class="pequeno">Ministérios: {% for s in setores %}<span class="selo validado">{{ s.nome }} · {{ s.funcao }}</span> {% endfor %}</p>{% endif %}
+    {% if setores %}<p class="pequeno">Ministérios e Áreas: {% for s in setores %}<span class="selo validado">{{ s.nome }} · {{ s.funcao }}</span> {% endfor %}</p>{% endif %}
     <div class="acoes">
       <a class="botao secundario peq" href="/membros/{{ m.id }}/pdf" target="_blank">🖨️ PDF da ficha</a>
       {% if not propria and m.status not in ('Anonimizado (LGPD)', 'Excluído') %}<a class="botao secundario peq" href="/membros/{{ m.id }}/editar">✏️ Editar</a>
@@ -106,19 +106,22 @@
       <button class="botao secundario">🔐 Criar login de membro ({{ m.email or 'sem e-mail' }})</button></form>
   {% else %}<p class="suave pequeno">Valide a ficha para criar o login.</p>{% endif %}
 
-  <h3>Ministérios</h3>
+  <h3>Ministérios e Áreas em que serve</h3>
   <form method="post" action="/membros/{{ m.id }}/setores">{{ ui.csrf_input() }}
     {% set meus = setores|map(attribute='departamento_id')|list %}
+    {% for cat, lista in deptos|agrupar_areas %}
+    <p class="pequeno suave" style="margin:.6rem 0 .2rem"><b>{{ cat }}</b></p>
     <div class="grade c2">
-    {% for d in deptos %}
+    {% for d in lista if d.ativo is not false or d.id|string in meus %}
       {% set funcao_atual = (setores|selectattr('departamento_id','equalto',d.id|string)|map(attribute='funcao')|first) or 'Voluntário' %}
       <div class="opcoes" style="align-items:center">
         <label style="flex:1"><input type="checkbox" name="departamento_id" value="{{ d.id }}" {{ 'checked' if d.id|string in meus }}> {{ d.nome }}</label>
         <select name="funcao_{{ d.id }}" style="width:auto" aria-label="Função em {{ d.nome }}">{% for f in ['Voluntário','Líder','Apoio'] %}<option {{ 'selected' if f == funcao_atual }}>{{ f }}</option>{% endfor %}</select>
       </div>
-    {% else %}<p class="suave">Nenhum ministério cadastrado.</p>{% endfor %}
+    {% endfor %}
     </div>
-    {% if deptos %}<button class="botao secundario peq" style="margin-top:.5rem">Salvar ministérios</button>{% endif %}
+    {% else %}<p class="suave">Nenhum ministério ou área cadastrado.</p>{% endfor %}
+    {% if deptos %}<button class="botao secundario peq" style="margin-top:.5rem">Salvar ministérios e áreas</button>{% endif %}
   </form>
 
   {% if m.status != 'Inativo' %}

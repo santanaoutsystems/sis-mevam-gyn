@@ -760,8 +760,8 @@ async def central(request: Request):
                 ctx.de, ctx.ate = ctx.ate, ctx.de
         setores = []
         if "setor" in rel.filtros:
-            setores = [d["nome"] for d in _deptos_permitidos(c, ctx.escopo if rel.grupo != G_MEUS else None)]
-            ctx.setor = p.get("setor") if p.get("setor") in setores else ""
+            setores = _deptos_permitidos(c, ctx.escopo if rel.grupo != G_MEUS else None)
+            ctx.setor = p.get("setor") if p.get("setor") in {d["nome"] for d in setores} else ""
         eventos_opcoes = []
         if "evento" in rel.filtros:
             ctx_ev = Ctx(c, u, ctx.escopo, p, ctx.de, ctx.ate, ctx.setor)

@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import re
 
-from . import datas, profissional
+from . import areas, datas, profissional
 
 ESTADOS_CIVIS = ["Solteiro(a)", "Casado(a)", "União Estável", "Divorciado(a)", "Viúvo(a)"]
 ESCOLARIDADES = ["Ensino Fundamental", "Ensino Médio", "Superior Incompleto", "Superior Completo",
@@ -20,37 +20,19 @@ SIM_NAO = ["Sim", "Não"]
 DIZIMO_OPCOES = ["Sim", "Não", "Já sou dizimista"]
 
 # Setores padronizados (proposta "Padronização dos Setores", Edição 02): nome completo e o que a equipe faz.
-SETORES_INTERESSE = [
-    ("Secretaria", "Cadastro de membros, documentos e atendimento"),
-    ("Escola Teológica", "Cursos, aulas e formação bíblica"),
-    ("Louvor", "Música e ministração nos cultos"),
-    ("Mídia e Comunicação", "Redes sociais, fotos, vídeos, transmissões e avisos"),
-    ("Ministério de Homens", "Cultos e encontros de homens, incluindo o MP6 (Mesa para Seis)"),
-    ("Ministério de Mulheres", "Cultos e encontros de mulheres, incluindo o Inteiras (Mulheres Inteiras)"),
-    ("Kids", "Ministério infantil: cuidado e ensino das crianças"),
-    ("LED", "Ministério LED"),
-    ("GCs", "Grupos que se reúnem nas casas durante a semana"),
-    ("Voluntariado", "Recepção, apoio e serviço nos eventos"),
-    ("Mevam Social", "Ação social do MEVAM"),
-    ("Bazar", "Organização e vendas do bazar"),
-]
-NOMES_SETORES = [n for n, _ in SETORES_INTERESSE]
-# Nomes antigos do sistema → nome padronizado (para ligar coordenadores aos interessados)
-APELIDOS_SETORES = {"líder dos voluntários": "Voluntariado", "líder dos gc’s": "GCs", "líder dos gc's": "GCs",
-                    "mídia": "Mídia e Comunicação", "discipulado inteiras": "Ministério de Mulheres"}
+# Ministérios e Áreas em que o membro deseja servir: a lista oficial (app/areas.py)
+SETORES_INTERESSE = [(nome, descricao) for nome, _cat, descricao, _antigos in areas.AREAS]
+NOMES_SETORES = list(areas.NOMES)
 
 
 def setor_padrao(nome: str) -> str | None:
-    """Nome padronizado de um setor cadastrado (aceita os nomes antigos)."""
-    n = (nome or "").strip()
-    for p in NOMES_SETORES:
-        if p.lower() == n.lower():
-            return p
-    return APELIDOS_SETORES.get(n.lower())
+    """Nome oficial de uma área cadastrada (aceita os nomes antigos)."""
+    return areas.nome_oficial(nome)
 
 
 def interesses_do_form(form) -> list[str]:
     escolhidos = set(form.getlist("interesses")) if hasattr(form, "getlist") else set(form.get("interesses") or [])
+    escolhidos = {setor_padrao(n) or n for n in escolhidos}  # aceita também os nomes antigos
     return [n for n in NOMES_SETORES if n in escolhidos]
 
 OBRIGATORIOS = {

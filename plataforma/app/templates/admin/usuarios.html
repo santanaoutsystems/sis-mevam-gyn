@@ -5,7 +5,8 @@
 <h1>Usuários e perfis de acesso</h1>
 <p class="suave" style="margin-top:0">O perfil define o que cada pessoa vê ao entrar: <span class="selo membro">Membro</span> vê a agenda e a própria ficha,
   <span class="selo coordenacao">Coordenação</span> gerencia eventos só dos ministérios definidos em <a href="/coordenacao">Coordenação</a>,
-  <span class="selo secretaria">Secretaria</span> gerencia membros, eventos e inscrições, <span class="selo admin">Adm</span> também gerencia usuários, ministérios e auditoria.</p>
+  <span class="selo secretaria">Secretaria</span> gerencia membros, eventos e inscrições, <span class="selo admin">Adm</span> também gerencia usuários, ministérios e áreas e auditoria.
+  A <b>área (lotação)</b> mostra onde a pessoa serve; ela <b>não dá acesso</b>: o acesso vem só do perfil.</p>
 {% if senha_provisoria %}
 <div class="msg aviso"><b>Senha provisória de {{ senha_provisoria.nome }}</b> ({{ senha_provisoria.email }}):
   <b style="font-family:monospace;font-size:1.15rem">{{ senha_provisoria.senha }}</b><br>
@@ -24,7 +25,7 @@
 <form method="get" class="cartao com-acao"><input type="search" name="q" value="{{ busca }}" placeholder="Buscar por nome ou e-mail"><button class="botao">Buscar</button></form>
 <div class="cartao">
   <table class="tabela responsiva">
-    <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Último acesso</th><th>Ações</th></tr></thead>
+    <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Ministério / Área</th><th>Último acesso</th><th>Ações</th></tr></thead>
     <tbody>
     {% for u in linhas %}
       <tr>
@@ -33,6 +34,7 @@
           {% if u.cpf %}<br><span class="pequeno suave">CPF {{ u.cpf|cpf }}</span>{% endif %}</td>
         <td data-rotulo="E-mail">{{ u.email }}</td>
         <td data-rotulo="Perfil"><span class="selo {{ u.perfil }}">{{ PERFIS_ROTULO[u.perfil] }}</span></td>
+        <td data-rotulo="Ministério / Área">{{ u.area_nome or '—' }}</td>
         <td data-rotulo="Último acesso">{{ u.ultimo_login|data_hora_br or 'Nunca' }}{% if u.trocar_senha %}<br><span class="pequeno suave">senha provisória</span>{% endif %}</td>
         <td data-rotulo="">
           <details><summary class="pequeno">Alterar</summary>
@@ -40,6 +42,10 @@
               {{ ui.csrf_input() }}
               <select name="perfil">{% for p in PERFIS %}<option value="{{ p }}" {{ 'selected' if p == u.perfil }}>{{ PERFIS_ROTULO[p] }}</option>{% endfor %}</select>
               <label class="check"><input type="checkbox" name="ativo" value="sim" {{ 'checked' if u.ativo }}> Acesso ativo</label>
+              <label class="pequeno" for="a{{ u.id }}" style="display:block;margin-top:.4rem">Ministério / Área (lotação)</label>
+              <select id="a{{ u.id }}" name="area_id"><option value="">— nenhuma —</option>
+                {% for cat, lista in grupos_areas %}<optgroup label="{{ cat }}">{% for a in lista %}<option value="{{ a.id }}" {{ 'selected' if u.area_id == a.id|string }}>{{ a.nome }}</option>{% endfor %}</optgroup>{% endfor %}
+              </select>
               <label class="pequeno" for="f{{ u.id }}" style="display:block;margin-top:.4rem">Ficha ligada (nº do protocolo, vazio = nenhuma)</label>
               <input id="f{{ u.id }}" name="ficha" value="{{ u.membro_id or '' }}" inputmode="numeric" style="max-width:9rem">
               {% if u.cpf %}<label class="check"><input type="checkbox" name="apagar_cpf" value="sim"> Apagar o CPF deste login ({{ u.cpf|cpf }})</label>{% endif %}

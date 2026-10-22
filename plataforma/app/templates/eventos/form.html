@@ -10,10 +10,12 @@
   {{ ui.csrf_input() }}
   {{ ui.campo('titulo', 'Título do evento', obrig=True, voz=True) }}
   <div class="{{ 'campo-erro' if erros.get('departamento') }}">
-    <label for="departamento">Ministério responsável <span class="obrig">*</span></label>
+    <label for="departamento">Ministério / Área responsável <span class="obrig">*</span></label>
     <select id="departamento" name="departamento" required>
-      {% for d in deptos %}<option value="{{ d.nome }}" {{ 'selected' if valores.get('departamento') == d.nome }}>{{ d.nome }}{% if d.responsavel %} · {{ d.responsavel }}{% endif %}</option>
-      {% else %}<option value="Geral">Geral</option>{% endfor %}
+      {% if not valores.get('departamento') and deptos|length > 1 %}<option value="">Escolha…</option>{% endif %}
+      {% for cat, lista in deptos|agrupar_areas %}<optgroup label="{{ cat }}">
+        {% for d in lista if d.ativo is not false or valores.get('departamento') == d.nome %}<option value="{{ d.nome }}" {{ 'selected' if valores.get('departamento') == d.nome }}>{{ d.nome }}{% if d.responsavel %} · {{ d.responsavel }}{% endif %}</option>{% endfor %}
+      </optgroup>{% else %}<option value="Geral">Geral</option>{% endfor %}
     </select>
     {% if erros.get('departamento') %}<div class="erro-campo">{{ erros.departamento }}</div>{% endif %}
   </div>

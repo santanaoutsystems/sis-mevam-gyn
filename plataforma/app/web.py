@@ -11,12 +11,13 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.templating import Jinja2Templates
 
-from . import config, datas, db, ficha, menu, seguranca
+from . import areas, config, datas, db, ficha, menu, seguranca
 
 BASE = os.path.dirname(__file__)
 templates = Jinja2Templates(directory=os.path.join(BASE, "templates"))
 
 templates.env.filters["data_br"] = datas.fmt_data
+templates.env.filters["agrupar_areas"] = lambda lista: areas.agrupar(lista)
 templates.env.filters["cpf"] = lambda v: ficha.fmt_cpf(v) if v else ""
 templates.env.filters["data_hora_br"] = datas.fmt_data_hora
 templates.env.filters["moeda"] = lambda v: ("R$ {:,.2f}".format(float(v or 0))

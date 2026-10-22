@@ -184,7 +184,9 @@ def exigir(*perfis: str):
             if u["trocar_senha"] and request.url.path not in ("/trocar-senha", "/sair"):
                 return RedirectResponse("/trocar-senha", status_code=303)
             if perfis and u["perfil"] not in perfis:
-                from .web import render
+                from .web import auditar, render
+                if u["perfil"] in ("membro", "coordenacao"):  # tentativa de abrir tela de outro perfil (v2.15.0)
+                    auditar(request, "ACESSO_NEGADO_PERFIL", request.url.path, f"{request.method} com perfil {u['perfil']}")
                 return render(request, "erro.html", {"titulo": "Acesso restrito",
                               "mensagem": "Seu perfil não tem permissão para esta área."}, status_code=403)
             if request.method == "POST" and not await conferir_csrf(request):

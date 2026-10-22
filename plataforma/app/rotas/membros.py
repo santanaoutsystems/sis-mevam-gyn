@@ -16,7 +16,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route
 
-from .. import config, datas, db, envios, ficha, integra, lembretes, profissional, seguranca
+from .. import areas, config, datas, db, envios, ficha, integra, lembretes, profissional, seguranca
 from ..pdf import gerar_pdf_membro
 from ..web import auditar, flash, ir, render
 
@@ -37,6 +37,7 @@ def _carregar(c, membro_id: int) -> dict | None:
 def interesses_de(c, membro_id) -> list[str]:
     q = select(db.membro_interesses.c.setor).where(db.membro_interesses.c.membro_id == membro_id)
     marcados = {r[0] for r in c.execute(q)}
+    marcados = {ficha.setor_padrao(s) or s for s in marcados}  # nomes antigos valem como o oficial
     return [n for n in ficha.NOMES_SETORES if n in marcados]
 
 
@@ -163,7 +164,7 @@ ERRO_CPF_REPETIDO = "Este CPF já está em outro cadastro. Se for o seu, fale co
 
 def _contexto_form(extra: dict | None = None) -> dict:
     ctx = {"ESTADOS_CIVIS": ficha.ESTADOS_CIVIS, "ESCOLARIDADES": ficha.ESCOLARIDADES,
-           "SEXOS": ficha.SEXOS, "SIM_NAO": ficha.SIM_NAO, "SETORES_INTERESSE": ficha.SETORES_INTERESSE,
+           "SEXOS": ficha.SEXOS, "SIM_NAO": ficha.SIM_NAO, "SETORES_INTERESSE": ficha.SETORES_INTERESSE, "INTERESSES_AGRUPADOS": areas.interesses_agrupados(),
            "DIZIMO_OPCOES": ficha.DIZIMO_OPCOES, "DIAS_PROFISSAO": [[k, d, n] for k, d, n in profissional.DIAS],
            "valores": {}, "erros": {}, "interesses": []}
     ctx.update(extra or {})
@@ -348,7 +349,7 @@ async def detalhe(request: Request):
         if not m:
             return render(request, "erro.html", {"titulo": "Não encontrado", "mensagem": "Ficha não encontrada."}, 404)
         setores = _setores_do_membro(c, mid)
-        deptos = [dict(r) for r in c.execute(select(db.departamentos).order_by(db.departamentos.c.nome)).mappings()]
+        deptos = areas.lista(c)
         login = c.execute(select(db.usuarios.c.id, db.usuarios.c.email, db.usuarios.c.perfil,
                                  db.usuarios.c.trocar_senha, db.usuarios.c.bloqueado_ate)
                           .where(db.usuarios.c.membro_id == mid)).mappings().first()

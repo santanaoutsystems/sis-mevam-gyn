@@ -12,7 +12,7 @@ from sqlalchemy import func, insert, select, update
 from starlette.requests import Request
 from starlette.routing import Route
 
-from .. import config, coordenacao as coord, datas, db, envios, ficha, seguranca
+from .. import areas, config, coordenacao as coord, datas, db, envios, ficha, seguranca
 from ..web import auditar, flash, ir, render
 from .admin import _mostrar_senha_uma_vez, criar_usuario
 
@@ -59,7 +59,7 @@ async def tela(request: Request):
     hoje = datas.hoje()
     us = db.usuario_setores.c
     with db.engine().connect() as c:
-        deptos = [dict(r) for r in c.execute(select(db.departamentos).order_by(db.departamentos.c.nome)).mappings()]
+        deptos = areas.lista(c)
         nome_setor = {str(d["id"]): d["nome"] for d in deptos}
         eventos = _eventos_futuros(c)
         titulo_evento = {str(e["id"]): e for e in eventos}

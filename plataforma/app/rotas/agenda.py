@@ -10,7 +10,7 @@ from sqlalchemy import delete, func, insert, select, update
 from starlette.requests import Request
 from starlette.routing import Route
 
-from .. import datas, db, ficha, notificacoes, seguranca
+from .. import areas, datas, db, ficha, notificacoes, seguranca
 from ..web import auditar, flash, ir, render
 
 GESTAO = db.PERFIS_AGENDA
@@ -53,7 +53,8 @@ def _evento(c, eid) -> dict | None:
 
 
 def _deptos(c) -> list[dict]:
-    return [dict(r) for r in c.execute(select(db.departamentos).order_by(db.departamentos.c.nome)).mappings()]
+    """Ministérios e Áreas na ordem oficial, com a categoria (app/areas.py)."""
+    return areas.lista(c)
 
 
 class Escopo(set):
@@ -93,8 +94,10 @@ def _pode_gerir(escopo: set[str] | None, evento: dict | None) -> bool:
 
 
 def _fora_do_setor(request: Request):
+    # Coordenação tentando abrir algo de outra área: bloqueia e registra (v2.15.0)
+    auditar(request, "ACESSO_NEGADO_AREA", request.url.path, f"{request.method} fora das áreas da Coordenação")
     return render(request, "erro.html", {"titulo": "Acesso restrito",
-                  "mensagem": "Este evento é de um ministério que não está sob a sua coordenação."}, 403)
+                  "mensagem": "Este evento é de um ministério ou área que não está sob a sua coordenação."}, 403)
 
 
 def _deptos_permitidos(c, escopo: set[str] | None) -> list[dict]:

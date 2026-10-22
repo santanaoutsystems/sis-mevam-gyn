@@ -9,11 +9,11 @@
 <form method="post" class="cartao">
   {{ ui.csrf_input() }}
   <table class="tabela responsiva">
-    <thead><tr><th></th><th>Evento</th><th>Ministério</th><th>Hoje aparece</th><th>Corrigido</th><th>Origem</th></tr></thead>
+    <thead><tr><th></th><th>Evento</th><th>Ministério / Área</th><th>Hoje aparece</th><th>Corrigido</th><th>Origem</th></tr></thead>
     <tbody>{% for e in linhas %}<tr>
       <td data-rotulo="Corrigir">{% if e.ja_ajustado %}✅{% else %}<input type="checkbox" name="evento" value="{{ e.id }}" aria-label="Corrigir {{ e.titulo }}" {{ 'checked' if e.sugerido }}>{% endif %}</td>
       <td data-rotulo="Evento"><b>{{ e.titulo }}</b></td>
-      <td data-rotulo="Ministério">{{ e.departamento or 'Geral' }}</td>
+      <td data-rotulo="Ministério / Área">{{ e.departamento or 'Geral' }}</td>
       <td data-rotulo="Hoje aparece">{{ e.quando.strftime('%d/%m/%Y %H:%M') }}</td>
       <td data-rotulo="Corrigido">{% if e.ja_ajustado %}<span class="suave">já ajustado</span>{% else %}<b>{{ e.corrigido.strftime('%d/%m/%Y %H:%M') }}</b>{% endif %}</td>
       <td data-rotulo="Origem" class="pequeno">{{ 'Agenda antiga' if e.da_agenda_antiga else 'Sistema novo' }}</td></tr>

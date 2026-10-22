@@ -465,7 +465,7 @@ def test_renomear_setor_mantem_eventos_vinculados():
     criar_evento(adm)
     with db.engine().connect() as c:
         sid = c.execute(select(db.departamentos.c.id).where(db.departamentos.c.nome == "Família")).scalar()
-    post(adm, "/admin/setores/salvar", {"id": str(sid), "nome": "Famílias", "responsavel": "Pr. João"}, pagina="/admin/setores")
+    post(adm, "/admin/setores/salvar", {"id": str(sid), "nome": "Famílias", "responsavel": "Pr. João", "categoria": "Ministério", "ativo": "1"}, pagina="/admin/setores")
     with db.engine().connect() as c:
         assert c.execute(select(db.eventos.c.departamento)).scalar() == "Famílias"
 
@@ -1157,7 +1157,7 @@ def test_ficha_sem_foto_e_aceita_e_envia_link_manual_e_pesquisa(monkeypatch):
         etapas = cx.execute(select(db.lembretes_cadastro.c.etapa)).scalars().all()
         interesses = sorted(cx.execute(select(db.membro_interesses.c.setor)).scalars())
     assert (reg["expira_em"].replace(tzinfo=None) - reg["criado_em"].replace(tzinfo=None)).days == 30
-    assert etapas == ["d0"] and interesses == ["Kids", "Louvor"]
+    assert etapas == ["d0"] and interesses == ["Ministério Kids", "Ministério de Louvor"]
     assert len(caixa) == 1
     para, assunto, corpo = caixa[0]
     assert para == "maria@exemplo.com" and "foto 3x4" in assunto
@@ -1219,7 +1219,7 @@ def test_portal_de_atualizacao_conclui_com_a_foto(monkeypatch):
     assert r.status_code == 303, r.text
     with db.engine().connect() as cx:
         assert cx.execute(select(db.membros.c.foto_3x4).where(db.membros.c.id == mid)).scalar() == FOTO
-        assert sorted(cx.execute(select(db.membro_interesses.c.setor)).scalars()) == ["Bazar", "Louvor"]
+        assert sorted(cx.execute(select(db.membro_interesses.c.setor)).scalars()) == ["Bazar", "Ministério de Louvor"]
     assert lembretes.rodar() == 0
 
 
@@ -1233,16 +1233,16 @@ def test_voluntarios_coordenacao_ve_so_os_seus_setores_e_convida(monkeypatch):
         did = c.execute(insert(db.departamentos).values(nome="Líder dos Voluntários")).inserted_primary_key[0]
         c.execute(insert(db.usuario_setores).values(usuario_id=coord.usuario["id"], departamento_id=str(did)))
     pagina = coord.get("/voluntarios").text
-    assert "Maria da Silva Souza" in pagina and "Voluntariado (1)" in pagina and "Louvor" not in pagina
+    assert "Maria da Silva Souza" in pagina and "Ministério de Voluntários (1)" in pagina and "Louvor" not in pagina
     mid = membro_id_mais_recente()
     proibido = post(coord, "/voluntarios/convidar", {"setor": "Louvor", "assunto": "x", "corpo": "y", "membro": str(mid)},
                     pagina="/voluntarios")
     assert proibido.status_code == 403 and not caixa
-    r = post(coord, "/voluntarios/convidar", {"setor": "Voluntariado", "assunto": "Convite", "corpo": "Paz, {nome}!",
+    r = post(coord, "/voluntarios/convidar", {"setor": "Ministério de Voluntários", "assunto": "Convite", "corpo": "Paz, {nome}!",
                                               "membro": str(mid)}, pagina="/voluntarios")
     assert r.status_code == 303 and caixa == [("maria@exemplo.com", "Convite", "Paz, Maria!")]
     sec = logado("secretaria")
-    assert "Louvor (1)" in sec.get("/voluntarios?setor=Louvor").text
+    assert "Ministério de Louvor (1)" in sec.get("/voluntarios?setor=Ministério de Louvor").text
 
 
 def test_editar_ficha_atualiza_setores_de_interesse():
@@ -1250,7 +1250,7 @@ def test_editar_ficha_atualiza_setores_de_interesse():
     mid = membro_id_mais_recente()
     sec = logado("secretaria")
     pagina = sec.get(f"/membros/{mid}/editar")
-    assert 'value="Kids" checked' in pagina.text
+    assert 'value="Ministério Kids" checked' in pagina.text
     with db.engine().connect() as cx:
         cpf = cx.execute(select(db.membros.c.cpf).where(db.membros.c.id == mid)).scalar()
     r = sec.post(f"/membros/{mid}/editar", data={**FICHA_OK, "foto_3x4": "", "cpf": cpf, "interesses": ["Bazar"],

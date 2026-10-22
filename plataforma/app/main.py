@@ -20,7 +20,7 @@ from starlette.routing import Mount, Route
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.staticfiles import StaticFiles
 
-from . import config, datas, db, lembretes, seguranca, uso
+from . import areas, config, datas, db, lembretes, seguranca, uso
 from .rotas import (acesso, admin, agenda, aniversarios, coordenacao, instituto, integra, membros, mutirao, necessidades, pesquisa,
                     regularizacao, relatorios, voluntarios)
 from .web import BASE, render
@@ -108,6 +108,7 @@ middleware = [
 def criar_app() -> Starlette:
     db.criar_tabelas_dev()
     db.aplicar_migracoes_aditivas()
+    areas.sincronizar_na_subida()
     return Starlette(routes=rotas, middleware=middleware,
                      exception_handlers={404: nao_encontrado, 500: erro_interno})
 

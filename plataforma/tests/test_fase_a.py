@@ -78,11 +78,10 @@ def test_pesquisa_mensal_anonima_uma_vez_por_mes():
     assert len(resp) == 2 and sorted(itens) == ["casamento", "saude", "saude"]
     assert "usuario_id" not in db.necessidades_respostas.c  # a resposta não guarda quem respondeu
     assert [r["contato_usuario_id"] is not None for r in resp] == [False, True]
-    # Painel: liderança vê números; comentários e contatos só Secretaria/Adm; membro não entra
+    # Painel (dados da igreja inteira): só Secretaria e Adm; membro e Coordenação não entram (v2.15.0)
     assert m1.get("/necessidades/painel", follow_redirects=False).status_code in (302, 303, 403)
     coord = logado("coordenacao")
-    html = coord.get("/necessidades/painel").text
-    assert "Saúde" in html and "Orem por nós" not in html and "Pediram para ser procurados" not in html
+    assert coord.get("/necessidades/painel", follow_redirects=False).status_code in (302, 303, 403)
     html = logado("secretaria").get("/necessidades/painel").text
     assert "Orem por nós" in html and "Pediram para ser procurados (1)" in html
     assert nec.mes_atual() in html
@@ -102,7 +101,7 @@ def test_termo_ministerio_no_lugar_de_setor():
         html = adm.get(url).text
         visivel = html.split("<main", 1)[-1]
         assert "Setor" not in visivel.replace("Bairro / Setor", ""), url
-    assert "Ministérios em que deseja servir" in novo_cliente().get("/ficha").text
+    assert "Ministérios e Áreas em que deseja servir" in novo_cliente().get("/ficha").text
 
 
 def test_resumo_dos_relatorios_usa_ministerios():

@@ -42,10 +42,10 @@
           {% for f in fichas %}<option value="m:{{ f.id }}">{{ f.nome_completo }} · ficha #{{ f.id }} · {{ f.email }}</option>{% endfor %}
         </optgroup>{% endif %}
       </select></div>
-    <div><label for="d_setor">Ministério <span class="obrig">*</span></label>
+    <div><label for="d_setor">Ministério / Área <span class="obrig">*</span></label>
       <select id="d_setor" name="departamento_id" required>
         <option value="">Escolha…</option>
-        {% for d in deptos %}<option value="{{ d.id }}" data-nome="{{ d.nome }}">{{ d.nome }}</option>{% endfor %}
+        {% for cat, lista in deptos|agrupar_areas %}<optgroup label="{{ cat }}">{% for d in lista if d.ativo is not false %}<option value="{{ d.id }}" data-nome="{{ d.nome }}">{{ d.nome }}</option>{% endfor %}</optgroup>{% endfor %}
       </select></div>
     <div><label for="d_tipo">Tipo <span class="obrig">*</span></label>
       <select id="d_tipo" name="tipo" data-tipo-coord required>
@@ -147,9 +147,9 @@
   <summary><b>🕘 Histórico de coordenações encerradas</b> ({{ historico|length }})</summary>
   {% if historico %}
   <div style="overflow-x:auto"><table class="tabela responsiva">
-    <thead><tr><th>Pessoa</th><th>Ministério</th><th>Tipo</th><th>Período</th><th>Encerrada</th><th>Motivo</th></tr></thead>
+    <thead><tr><th>Pessoa</th><th>Ministério / Área</th><th>Tipo</th><th>Período</th><th>Encerrada</th><th>Motivo</th></tr></thead>
     <tbody>{% for h in historico %}<tr>
-      <td data-rotulo="Pessoa">{{ h.usuario_nome }}</td><td data-rotulo="Ministério">{{ h.setor_nome }}{% if h.evento_titulo %} · {{ h.evento_titulo }}{% endif %}</td>
+      <td data-rotulo="Pessoa">{{ h.usuario_nome }}</td><td data-rotulo="Ministério / Área">{{ h.setor_nome }}{% if h.evento_titulo %} · {{ h.evento_titulo }}{% endif %}</td>
       <td data-rotulo="Tipo">{{ TIPOS.get(h.tipo, h.tipo) }}</td>
       <td data-rotulo="Período">{{ h.inicio|data_br or '-' }} a {{ h.fim|data_br or 'nova decisão' }}</td>
       <td data-rotulo="Encerrada">{{ h.encerrado_em|data_hora_br }} · {{ h.encerrado_por }}</td>

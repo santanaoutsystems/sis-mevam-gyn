@@ -122,7 +122,7 @@ def _resumo(c, mes: str) -> dict:
     return {"total": total, "bem": bem, "ranking": ranking}
 
 
-@seguranca.exigir(*GESTAO)
+@seguranca.exigir(*SEC_ADM)  # dados da igreja inteira: só Secretaria e Adm (v2.15.0)
 async def painel(request: Request):
     u = seguranca.usuario_atual(request)
     r, i = db.necessidades_respostas.c, db.necessidades_itens.c

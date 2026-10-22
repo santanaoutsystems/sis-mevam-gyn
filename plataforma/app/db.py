@@ -33,6 +33,10 @@ departamentos = Table(
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("nome", String, nullable=False),
     Column("responsavel", String),
+    # 016 (v2.15.0): estrutura oficial de Ministérios e Áreas (app/areas.py)
+    Column("categoria", String(40)),
+    Column("ordem", Integer),
+    Column("ativo", Boolean, default=True),
 )
 
 eventos = Table(
@@ -105,6 +109,7 @@ usuarios = Table(
     Column("ultimo_login", DateTime(timezone=True)),
     Column("origem", String),  # 'novo', 'agenda:administradores#ID', 'membros_app:usuarios#ID'
     Column("email_avisos", Boolean, nullable=False, default=True),  # resumo diário dos avisos por e-mail
+    Column("area_id", String(64)),  # lotação (Ministério / Área); não dá acesso: o acesso vem do perfil
     Column("criado_em", DateTime(timezone=True), server_default=func.now()),
 )
 
@@ -519,6 +524,13 @@ def criar_tabelas_dev() -> None:
     """Somente desenvolvimento/testes (SQLite). Em produção use migracoes/*.sql."""
     if engine().dialect.name == "sqlite":
         metadata.create_all(engine())
+        # Bancos de desenvolvimento antigos: acrescenta as colunas novas (o SQLite não tem "add column if not exists")
+        with engine().begin() as c:
+            for t in metadata.sorted_tables:
+                existentes = {r[1] for r in c.exec_driver_sql(f'pragma table_info("{t.name}")')}
+                for col in t.columns:
+                    if col.name not in existentes and col.nullable and col.server_default is None:
+                        c.exec_driver_sql(f'alter table "{t.name}" add column "{col.name}" {col.type.compile(c.dialect)}')
 
 
 def aplicar_migracoes_aditivas() -> None:
@@ -529,7 +541,8 @@ def aplicar_migracoes_aditivas() -> None:
     007 (regularização de fichas antigas), 008 (lembretes de cadastro e setores de interesse)
     009 (filtros salvos da Central de Relatórios), 010 (aniversariantes), 011 (uso dos serviços)
     012 (Coordenação por período/evento e inativação/exclusão de membros) e 013 (Dia do Profissional,
-    intenção de dízimo, pesquisa mensal de necessidades e Instituto) e 014 (INTEGRA).
+    intenção de dízimo, pesquisa mensal de necessidades e Instituto), 014 (INTEGRA), 015 (mutirão)
+    e 016 (categoria das áreas e lotação dos usuários).
     Só cria/alarga; nunca remove dados. Se falhar, o app sobe mesmo assim e registra o erro.
     """
     import logging
@@ -541,7 +554,7 @@ def aplicar_migracoes_aditivas() -> None:
     for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql", "007_regularizacao.sql",
                  "008_lembretes_interesses.sql", "009_relatorios_salvos.sql", "010_aniversariantes.sql",
                  "011_uso_servicos.sql", "012_coordenacao_membros.sql", "013_fase_a.sql", "014_integra.sql",
-                 "015_mutirao.sql"):
+                 "015_mutirao.sql", "016_areas.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()
