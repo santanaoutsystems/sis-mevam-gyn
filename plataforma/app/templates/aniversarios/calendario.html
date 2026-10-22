@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block titulo %}Aniversariantes{% endblock %}
+{% macro url(dia) -%}
+/aniversariantes?visao={{ visao }}&dia={{ dia }}{{ '&setor=' ~ setor|urlencode if setor }}
+{%- endmacro %}
+{% macro marca(m, d) -%}
+{% set ja = env.get((m.id, d.year), []) %}{% if ja %}<span class="ok-aniv" title="Mensagem enviada por {% for e in ja %}{{ e.usuario_nome }} ({{ CANAIS.get(e.canal, e.canal) }}){{ ', ' if not loop.last }}{% endfor %}">✔</span>{% endif %}
+{%- endmacro %}
+{% macro lista_dias(extra="") -%}
+    {% if lista_mes %}
+    <ul class="lista lista-aniv {{ extra }}">
+      {% for d, pessoas in lista_mes %}{% for m in pessoas %}
+      <li class="{{ 'hoje' if d == hoje }}">
+        <b class="dia-destaque">{{ d.strftime('%d/%m') }}</b>
+        <span><b>{{ m.nome }}</b> {{ marca(m, d) }}<br><span class="pequeno suave">{% for s in m.setores %}{{ s.nome }}{{ ' (interesse)' if s.tipo == 'interesse' }}{{ ', ' if not loop.last }}{% else %}Sem ministério{% endfor %}</span></span>
+        <a class="botao peq zap nao-imprimir" href="/aniversariantes/{{ m.id }}/mensagem">💬</a>
+      </li>
+      {% endfor %}{% endfor %}
+    </ul>
+    {% else %}<p class="suave">Nenhum aniversariante em {{ titulo }}.</p>{% endif %}
+{%- endmacro %}
+{% block conteudo %}
+<div data-relatorio="aniversariantes" data-csrf="{{ csrf }}" data-filtros="{{ filtros_texto }}" data-linhas="{{ total }}">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap" class="nao-imprimir">
+  <h1 style="margin-bottom:.25rem">🎂 Aniversariantes</h1>
+  <div class="acoes" style="margin:0">
+    <button type="button" class="botao secundario" data-imprimir>🖨️ Imprimir</button>
+    {% if pode('secretaria', 'admin') %}<a class="botao secundario" href="/aniversariantes/modelos">⚙️ Modelos de mensagem</a>{% endif %}
+  </div>
+</div>
+<p class="suave pequeno nao-imprimir" style="margin-top:0">{% if escopo is none %}Todos os ministérios.{% else %}Membros dos seus ministérios: {{ escopo|sort|join(', ') or 'nenhum ministério atribuído' }}.{% endif %}
+  Só dia e mês, sem ano nem idade (LGPD).</p>
+
+<div class="cab-relatorio so-impressao">
+  <img src="/static/img/logo_round.jpg" alt="">
+  <div><h2>MINISTÉRIO MEVAM GYN · Aniversariantes · {{ titulo }}</h2>
+  <span class="pequeno">Emitido por {{ usuario.nome }} ({{ PERFIS_ROTULO[usuario.perfil] }}) · Ministério / Área: {{ setor or 'todos' }}</span></div>
+</div>
+
+<div class="cal-aniv-grade">
+<div class="cartao">
+  <div class="cal-cab nao-imprimir">
+    <div class="navega">
+      <a class="botao secundario peq" href="{{ url(anterior) }}" aria-label="Anterior">‹</a>
+      <h2>{{ titulo }}</h2>
+      <a class="botao secundario peq" href="{{ url(proxima) }}" aria-label="Próximo">›</a>
+      {% if not (de <= hoje <= ate) %}<a class="botao secundario peq" href="{{ url(hoje.isoformat()) }}">Hoje</a>{% endif %}
+    </div>
+    <form method="get" class="filtros-cal">
+      <div class="abas" role="tablist">
+        {% for v, r in [('mes', 'Mês'), ('semana', 'Semana'), ('lista', 'Lista')] %}
+        <a role="tab" class="botao peq {{ '' if visao == v else 'secundario' }}" href="/aniversariantes?visao={{ v }}&dia={{ ref.isoformat() }}{{ '&setor=' ~ setor|urlencode if setor }}"{% if visao == v %} aria-selected="true"{% endif %}>{{ r }}</a>
+        {% endfor %}
+      </div>
+      <input type="hidden" name="visao" value="{{ visao }}"><input type="hidden" name="dia" value="{{ ref.isoformat() }}">
+      <label class="sr" for="setor">Ministério / Área</label>
+      <select id="setor" name="setor" onchange="this.form.submit()">
+        <option value="">{{ 'Todos os ministérios e áreas' if escopo is none else 'Todas as minhas áreas' }}</option>
+        {% for o in opcoes %}<option {{ 'selected' if o == setor }}>{{ o }}</option>{% endfor %}
+      </select>
+      <noscript><button class="botao peq">Filtrar</button></noscript>
+    </form>
+  </div>
+
+  {% if visao == 'lista' %}
+  {{ lista_dias() }}
+  {% else %}
+  <table class="calendario cal-aniv">
+    <thead><tr>{% for d in DIAS_CURTOS %}<th scope="col">{{ d }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for semana in semanas %}<tr>
+      {% for d in semana %}{% set pessoas = dias.get(d, []) %}
+      <td class="{{ 'fora' if visao == 'mes' and d.month != ref.month }} {{ 'hoje' if d == hoje }} {{ 'ocupado' if pessoas }}">
+        <span class="num">{{ d.day }}{% if visao == 'semana' %}/{{ '%02d'|format(d.month) }}{% endif %}</span>
+        {% for m in pessoas %}<a class="nome-aniv {{ 'enviado' if env.get((m.id, d.year)) }}" href="/aniversariantes/{{ m.id }}/mensagem" title="{{ m.nome }}">{{ marca(m, d) }} {{ m.curto }}</a>{% endfor %}
+      </td>
+      {% endfor %}
+    </tr>{% endfor %}
+    </tbody>
+  </table>
+  {% if lista_mes %}<div class="so-cel-aniv">{{ lista_dias() }}</div>{% endif %}
+  {% endif %}
+  <p class="pequeno" style="margin:.5rem 0 0"><b>Total:</b> {{ total }} aniversariante(s) {{ 'na semana' if visao == 'semana' else 'no mês' }}</p>
+  <p class="rodape-lgpd">🔒 Contém dados pessoais · uso interno do MEVAM GYN · LGPD. Descarte esta folha após o uso.</p>
+</div>
+
+<aside class="nao-imprimir">
+  <div class="cartao">
+    <h2 style="margin-top:0">Próximos 7 dias</h2>
+    {% for d, pessoas in proximos %}{% for m in pessoas %}
+    <div class="pessoa-aniv">
+      <span class="avatar" aria-hidden="true">{{ m.primeiro[:1] }}{{ m.curto.split(' ')[-1][:1] if ' ' in m.curto }}</span>
+      <span><b>{{ m.nome }}</b> {{ marca(m, d) }}<br><span class="pequeno suave">{{ 'Hoje' if d == hoje else ('Amanhã' if (d - hoje).days == 1 else d.strftime('%d/%m')) }} · {% for s in m.setores %}{{ s.nome }}{{ ', ' if not loop.last }}{% else %}Sem ministério{% endfor %}</span></span>
+      <a class="botao peq zap" href="/aniversariantes/{{ m.id }}/mensagem" aria-label="Mensagem para {{ m.nome }}">💬</a>
+    </div>
+    {% endfor %}{% else %}<p class="suave">Ninguém faz aniversário nos próximos 7 dias.</p>{% endfor %}
+    <p class="pequeno suave" style="margin-bottom:0">✔ = mensagem já enviada este ano por alguém da equipe (toque para ver quem).</p>
+    {% if sem_data %}<p class="msg aviso pequeno" style="margin:.75rem 0 0">⚠️ {{ sem_data }} ficha(s) sem data de nascimento. Complete pela lista de <a href="/membros">Membros</a>.</p>{% endif %}
+  </div>
+  <div class="cartao">
+    <h2 style="margin-top:0">✉️ Resumo por e-mail</h2>
+    <p class="pequeno">Às 8h, um e-mail com os aniversariantes de amanhã {{ 'dos seus ministérios' if escopo is not none else 'sem ministério ou sem coordenação' }}.</p>
+    <form method="post" action="/aniversariantes/resumo-email"><input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="ligar" value="{{ '0' if email_avisos else '1' }}">
+      <button class="botao peq {{ 'secundario' if email_avisos }}">{{ 'Desligar o resumo' if email_avisos else 'Ligar o resumo' }}</button>
+      <span class="pequeno suave">{{ 'Ligado' if email_avisos else 'Desligado' }}</span>
+    </form>
+  </div>
+</aside>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/js/tabela.js" defer></script>{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block titulo %}Confissão de Fé{% endblock %}
+{% macro corpo() %}
+<div style="max-width:760px;margin:0 auto">
+  <div class="cartao" style="display:flex;gap:1rem;align-items:center">
+    <div class="foto3x4" style="width:80px;height:106px">{% if m.foto_3x4 %}<img src="{{ m.foto_3x4 }}" alt="">{% endif %}</div>
+    <div><span class="pequeno suave">Protocolo #{{ m.id }}</span><h1 style="margin:0">{{ m.nome_completo }}</h1>
+      <span class="pequeno">WhatsApp {{ m.whatsapp or '-' }} · {{ m.cidade or 'Goiânia' }}</span></div>
+  </div>
+
+  {% if m.credo_aceito %}
+  <div class="cartao" style="text-align:center">
+    <div style="font-size:3rem">✅</div>
+    <h2 style="border:0">Confissão de Fé assinada</h2>
+    <p>Assinado por <b>{{ m.nome_assinante }}</b> em {{ m.data_assinatura|data_hora_br }}.</p>
+    <img src="{{ m.assinatura_rubrica }}" alt="Rúbrica" class="papel" style="max-height:90px;max-width:100%">
+    <p class="pequeno suave">Código de autenticidade: {{ (m.hash_autenticidade or '')[:24] }}…</p>
+    <a class="botao" href="/credo/{{ m.id }}/pdf?t={{ token }}" target="_blank">🖨️ Baixar minha ficha em PDF</a>
+  </div>
+  {% else %}
+  <div class="cartao">
+    <h2>O Credo Apostólico</h2>
+    {% for l in credo.credo %}<p style="font-style:italic">{{ l }}</p>{% endfor %}
+  </div>
+  <div class="cartao">
+    <h2>Os 10 Artigos Doutrinários</h2>
+    {% for a in credo.artigos %}
+    <details style="border-bottom:1px solid var(--borda);padding:.6rem 0">
+      <summary><b><span class="selo validado">{{ a.numero }}</span> {{ a.titulo }}</b></summary>
+      <p>{{ a.texto }}</p><p class="pequeno suave">({{ a.referencias }})</p>
+    </details>
+    {% endfor %}
+  </div>
+  <form class="cartao" method="post" id="formCredo">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="t" value="{{ token }}">
+    <input type="hidden" name="assinatura">
+    <h2>Assinatura</h2>
+    <label class="check"><input type="checkbox" name="aceite" value="sim" required> {{ credo.declaracao }}</label>
+    {% if not m.lgpd_consentimento %}
+    <label class="check"><input type="checkbox" name="lgpd_consentimento" value="sim" required>
+      <span>Li e concordo com o tratamento dos meus dados pessoais pela Secretaria e pela liderança do MEVAM GYN para cadastro de membresia,
+      comunicação ministerial e organização de atividades, conforme a LGPD (Lei 13.709/2018). <a href="/privacidade" target="_blank">Política de privacidade</a>.</span></label>
+    {% endif %}
+    <label for="nome_assinante">Nome completo de quem assina</label>
+    <input id="nome_assinante" name="nome_assinante" value="{{ m.nome_completo }}" required>
+    <label>Faça sua rúbrica no quadro (dedo ou mouse)</label>
+    <canvas id="quadro" class="quadro-assinatura"></canvas>
+    <div class="acoes" style="margin-top:.5rem">
+      <button type="button" class="botao secundario peq" id="btnDesfazer">↶ Desfazer</button>
+      <button type="button" class="botao secundario peq" id="btnLimpar">Limpar</button>
+    </div>
+    <p class="pequeno suave">Registramos data, hora (Goiânia) e um código de autenticidade desta assinatura, conforme a LGPD.</p>
+    <button class="botao dourado bloco" type="submit">✍️ Assinar Confissão de Fé</button>
+  </form>
+  {% endif %}
+</div>
+{% endmacro %}
+{% block conteudo %}{{ corpo() }}{% endblock %}
+{% block publico %}{{ corpo() }}{% endblock %}
+{% block scripts %}
+<script src="/static/js/signature.js"></script>
+<script>
+(function () {
+  var c = document.getElementById("quadro"); if (!c) return;
+  var pad = new SignaturePad(c, { color: "#1e3a8a" });
+  document.getElementById("btnDesfazer").onclick = function () { pad.undo(); };
+  document.getElementById("btnLimpar").onclick = function () { pad.clear(); };
+  document.getElementById("formCredo").addEventListener("submit", function (ev) {
+    if (pad.isEmpty()) { ev.preventDefault(); alert("Faça sua rúbrica no quadro antes de assinar."); return; }
+    this.assinatura.value = pad.toDataURL("image/png");
+  });
+})();
+</script>
+{% endblock %}

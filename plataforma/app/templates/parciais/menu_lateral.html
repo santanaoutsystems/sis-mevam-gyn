@@ -1,0 +1,63 @@
+{# Menu lateral: fixo à esquerda no PC, gaveta no celular. Itens e perfis vêm de app/menu.py. #}
+{% macro link(i, ic=None, rotulo=None, classe="menu-item") -%}
+  <a href="{{ i.href }}" class="{{ classe }}{{ ' ativo' if i.ativo }}"{% if i.ativo %} aria-current="page"{% endif %}><span class="ic" aria-hidden="true">{{ ic or i.ic }}</span><span class="txt">{{ rotulo or i.rotulo }}</span></a>
+{%- endmacro %}
+<aside class="menu" id="menu" aria-label="Menu principal">
+  <div class="menu-marca">
+    <img src="/static/img/logo_round.jpg" alt="" width="44" height="44">
+    <div class="menu-marca-txt"><b>SIS MEVAM-GYN</b><small>Ministério MEVAM Goiânia</small></div>
+    <button type="button" class="menu-fechar" aria-label="Fechar menu" data-menu-fechar>✕</button>
+  </div>
+  <div class="menu-usuario">
+    <div><b>{{ usuario.nome.split(' ')[0] }}</b><span>{{ PERFIS_ROTULO[usuario.perfil] }}</span></div>
+    {% if pode('coordenacao', 'secretaria', 'admin') %}<a class="sino" href="/avisos" aria-label="Avisos{{ ': ' ~ aniv.avisos_n ~ ' novo(s)' if aniv.avisos_n }}" title="Avisos">🔔{% if aniv.avisos_n %}<i>{{ aniv.avisos_n }}</i>{% endif %}</a>{% endif %}
+    <button type="button" class="botao-tema menu-tema-rapido" aria-label="Alternar tema">🌙</button>
+  </div>
+  <nav class="menu-itens">
+    {{ link(menu.inicio) }}
+    {% for g in menu.grupos %}
+      {% if g["itens"]|length == 1 %}
+        {{ link(g["itens"][0], g.ic, g.rotulo) }}
+      {% else %}
+        <div class="menu-grupo{{ ' aberto' if g.aberto }}" data-grupo="{{ g.chave }}"{{ ' data-tem-ativo' if g.aberto }}>
+          <button type="button" class="menu-item grupo" aria-expanded="{{ 'true' if g.aberto else 'false' }}" aria-controls="sub-{{ g.chave }}">
+            <span class="ic" aria-hidden="true">{{ g.ic }}</span><span class="txt">{{ g.rotulo }}</span><span class="seta" aria-hidden="true"></span>
+          </button>
+          <div class="menu-sub" id="sub-{{ g.chave }}" role="group" aria-label="{{ g.rotulo }}">
+            {% for i in g["itens"] %}{{ link(i, classe="menu-subitem") }}{% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+    <div class="menu-grupo" data-grupo="sistema">
+      <button type="button" class="menu-item grupo" aria-expanded="false" aria-controls="sub-sistema">
+        <span class="ic" aria-hidden="true">⚙️</span><span class="txt">Sistema</span><span class="seta" aria-hidden="true"></span>
+      </button>
+      <div class="menu-sub" id="sub-sistema" role="group" aria-label="Sistema">
+        <button type="button" class="menu-subitem botao-tema" aria-label="Alternar tema"><span class="ic" aria-hidden="true">🌙</span><span class="txt">Tema noite</span></button>
+        <button type="button" class="menu-subitem botao-letras" aria-pressed="false"><span class="ic" aria-hidden="true">🔠</span><span class="txt">Letras maiores</span></button>
+      </div>
+    </div>
+  </nav>
+  <form method="post" action="/sair" class="menu-sair-form" data-confirmar-sair>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit" class="menu-item menu-sair"><span class="ic" aria-hidden="true">🚪</span><span class="txt">Sair</span></button>
+  </form>
+  <div class="menu-rodape">SIS MEVAM-GYN · versão {{ versao }}</div>
+</aside>
+<div class="menu-scrim" data-menu-fechar hidden></div>
+
+{# Celular: atalhos e o botão que abre a gaveta #}
+<nav class="barra-inferior" aria-label="Atalhos">
+  {% for i in menu.atalhos %}{{ link(i, classe="atalho") }}{% endfor %}
+  <button type="button" class="atalho abrir-menu" aria-controls="menu" aria-expanded="false"><span class="ic" aria-hidden="true">☰</span><span class="txt">Menu</span></button>
+</nav>
+
+<dialog class="dialogo-sair" id="dialogo-sair" aria-labelledby="dialogo-sair-titulo">
+  <h2 id="dialogo-sair-titulo">Sair do sistema?</h2>
+  <p class="suave">Você vai precisar entrar de novo com e-mail e senha.</p>
+  <div class="acoes-dialogo">
+    <button type="button" class="botao secundario" data-cancelar>Cancelar</button>
+    <button type="button" class="botao perigo" data-sair>Sair</button>
+  </div>
+</dialog>

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% import "parciais/tabela.html" as tb with context %}
+{% block titulo %}Membros{% endblock %}
+{% block conteudo %}
+<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap" class="nao-imprimir">
+  <h1>Membros</h1>
+  <div class="acoes" style="margin:0">
+    <a class="botao" href="/ficha">➕ Nova ficha</a>
+    <a class="botao secundario" href="/membros/lixeira">🗑️ Lixeira</a>
+    <button type="button" class="botao secundario" data-imprimir>🖨️ Imprimir</button>
+    <a class="botao secundario" href="{{ t.url_csv }}">⬇️ Planilha (CSV)</a>
+    {% if pode('admin') %}<a class="botao secundario" href="/membros/exportar.csv" title="Todas as colunas, sem filtros">⬇️ Exportar tudo</a>{% endif %}
+  </div>
+</div>
+<div class="opcoes nao-imprimir" style="margin:.75rem 0">
+  <a class="selo {{ 'validado' if not status_ativo else 'inativo' }}" href="/membros">Todos</a>
+  {% for s in STATUS %}<a class="selo {{ 'validado' if status_ativo == s else 'inativo' }}" href="/membros?f.status={{ s|urlencode }}">{{ s }} ({{ contagem.get(s, 0) }})</a>{% endfor %}
+</div>
+<form class="cartao nao-imprimir" method="get" style="display:grid;gap:.5rem;grid-template-columns:1fr auto">
+  {% for k, v in t.pares %}{% if k != 'q' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
+  <input type="search" name="q" value="{{ busca }}" placeholder="Buscar por nome, e-mail, WhatsApp, bairro ou CPF" aria-label="Buscar membros" data-voz>
+  <button class="botao" type="submit">Buscar</button>
+  <p class="pequeno suave" style="grid-column:1/-1;margin:0">Toque no nome de uma coluna para filtrar pelo tipo de dado e escolher a ordem. Use ➕ para ordenar por mais de uma coluna.</p>
+</form>
+<div class="cartao">
+  <div class="cab-relatorio so-impressao">
+    <img src="/static/img/logo_round.jpg" alt="">
+    <div><h2>MINISTÉRIO MEVAM GYN · Lista de membros</h2>
+    <span class="pequeno">Emitido por {{ usuario.nome }} ({{ PERFIS_ROTULO[usuario.perfil] }}) em {{ emitido.strftime('%d/%m/%Y às %H:%M') }}</span></div>
+  </div>
+  <div class="filtros-aplicados so-impressao"><b>Filtros aplicados:</b> {% if busca %}Busca "{{ busca }}" · {% endif %}{{ t.filtros_texto|join(' · ') or 'Nenhum' }}</div>
+  {{ tb.barra(t) }}
+  {{ tb.tabela(t) }}
+  <p class="pequeno" style="margin:.5rem 0 0"><b>Total:</b> {{ t.total }} ficha(s)</p>
+  <p class="rodape-lgpd">🔒 Contém dados pessoais · uso interno do MEVAM GYN · LGPD. Descarte esta folha após o uso.</p>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/js/tabela.js" defer></script>{% endblock %}

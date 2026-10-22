@@ -1,0 +1,31 @@
+{# Janela de aniversariantes (1x por dia) e felicitação ao próprio membro no dia do aniversário #}
+<div class="janela-fundo" data-janela role="dialog" aria-modal="true" aria-labelledby="janela-titulo">
+  <div class="janela">
+  {% if aniv.felicitacao %}
+    <div class="felicitacao">
+      <div class="bolo" aria-hidden="true">🎂🎉</div>
+      <h2 id="janela-titulo">Paz, {{ aniv.felicitacao }}! Feliz aniversário!</h2>
+      <p>Hoje celebramos a sua vida! "O Senhor te abençoe e te guarde; o Senhor faça resplandecer o seu rosto sobre ti
+        e te conceda graça" (Nm 6.24-25).</p>
+      <p class="pequeno suave">Com carinho, Ministério MEVAM GYN</p>
+      <div class="acoes" style="justify-content:center;margin-bottom:0"><button type="button" class="botao" data-fechar-janela>Amém! 🙏</button></div>
+    </div>
+  {% else %}
+    {% for e_hoje, itens in aniv.janela|groupby('hoje')|reverse %}
+    <h2 {{ 'id="janela-titulo"' if loop.first }}>🎂 {{ 'Hoje é aniversário' if e_hoje else 'Amanhã é aniversário' }}</h2>
+    <p class="pequeno suave" style="margin:0 0 .5rem">{{ itens[0].referencia.strftime('%d/%m') }}{% if not e_hoje %} · prepare uma palavra especial{% endif %}</p>
+    {% for a in itens %}
+    <div class="pessoa-aniv">
+      <span class="avatar" aria-hidden="true">{{ a.m.primeiro[:1] }}{{ a.m.curto.split(' ')[-1][:1] if ' ' in a.m.curto }}</span>
+      <span><b>{{ a.m.nome }}</b><br><span class="pequeno suave">{% for s in a.m.setores %}{{ s.nome }}{{ ' · interesse' if s.tipo == 'interesse' }}{{ ', ' if not loop.last }}{% else %}Sem ministério{% endfor %}</span></span>
+      {% if e_hoje %}<a class="botao peq zap" href="/aniversariantes/{{ a.m.id }}/mensagem">💬 Mensagem</a>{% endif %}
+    </div>
+    {% endfor %}
+    {% endfor %}
+    <div class="acoes" style="margin:.75rem 0 0">
+      <button type="button" class="botao secundario" data-fechar-janela>Lembrar depois</button>
+      <a class="botao" href="/aniversariantes?dia={{ aniv.janela[0].referencia.isoformat() }}">Ver no calendário</a>
+    </div>
+  {% endif %}
+  </div>
+</div>
