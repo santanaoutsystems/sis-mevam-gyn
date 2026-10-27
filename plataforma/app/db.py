@@ -186,6 +186,9 @@ membros = Table(
     Column("integra_prazo", Date),
     Column("integra_lembrete_em", DateTime(timezone=True)),
     Column("credo_email_em", DateTime(timezone=True)),  # v2.13.0: e-mail com o link do Credo (mutirão)
+    # v2.16.0: fila do WhatsApp da Secretaria (respondeu | nao_quer | invalido)
+    Column("whatsapp_situacao", String(20)),
+    Column("whatsapp_situacao_em", DateTime(timezone=True)),
     Column("criado_em", DateTime(timezone=True), server_default=func.now()),
     Column("atualizado_em", DateTime(timezone=True), server_default=func.now()),
 )
@@ -440,6 +443,21 @@ mutirao_lotes = Table(
     Column("valido_ate", DateTime(timezone=True), nullable=False),
     Column("criado_por", String(120)),
     Column("criado_em", DateTime(timezone=True), server_default=func.now()),
+    Column("whatsapp_modo", String(10)),  # v2.16.0: 2tempos (padrão) | direto
+)
+
+# v2.16.0: mensagens da fila do WhatsApp, enviadas pela Secretaria do próprio celular (wa.me)
+whatsapp_envios = Table(
+    "whatsapp_envios", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("membro_id", Integer, nullable=False, index=True),
+    Column("lote_id", Integer),
+    Column("tipo", String(20), nullable=False),  # complemento | credo
+    Column("etapa", String(10), nullable=False),  # convite | lembrete | link
+    Column("conta_cota", Boolean, nullable=False, default=True),  # contato que ainda não respondeu
+    Column("modelo", Integer),
+    Column("enviado_em", DateTime(timezone=True), nullable=False),
+    Column("enviado_por", String(120)),
 )
 
 # v2.12.0: quem não concluiu o INTEGRA fica fora da análise, sem login e sem agenda
@@ -542,7 +560,7 @@ def aplicar_migracoes_aditivas() -> None:
     009 (filtros salvos da Central de Relatórios), 010 (aniversariantes), 011 (uso dos serviços)
     012 (Coordenação por período/evento e inativação/exclusão de membros) e 013 (Dia do Profissional,
     intenção de dízimo, pesquisa mensal de necessidades e Instituto), 014 (INTEGRA), 015 (mutirão)
-    e 016 (categoria das áreas e lotação dos usuários).
+    016 (categoria das áreas e lotação dos usuários) e 017 (fila do WhatsApp).
     Só cria/alarga; nunca remove dados. Se falhar, o app sobe mesmo assim e registra o erro.
     """
     import logging
@@ -554,7 +572,7 @@ def aplicar_migracoes_aditivas() -> None:
     for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql", "007_regularizacao.sql",
                  "008_lembretes_interesses.sql", "009_relatorios_salvos.sql", "010_aniversariantes.sql",
                  "011_uso_servicos.sql", "012_coordenacao_membros.sql", "013_fase_a.sql", "014_integra.sql",
-                 "015_mutirao.sql", "016_areas.sql"):
+                 "015_mutirao.sql", "016_areas.sql", "017_whatsapp_fila.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()

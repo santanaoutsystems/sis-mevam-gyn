@@ -796,14 +796,17 @@ async def credo_pdf(request: Request):
         "Content-Disposition": f'inline; filename="Ficha_MEVAM_GYN_{mid}.pdf"', "Cache-Control": "no-store"})
 
 
+def texto_whatsapp_credo(m: dict) -> str:
+    primeiro = (m.get("nome_completo") or "").split(" ")[0]
+    return (f"Paz, {primeiro}! Sua ficha foi analisada e validada pela Secretaria do MEVAM GYN. "
+            f"Acesse o link para ler a Confissão de Fé e fazer sua rúbrica digital: {_link_credo(m['id'])}")
+
+
 def whatsapp_credo(m: dict) -> str:
     numero = ficha.so_digitos(m.get("whatsapp") or "")
     if numero and not numero.startswith("55"):
         numero = "55" + numero
-    primeiro = (m.get("nome_completo") or "").split(" ")[0]
-    texto = (f"Paz, {primeiro}! Sua ficha foi analisada e validada pela Secretaria do MEVAM GYN. "
-             f"Acesse o link para ler a Confissão de Fé e fazer sua rúbrica digital: {_link_credo(m['id'])}")
-    return f"https://wa.me/{numero}?text={quote(texto)}"
+    return f"https://wa.me/{numero}?text={quote(texto_whatsapp_credo(m))}"
 
 
 # Perfis cujo acesso a Secretaria pode recuperar; contas de Secretaria e Adm só o Adm redefine.

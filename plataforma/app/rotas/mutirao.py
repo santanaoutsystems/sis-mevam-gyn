@@ -26,9 +26,10 @@ from starlette.requests import Request
 from starlette.routing import Route
 
 from .. import config, datas, db, envios, ficha, integra, seguranca
+from .. import whatsapp_fila as zap
 from ..web import auditar, flash, ir, render
 from . import regularizacao
-from .membros import ERRO_CPF_REPETIDO, _cpf_em_uso, _ligar_pelo_cpf, _link_credo, whatsapp_credo
+from .membros import ERRO_CPF_REPETIDO, _cpf_em_uso, _ligar_pelo_cpf, _link_credo, texto_whatsapp_credo
 
 ADMIN_SECRETARIA = ("secretaria", "admin")
 JUSTIFICATIVA_PADRAO = "INTEGRA concluído antes do sistema, aprovado verbalmente pelo pastor fundador."
@@ -72,7 +73,8 @@ def _fichas(c, lote_id: int) -> list[dict]:
     q = (select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.data_nascimento, db.membros.c.email,
                 db.membros.c.whatsapp, db.membros.c.cpf, db.membros.c.status, db.membros.c.credo_aceito,
                 db.membros.c.credo_email_em, db.membros.c.link_credo_enviado, db.membros.c.integra_registrado_por,
-                db.membros.c.criado_em, db.membros.c.integra_situacao, db.membros.c.observacoes)
+                db.membros.c.criado_em, db.membros.c.integra_situacao, db.membros.c.observacoes,
+                db.membros.c.whatsapp_situacao)
          .where(db.membros.c.origem.like(_prefixo(lote_id) + "%"), db.membros.c.status != db.EXCLUIDO)
          .order_by(db.membros.c.criado_em.desc()))
     fichas = [dict(r) for r in c.execute(q).mappings()]
@@ -159,17 +161,21 @@ async def lote(request: Request):
                   and m["status"] == "Validado pela Secretaria"]
     so_whats = [m for m in fichas if not m["credo_aceito"] and not m["email"] and m["whatsapp"]
                 and m["status"] == "Validado pela Secretaria"]
-    for m in so_whats:
-        m["wa"] = whatsapp_credo(m)
     sem_cpf = [m for m in fichas if not m["cpf"] and m["status"] == "Aguardando Análise"]
     with db.engine().connect() as c:
         links = regularizacao._ultimos_links(c, [m["id"] for m in sem_cpf]) if sem_cpf else {}
-    for m in sem_cpf:
-        reg = links.get(m["id"])
-        m["situacao_link"] = regularizacao.situacao(reg)
-        m["reg"] = reg
-        m["wa_link"] = regularizacao.link_whatsapp(m, reg) if reg and m["situacao_link"] in ("ativo", "enviado") \
-            and m["whatsapp"] else None
+        for m in sem_cpf:
+            reg = links.get(m["id"])
+            m["situacao_link"] = regularizacao.situacao(reg)
+            m["reg"] = reg
+        fila = zap.montar(c, _itens_da_fila(so_whats, sem_cpf))
+        dia = zap.resumo_do_dia(c)
+    modo = lt.get("whatsapp_modo") or zap.MODO_2_TEMPOS
+    if fila["proximos"]:
+        p = fila["proximos"][0]
+        p["previa"] = _texto_link(p, p["tipo"], None, primeiro_contato=True) if modo == zap.MODO_DIRETO and \
+            p["estado"] == "na_fila" else zap.texto_convite(p, p["tipo"], zap.LEMBRETE if p["estado"] == "lembrete"
+                                                            else zap.CONVITE, dia["total"] + p["id"])
     por_voluntaria: dict[str, int] = {}
     for m in fichas:
         quem = (m["integra_registrado_por"] or "").replace("Mutirão · ", "") or "-"
@@ -184,7 +190,7 @@ async def lote(request: Request):
         "sem_link": sum(1 for m in sem_cpf if m["situacao_link"] in ("sem_link", "vencido", "revogado")),
         "por_voluntaria": sorted(por_voluntaria.items(), key=lambda x: -x[1]),
         "restam_hoje": max(0, LIMITE_DIARIO - hoje_enviados), "LIMITE": LIMITE_DIARIO,
-        "email_ok": envios.email_configurado()})
+        "email_ok": envios.email_configurado(), "fila": fila, "dia": dia, "modo": modo, "zap": zap})
 
 
 @seguranca.exigir(*ADMIN_SECRETARIA)
@@ -303,6 +309,114 @@ async def whatsapp_enviado(request: Request):
 # ---------------------------------------------------------------------------
 # Tela pública das voluntárias
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Fila do WhatsApp (v2.16.0): sem WhatsApp Business, com cota, intervalo e convite em 2 tempos
+# ---------------------------------------------------------------------------
+def _itens_da_fila(so_whats: list[dict], sem_cpf: list[dict]) -> list[tuple[dict, str]]:
+    """Quem não tem e-mail: complemento (sem CPF, link ainda não concluído) e Credo (ficha validada)."""
+    itens = [(m, zap.COMPLEMENTO) for m in sem_cpf
+             if m["whatsapp"] and not m["email"] and m.get("situacao_link") != "concluido"]
+    return itens + [(m, zap.CREDO) for m in so_whats]
+
+
+def _texto_link(m: dict, tipo: str, reg: dict | None, primeiro_contato: bool = False) -> str:
+    if tipo == zap.CREDO:
+        texto = texto_whatsapp_credo(m)
+    elif reg:
+        texto = regularizacao.mensagem(m, reg)
+    else:  # prévia: o link de verdade só é gerado no envio
+        texto = (f"Paz, {zap.primeiro_nome(m)}! O MEVAM GYN está atualizando o cadastro dos membros. Complete seus "
+                 f"dados (CPF, foto e o que faltar) neste link exclusivo, válido até …: {config.URL_BASE}/atualizar/…")
+    return texto + (zap.RODAPE_DIRETO if primeiro_contato else "")
+
+
+def _preparar_link(c, m: dict, tipo: str, autor: str) -> dict | None:
+    """Complemento: usa o link válido ou gera outro (prazo padrão). Credo: marca o envio."""
+    if tipo == zap.CREDO:
+        c.execute(update(db.membros).where(db.membros.c.id == m["id"]).values(link_credo_enviado=True))
+        return None
+    reg = regularizacao._ultimos_links(c, [m["id"]]).get(m["id"])
+    if regularizacao.situacao(reg) not in ("ativo", "enviado"):
+        reg = regularizacao._criar_link(c, m["id"], config.REGULARIZACAO_PRAZO_DIAS, autor)
+    regularizacao._marcar_envio(c, reg["id"], "whatsapp")
+    return reg
+
+
+@seguranca.exigir(*ADMIN_SECRETARIA)
+async def zap_modo(request: Request):
+    lid = request.path_params["id"]
+    form = await request.form()
+    modo = zap.MODO_DIRETO if form.get("modo") == zap.MODO_DIRETO else zap.MODO_2_TEMPOS
+    with db.engine().begin() as c:
+        lt = _lote(c, lid)
+        if not lt:
+            return ir("/mutirao")
+        c.execute(update(db.mutirao_lotes).where(db.mutirao_lotes.c.id == lt["id"]).values(whatsapp_modo=modo))
+        auditar(request, "WHATSAPP_MODO", f"Lote do mutirão #{lt['id']}", modo, conexao=c)
+    flash(request, "Modo de envio: " + ("direto, já com o link." if modo == zap.MODO_DIRETO
+                                        else "em 2 tempos (convite sem link; o link vai para quem responder)."))
+    return ir(f"/mutirao/lotes/{lid}#fila")
+
+
+@seguranca.exigir(*ADMIN_SECRETARIA)
+async def zap_acao(request: Request):
+    """Registra a mensagem e abre o WhatsApp da Secretaria já com o texto (wa.me). Nada é enviado por robô."""
+    lid, mid = request.path_params["id"], request.path_params["mid"]
+    form = await request.form()
+    acao = form.get("acao") or ""
+    u = seguranca.usuario_atual(request)
+    volta = ir(f"/mutirao/lotes/{lid}#fila")
+    with db.engine().begin() as c:
+        lt = _lote(c, lid)
+        if not lt:
+            return ir("/mutirao")
+        fichas = _fichas(c, lt["id"])
+        so_whats = [m for m in fichas if not m["credo_aceito"] and not m["email"] and m["whatsapp"]
+                    and m["status"] == "Validado pela Secretaria"]
+        sem_cpf = [m for m in fichas if not m["cpf"] and m["status"] == "Aguardando Análise"]
+        links = regularizacao._ultimos_links(c, [m["id"] for m in sem_cpf]) if sem_cpf else {}
+        for m in sem_cpf:
+            m["situacao_link"] = regularizacao.situacao(links.get(m["id"]))
+        item = next(((m, t) for m, t in _itens_da_fila(so_whats, sem_cpf) if m["id"] == mid), None)
+        if not item:
+            flash(request, "Esta pessoa não está na fila do WhatsApp deste lote.", "erro")
+            return volta
+        m, tipo = item
+        st = zap.estado(m, zap.historico(c, [mid]).get(mid, []), tipo)
+        modo = lt.get("whatsapp_modo") or zap.MODO_2_TEMPOS
+        if acao in (zap.NAO_QUER, zap.INVALIDO, "reabrir"):
+            zap.marcar_situacao(c, mid, None if acao == "reabrir" else acao)
+            auditar(request, "WHATSAPP_" + acao.upper(), f"Membro #{mid}", f"lote #{lt['id']} · {tipo}", conexao=c)
+            flash(request, {"nao_quer": f"{m['nome_completo']} saiu da fila (pediu para não receber).",
+                            "invalido": f"{m['nome_completo']} saiu da fila (número inválido). Corrija o número na ficha.",
+                            "reabrir": f"{m['nome_completo']} voltou para a fila."}[acao])
+            return volta
+        if acao == "enviar" and st in ("na_fila", "lembrete"):
+            direto = modo == zap.MODO_DIRETO and st == "na_fila"
+            etapa, conta = (zap.LINK if direto else zap.LEMBRETE if st == "lembrete" else zap.CONVITE), True
+        elif acao == "respondeu" and st in ("aguardando", "lembrete", "sem_resposta"):
+            etapa, conta, direto = zap.LINK, False, False
+        elif acao == "link_de_novo" and st == "link_enviado":
+            etapa, conta, direto = zap.LINK, False, False
+        else:
+            flash(request, "Esta mensagem já foi registrada. Confira a situação na fila.", "aviso")
+            return volta
+        motivo = zap.bloqueio(c, conta)
+        if motivo:
+            flash(request, motivo, "erro")
+            return volta
+        modelo = zap.resumo_do_dia(c)["total"] + mid
+        if etapa == zap.LINK:
+            if acao == "respondeu":
+                zap.marcar_situacao(c, mid, zap.RESPONDEU)
+            texto = _texto_link(m, tipo, _preparar_link(c, m, tipo, u["nome"]), primeiro_contato=direto)
+        else:
+            texto = zap.texto_convite(m, tipo, etapa, modelo)
+        zap.registrar(c, m, lt["id"], tipo, etapa, conta, modelo, u["nome"])
+        auditar(request, "WHATSAPP_" + etapa.upper(), f"Membro #{mid}", f"lote #{lt['id']} · {tipo}", conexao=c)
+    return ir(zap.url(m["whatsapp"], texto))
+
+
 CAMPOS = ("nome_completo", "data_nascimento", "cpf", "whatsapp", "email", "arquivo")
 
 
@@ -473,5 +587,7 @@ rotas = [
     Route("/mutirao/lotes/{id:int}/credo", enviar_credo, methods=["POST"]),
     Route("/mutirao/lotes/{id:int}/complemento", complemento, methods=["POST"]),
     Route("/mutirao/lotes/{id:int}/whatsapp/{mid:int}", whatsapp_enviado, methods=["POST"]),
+    Route("/mutirao/lotes/{id:int}/zap/{mid:int}", zap_acao, methods=["POST"]),
+    Route("/mutirao/lotes/{id:int}/zap-modo", zap_modo, methods=["POST"]),
     Route("/mutirao/{codigo}", voluntaria, methods=["GET", "POST"]),
 ]

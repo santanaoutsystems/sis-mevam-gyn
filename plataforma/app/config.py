@@ -48,7 +48,7 @@ if not SECRET_KEY:
 FUSO_HORARIO = "America/Sao_Paulo"
 URL_BASE = os.getenv("URL_BASE", "http://localhost:8000").rstrip("/")
 
-VERSAO = "2.15.0"
+VERSAO = "2.16.0"
 
 # Sessão
 # Sem uso por este tempo, o acesso é bloqueado e é preciso entrar de novo.
@@ -77,6 +77,11 @@ BREVO_API_KEY = os.getenv("BREVO_API_KEY", "").strip()
 # Mutirão de fichas: ID da pasta do Drive da Secretaria que recebe as fotos das fichas (o mesmo script do
 # EMAIL_GOOGLE_URL grava o arquivo). Sem esta variável, a voluntária digitaliza pelo app do Drive.
 MUTIRAO_DRIVE_PASTA = os.getenv("MUTIRAO_DRIVE_PASTA", "").strip()
+# Fila do WhatsApp (sem WhatsApp Business): contatos novos por dia. 0 = aquecimento automático (15 → 25 → 35).
+WHATSAPP_LIMITE_DIARIO = int(os.getenv("WHATSAPP_LIMITE_DIARIO", "0") or 0)
+# Janela de envio da fila (horas de Goiânia): das 8h até antes das 20h, se não for definida.
+WHATSAPP_HORA_INICIO = int(os.getenv("WHATSAPP_HORA_INICIO", "8") or 8)
+WHATSAPP_HORA_FIM = int(os.getenv("WHATSAPP_HORA_FIM", "20") or 20)
 EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE", "").strip() or SMTP_USUARIO
 EMAIL_NOME = os.getenv("EMAIL_NOME", "SIS MEVAM-GYN")
 

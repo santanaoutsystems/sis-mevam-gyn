@@ -1,0 +1,112 @@
+{# Fila do WhatsApp (v2.16.0): a Secretaria envia do próprio celular, com cota, intervalo e convite em 2 tempos #}
+{% macro botao_zap(m, acao, rotulo, classe="botao secundario peq", novo=False, abre=True) -%}
+<form method="post" action="/mutirao/lotes/{{ lt.id }}/zap/{{ m.id }}" style="display:inline"{% if abre %} target="_blank" class="zap-abre"{% endif %}>{{ ui.csrf_input() }}
+  <input type="hidden" name="acao" value="{{ acao }}"><button class="{{ classe }}{{ ' zap-novo' if novo else ' zap-resp' if abre }}">{{ rotulo }}</button></form>
+{%- endmacro %}
+{% macro tipo_selo(m) %}<span class="selo">{{ 'Complemento' if m.tipo == 'complemento' else 'Credo' }}</span>{% endmacro %}
+<div class="cartao" id="fila">
+  <h2>💬 Fila do WhatsApp ({{ fila.proximos|length }} para enviar)</h2>
+  <p class="pequeno suave">Para quem não tem e-mail. Enquanto o WhatsApp Business não está ativo, a Secretaria envia do próprio celular: o botão abre o WhatsApp com a mensagem pronta e você só toca em <b>Enviar</b>. O sistema controla o ritmo para o número não ser bloqueado.</p>
+
+  <div class="opcoes" style="gap:.5rem;flex-wrap:wrap;margin:.5rem 0">
+    <span class="selo {{ 'ativo' if dia.restam_novos else 'inativo' }}">Hoje: {{ dia.novos }} de {{ dia.cota }} contatos novos{{ ' (fixo)' if dia.fixa else '' }}</span>
+    <span class="selo">{{ dia.total }} de {{ zap.TOTAL_DIARIO }} mensagens no dia</span>
+    <span class="selo {{ 'ativo' if dia.no_horario else 'inativo' }}">Horário de envio: {{ dia.HORA_INICIO }}h às {{ dia.HORA_FIM }}h</span>
+    <span class="selo" id="zap-relogio" data-novo="{{ dia.espera_novo }}" data-resp="{{ dia.espera_resposta }}" data-horario="{{ 1 if dia.no_horario else 0 }}" hidden></span>
+  </div>
+
+  <form method="post" action="/mutirao/lotes/{{ lt.id }}/zap-modo" class="opcoes pequeno" style="gap:.8rem;flex-wrap:wrap;align-items:center">{{ ui.csrf_input() }}
+    <b>Como enviar:</b>
+    <label><input type="radio" name="modo" value="2tempos" {{ 'checked' if modo != 'direto' }} onchange="this.form.submit()"> Em 2 tempos (recomendado): convite sem link e o link só para quem responder</label>
+    <label><input type="radio" name="modo" value="direto" {{ 'checked' if modo == 'direto' }} onchange="this.form.submit()"> Direto, já com o link</label>
+    <noscript><button class="botao secundario peq">Salvar</button></noscript>
+  </form>
+
+  {% if fila.proximos %}{% set p = fila.proximos[0] %}
+  <div class="cartao" style="border:2px solid #f59e0b;margin-top:.8rem">
+    <p class="pequeno suave" style="margin:0">Próximo da fila{{ ' · lembrete' if p.estado == 'lembrete' }}</p>
+    <h3 style="margin:.2rem 0"><a href="/membros/{{ p.id }}">{{ p.nome_completo }}</a> {{ tipo_selo(p) }}</h3>
+    <p class="pequeno">💬 {{ p.whatsapp }}</p>
+    <blockquote class="pequeno" style="white-space:pre-line;background:#f0fdf4;border-left:4px solid #22c55e;padding:.6rem .8rem;margin:.4rem 0;color:#14532d">{{ p.previa }}</blockquote>
+    <div class="acoes">
+      {{ botao_zap(p, 'enviar', '💬 Abrir no WhatsApp e enviar', 'botao dourado', novo=True) }}
+      {{ botao_zap(p, 'invalido', '❌ Número inválido', abre=False) }}
+    </div>
+    <p class="pequeno suave" id="zap-aviso" style="margin:.4rem 0 0">Depois de tocar em Enviar no WhatsApp, volte para esta tela: o próximo nome aparece sozinho.</p>
+  </div>
+  {% else %}<p class="pequeno suave">Ninguém para enviar agora.</p>{% endif %}
+
+  <details open style="margin-top:.8rem"><summary><b>Aguardando resposta ({{ fila.aguardando|length }})</b></summary>
+    <p class="pequeno suave">Quando a pessoa responder SIM no WhatsApp, toque em <b>Respondeu</b>: abre a conversa já com o link. Quem não responder em {{ zap.DIAS_PARA_LEMBRETE }} dias volta para a fila uma única vez, como lembrete.</p>
+    {% for m in fila.aguardando %}
+    <div class="opcoes" style="align-items:center;margin:.3rem 0;flex-wrap:wrap">
+      <span style="flex:1;min-width:200px"><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a> {{ tipo_selo(m) }} <span class="pequeno suave">{{ m.whatsapp }} · {{ 'lembrete' if m.convites > 1 else 'convite' }} em {{ m.ultimo_envio|data_hora_br }}</span></span>
+      {{ botao_zap(m, 'respondeu', '✅ Respondeu: enviar o link', 'botao peq') }}
+      {{ botao_zap(m, 'nao_quer', '🚫 Pediu SAIR', abre=False) }}
+      {{ botao_zap(m, 'invalido', '❌ Inválido', abre=False) }}
+    </div>
+    {% else %}<p class="pequeno suave">Ninguém aguardando.</p>{% endfor %}
+  </details>
+
+  <details><summary><b>Na fila ({{ fila.proximos|length }})</b></summary>
+    <ol class="pequeno">{% for m in fila.proximos %}<li>{{ m.nome_completo }} {{ tipo_selo(m) }}{{ ' · lembrete' if m.estado == 'lembrete' }}</li>{% endfor %}</ol>
+  </details>
+
+  {% if fila.sem_resposta %}
+  <details><summary><b>Sem resposta depois do lembrete ({{ fila.sem_resposta|length }})</b></summary>
+    <p class="pequeno suave">Não mande mais mensagens: procure a pessoa no culto, peça ao líder do GC ou ligue.</p>
+    {% for m in fila.sem_resposta %}
+    <div class="opcoes" style="align-items:center;margin:.3rem 0;flex-wrap:wrap">
+      <span style="flex:1;min-width:200px"><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a> {{ tipo_selo(m) }} <span class="pequeno suave">{{ m.whatsapp }}</span></span>
+      {{ botao_zap(m, 'respondeu', '✅ Respondeu: enviar o link', 'botao peq') }}
+      {{ botao_zap(m, 'nao_quer', '🚫 Pediu SAIR', abre=False) }}
+    </div>{% endfor %}
+  </details>{% endif %}
+
+  <details><summary><b>Link enviado ({{ fila.link_enviado|length }})</b></summary>
+    {% for m in fila.link_enviado %}
+    <div class="opcoes" style="align-items:center;margin:.3rem 0;flex-wrap:wrap">
+      <span style="flex:1;min-width:200px"><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a> {{ tipo_selo(m) }} <span class="pequeno suave">em {{ m.ultimo_envio|data_hora_br }}</span></span>
+      {{ botao_zap(m, 'link_de_novo', '🔁 Reenviar o link') }}
+    </div>
+    {% else %}<p class="pequeno suave">Nenhum link enviado ainda.</p>{% endfor %}
+  </details>
+
+  {% if fila.nao_quer or fila.invalido %}
+  <details><summary><b>Fora da fila ({{ fila.nao_quer|length + fila.invalido|length }})</b></summary>
+    {% for m in fila.nao_quer + fila.invalido %}
+    <div class="opcoes" style="align-items:center;margin:.3rem 0;flex-wrap:wrap">
+      <span style="flex:1;min-width:200px"><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a> <span class="pequeno suave">{{ m.whatsapp }} · {{ 'pediu para não receber' if m.estado == 'nao_quer' else 'número inválido: corrija na ficha' }}</span></span>
+      {% if m.whatsapp_situacao %}{{ botao_zap(m, 'reabrir', '↩️ Voltar para a fila', abre=False) }}{% endif %}
+    </div>{% endfor %}
+  </details>{% endif %}
+
+  <details><summary><b>🛡️ Como não ter o número da Secretaria bloqueado</b></summary>
+    <ul class="pequeno">
+      <li>Use sempre os botões desta tela: eles respeitam a cota do dia, o intervalo de {{ zap.INTERVALO_NOVO }} segundos e o horário.</li>
+      <li>A cota começa em {{ zap.AQUECIMENTO[0][1] }} contatos novos por dia, sobe para {{ zap.AQUECIMENTO[1][1] }} na 2ª semana e {{ zap.COTA_PLENA }} depois. Números novos ou pouco usados são os mais vigiados.</li>
+      <li>Prefira o modo <b>em 2 tempos</b>: quem responde SIM vira conversa, e o link vai sem risco.</li>
+      <li>Não copie a mesma mensagem para vários contatos nem use listas de transmissão ou grupos para isso.</li>
+      <li>Respeite o SAIR na hora (botão <b>Pediu SAIR</b>).</li>
+      <li>Deixe foto, nome “Secretaria MEVAM GYN” e recado no perfil do WhatsApp, e peça nos avisos do culto para salvarem o número.</li>
+      <li>Se o WhatsApp avisar de restrição, pare por 2 ou 3 dias. Não use aplicativos de disparo em massa nem extensões de WhatsApp Web.</li>
+    </ul>
+  </details>
+</div>
+<script>
+(function () {
+  var r = document.getElementById("zap-relogio"); if (!r) return;
+  var novo = +r.dataset.novo, resp = +r.dataset.resp, horario = r.dataset.horario === "1";
+  function pinta() {
+    document.querySelectorAll(".zap-novo").forEach(function (b) { b.disabled = !horario || novo > 0; });
+    document.querySelectorAll(".zap-resp").forEach(function (b) { b.disabled = !horario || resp > 0; });
+    r.hidden = !(novo > 0 || resp > 0 || !horario);
+    r.textContent = !horario ? "Fora do horário de envio" : novo > 0 ? "⏳ Próximo contato novo em " + novo + " s" : resp > 0 ? "⏳ Próximo link em " + resp + " s" : "";
+  }
+  pinta();
+  setInterval(function () { novo = Math.max(0, novo - 1); resp = Math.max(0, resp - 1); pinta(); }, 1000);
+  document.querySelectorAll("form.zap-abre").forEach(function (f) {
+    f.addEventListener("submit", function () { setTimeout(function () { location.reload(); }, 1500); });
+  });
+})();
+</script>

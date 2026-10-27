@@ -63,7 +63,7 @@ def test_voluntaria_lanca_ficha_validada_com_integra_historico():
     # A tela pública não mostra dados de ninguém; o painel do lote mostra a ficha e a voluntária
     assert "Joana D'arc Pereira" not in cli.get(f"/mutirao/{lt['codigo']}").text
     html = sec.get(f"/mutirao/lotes/{lt['id']}").text
-    assert "Joana D&#39;arc Pereira" in html and "Ana Voluntária: 1" in html and "wa.me/5562999990001" in html
+    assert "Joana D&#39;arc Pereira" in html and "Ana Voluntária: 1" in html and "Fila do WhatsApp (1 para enviar)" in html
 
 
 def test_regras_duplicada_menor_contato_e_conferencia():
