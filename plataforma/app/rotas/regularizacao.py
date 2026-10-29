@@ -85,8 +85,8 @@ def situacao(reg: dict | None) -> str:
 def mensagem(m: dict, reg: dict) -> str:
     primeiro = (m.get("nome_completo") or "").split(" ")[0]
     prazo = datas.fmt_data_hora(_utc(reg["expira_em"]))[:10]
-    return (f"Paz, {primeiro}! O MEVAM GYN está atualizando o cadastro dos membros. "
-            f"Complete seus dados (CPF, foto e o que faltar) neste link exclusivo, válido até {prazo}: "
+    return (f"Paz, {primeiro}! O MEVAM GYN agora é digital: o cadastro dos membros está passando para o nosso "
+            f"novo sistema. Complete seus dados (CPF, foto e o que faltar) neste link exclusivo, válido até {prazo}: "
             f"{link_de(reg)}")
 
 

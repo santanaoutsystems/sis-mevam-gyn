@@ -325,8 +325,9 @@ def _texto_link(m: dict, tipo: str, reg: dict | None, primeiro_contato: bool = F
     elif reg:
         texto = regularizacao.mensagem(m, reg)
     else:  # prévia: o link de verdade só é gerado no envio
-        texto = (f"Paz, {zap.primeiro_nome(m)}! O MEVAM GYN está atualizando o cadastro dos membros. Complete seus "
-                 f"dados (CPF, foto e o que faltar) neste link exclusivo, válido até …: {config.URL_BASE}/atualizar/…")
+        texto = (f"Paz, {zap.primeiro_nome(m)}! O MEVAM GYN agora é digital: o cadastro dos membros está passando para o "
+                 f"nosso novo sistema. Complete seus dados (CPF, foto e o que faltar) neste link exclusivo, válido até …: "
+                 f"{config.URL_BASE}/atualizar/…")
     return texto + (zap.RODAPE_DIRETO if primeiro_contato else "")
 
 
