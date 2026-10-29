@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block titulo %}Pesquisa de satisfação{% endblock %}
+{% macro corpo() %}
+<div class="cartao" style="max-width:560px;margin:1.5rem auto;text-align:center">
+  <div style="font-size:3rem">⭐</div>
+  <h1>Obrigado, {{ nome }}!</h1>
+  <p>Registramos a sua resposta: <b>{{ resposta }}</b>.</p>
+  <p class="suave">Sua opinião ajuda a Secretaria a melhorar o sistema.</p>
+  <p class="pequeno suave">Quer mudar? Toque em outra opção:</p>
+  <div class="acoes" style="justify-content:center">
+    {% for k, r, href in outras %}<a class="botao secundario peq" href="{{ href }}">{{ r }}</a>{% endfor %}
+  </div>
+  <p class="pequeno"><a href="/manual/membro">📘 Abrir o Manual do Membro</a></p>
+</div>
+{% endmacro %}
+{% block conteudo %}{{ corpo() }}{% endblock %}
+{% block publico %}{{ corpo() }}{% endblock %}

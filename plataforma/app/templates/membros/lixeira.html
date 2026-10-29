@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Lixeira de fichas{% endblock %}
+{% block conteudo %}
+<h1>🗑️ Lixeira de fichas</h1>
+<p class="suave" style="margin-top:0">Fichas excluídas pela Secretaria ou pelo Adm. Elas não aparecem nas listas, relatórios, avisos nem convites,
+  e o login da pessoa fica desligado. <b>Restaurar</b> devolve a ficha como estava. {% if pode('admin') %}<b>Excluir definitivamente</b> apaga de vez
+  (fica registrado na auditoria só o nome e as justificativas).{% else %}Só o Adm pode apagar uma ficha de vez.{% endif %}</p>
+{% for l in linhas %}
+<div class="cartao">
+  <h3 style="margin:0 0 .2rem"><a href="/membros/{{ l.id }}">#{{ l.id }} · {{ l.nome_completo }}</a></h3>
+  <p class="pequeno" style="margin-top:0">Excluída por <b>{{ l.excluido_por or '-' }}</b> em {{ l.excluido_em|data_hora_br }}
+    {% if l.dias is not none %}({{ 'hoje' if l.dias == 0 else 'há ' ~ l.dias ~ ' dia(s)' }}){% endif %}<br>Justificativa: {{ l.motivo_exclusao or '-' }}</p>
+  <details style="display:inline-block;margin-right:.4rem">
+    <summary class="botao sucesso peq" style="display:inline-flex">↩️ Restaurar</summary>
+    <form method="post" action="/membros/{{ l.id }}/restaurar" style="margin-top:.5rem">{{ ui.csrf_input() }}
+      <label for="rs{{ l.id }}">Justificativa <span class="obrig">*</span></label>
+      <textarea id="rs{{ l.id }}" name="motivo" required minlength="10" placeholder="Ex.: excluída por engano"></textarea>
+      <button class="botao sucesso peq" style="margin-top:.4rem">Restaurar ficha</button>
+    </form>
+  </details>
+  {% if pode('admin') %}
+  <details style="display:inline-block">
+    <summary class="botao perigo peq" style="display:inline-flex">✖ Excluir definitivamente</summary>
+    <form method="post" action="/membros/{{ l.id }}/excluir-definitivo" style="margin-top:.5rem"
+      onsubmit="return confirm('Apagar a ficha #{{ l.id }} de vez? Não há como desfazer.')">{{ ui.csrf_input() }}
+      <label for="xd{{ l.id }}">Justificativa <span class="obrig">*</span></label>
+      <textarea id="xd{{ l.id }}" name="motivo" required minlength="10" placeholder="Ex.: pedido do titular de exclusão (LGPD art. 18)"></textarea>
+      <label for="cf{{ l.id }}">Digite o protocolo <b>{{ l.id }}</b></label>
+      <div class="com-acao"><input id="cf{{ l.id }}" name="confirmacao" inputmode="numeric" required><button class="botao perigo">Apagar de vez</button></div>
+    </form>
+  </details>
+  {% endif %}
+</div>
+{% else %}
+<p class="suave">A lixeira está vazia.</p>
+{% endfor %}
+<p><a class="botao secundario" href="/membros">← Membros</a></p>
+{% endblock %}

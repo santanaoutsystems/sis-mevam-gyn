@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Voluntários{% endblock %}
+{% block conteudo %}
+<h1>Voluntários por ministério</h1>
+<p class="suave" style="margin-top:0">Membros que marcaram na ficha os ministérios em que desejam servir. Escolha o ministério e, se quiser, o evento:
+  o convite já vem escrito e você pode editar antes de enviar.</p>
+{% if not setores %}
+  <div class="msg aviso">Você ainda não coordena nenhum ministério. Peça à Secretaria ou ao Adm para definir os seus ministérios.</div>
+{% else %}
+<form method="get" class="cartao com-acao" style="flex-wrap:wrap;gap:.5rem">
+  <label style="margin:0;flex:1;min-width:200px">Ministério / Área
+    <select name="setor" onchange="this.form.evento && (this.form.evento.value=''); this.form.submit()">
+      {% for s in setores %}<option value="{{ s }}" {{ 'selected' if s == setor }}>{{ s }} ({{ contagem[s] }})</option>{% endfor %}
+    </select></label>
+  <label style="margin:0;flex:1;min-width:200px">Evento (opcional)
+    <select name="evento" onchange="this.form.submit()">
+      <option value="">Sem evento específico</option>
+      {% for e in eventos %}<option value="{{ e.id }}" {{ 'selected' if evento and evento.id == e.id }}>{{ e.quando.strftime('%d/%m') if e.quando }} · {{ e.titulo }}</option>{% endfor %}
+    </select></label>
+  <noscript><button class="botao">Ver</button></noscript>
+</form>
+
+<form method="post" action="/voluntarios/convidar">
+  {{ ui.csrf_input() }}
+  <input type="hidden" name="setor" value="{{ setor }}">
+  <div class="cartao">
+    <h2 style="margin-top:0">{{ setor }}: {{ pessoas|length }} interessado(s)</h2>
+    {% if pessoas %}
+    <label class="check" style="margin:.25rem 0 .5rem"><input type="checkbox" id="marcarTodos" checked> Marcar todos</label>
+    <table class="tabela responsiva">
+      <thead><tr><th></th><th>Nome</th><th>WhatsApp</th><th>E-mail</th>{% if ver_status %}<th>Situação</th>{% endif %}<th>Desde</th></tr></thead>
+      <tbody>{% for p in pessoas %}<tr>
+        <td data-rotulo="Convidar">{% if p.email %}<input type="checkbox" name="membro" value="{{ p.id }}" checked aria-label="Convidar {{ p.nome_completo }}">{% else %}<span class="pequeno suave">sem e-mail</span>{% endif %}</td>
+        <td data-rotulo="Nome"><b>{{ p.nome_completo }}</b></td>
+        <td data-rotulo="WhatsApp">{% if p.whatsapp %}<a href="https://wa.me/55{{ p.whatsapp|replace('(', '')|replace(')', '')|replace(' ', '')|replace('-', '') }}" target="_blank" rel="noopener">{{ p.whatsapp }}</a>{% endif %}</td>
+        <td data-rotulo="E-mail" class="pequeno">{{ p.email or '' }}</td>
+        {% if ver_status %}<td data-rotulo="Situação" class="pequeno">{{ p.status }}</td>{% endif %}
+        <td data-rotulo="Desde" class="pequeno">{{ p.criado_em|data_hora_br }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+    {% else %}<p class="suave">Ninguém marcou este ministério ainda.</p>{% endif %}
+  </div>
+
+  {% if pessoas %}
+  <div class="cartao">
+    <h2 style="margin-top:0">✉️ Convite especial</h2>
+    {% if not email_ok %}<div class="msg aviso">O envio de e-mail não está configurado.</div>{% endif %}
+    <label>Assunto<input name="assunto" value="{{ assunto }}" maxlength="150" required></label>
+    <label>Mensagem<textarea name="corpo" rows="11" maxlength="5000" required>{{ corpo }}</textarea></label>
+    <p class="pequeno suave">{nome} é trocado pelo primeiro nome de cada pessoa. Até {{ LIMITE }} convites por envio.</p>
+    <div class="acoes"><button class="botao" onclick="return confirm('Enviar o convite para as pessoas marcadas?')">📨 Enviar convite</button></div>
+  </div>
+  {% endif %}
+</form>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+  const todos = document.getElementById("marcarTodos");
+  if (todos) todos.addEventListener("change", () =>
+    document.querySelectorAll("input[name=membro]").forEach((x) => { x.checked = todos.checked; }));
+</script>
+{% endblock %}
