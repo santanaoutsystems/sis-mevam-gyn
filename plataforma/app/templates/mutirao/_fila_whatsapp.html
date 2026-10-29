@@ -37,13 +37,14 @@
   {% else %}<p class="pequeno suave">Ninguém para enviar agora.</p>{% endif %}
 
   <details open style="margin-top:.8rem"><summary><b>Aguardando resposta ({{ fila.aguardando|length }})</b></summary>
-    <p class="pequeno suave">Quando a pessoa responder SIM no WhatsApp, toque em <b>Respondeu</b>: abre a conversa já com o link. Quem não responder em {{ zap.DIAS_PARA_LEMBRETE }} dias volta para a fila uma única vez, como lembrete.</p>
+    <p class="pequeno suave">Quando a pessoa responder SIM no WhatsApp, toque em <b>Respondeu</b>: abre a conversa já com o link. Quem não responder em {{ zap.DIAS_PARA_LEMBRETE }} dias volta para a fila uma única vez, como lembrete. Se a mensagem não chegou a ser enviada no WhatsApp, toque em <b>↩️ Não enviei</b>.</p>
     {% for m in fila.aguardando %}
     <div class="opcoes" style="align-items:center;margin:.3rem 0;flex-wrap:wrap">
       <span style="flex:1;min-width:200px"><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a> {{ tipo_selo(m) }} <span class="pequeno suave">{{ m.whatsapp }} · {{ 'lembrete' if m.convites > 1 else 'convite' }} em {{ m.ultimo_envio|data_hora_br }}</span></span>
       {{ botao_zap(m, 'respondeu', '✅ Respondeu: enviar o link', 'botao peq') }}
       {{ botao_zap(m, 'nao_quer', '🚫 Pediu SAIR', abre=False) }}
       {{ botao_zap(m, 'invalido', '❌ Inválido', abre=False) }}
+      {{ botao_zap(m, 'desfazer', '↩️ Não enviei', abre=False) }}
     </div>
     {% else %}<p class="pequeno suave">Ninguém aguardando.</p>{% endfor %}
   </details>
@@ -68,6 +69,7 @@
     <div class="opcoes" style="align-items:center;margin:.3rem 0;flex-wrap:wrap">
       <span style="flex:1;min-width:200px"><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a> {{ tipo_selo(m) }} <span class="pequeno suave">em {{ m.ultimo_envio|data_hora_br }}</span></span>
       {{ botao_zap(m, 'link_de_novo', '🔁 Reenviar o link') }}
+      {{ botao_zap(m, 'desfazer', '↩️ Não enviei', abre=False) }}
     </div>
     {% else %}<p class="pequeno suave">Nenhum link enviado ainda.</p>{% endfor %}
   </details>

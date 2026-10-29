@@ -1,4 +1,6 @@
 """v2.16.0: fila do WhatsApp da Secretaria (sem WhatsApp Business): cota, intervalo, horário e 2 tempos."""
+import html
+import re
 from datetime import timedelta
 from urllib.parse import unquote
 
@@ -35,8 +37,12 @@ def _zap(sec, lt, mid, acao):
 
 
 def _texto(r):
-    assert r.status_code == 303 and r.headers["location"].startswith("https://wa.me/55"), r.headers["location"]
-    return unquote(r.headers["location"].split("?text=", 1)[1])
+    """A resposta é uma página que abre o WhatsApp por link (o navegador bloqueia redirecionar o formulário)."""
+    assert r.status_code == 200, r.headers.get("location")
+    url = re.search(r'id="abrir-whatsapp" class="botao dourado" href="([^"]+)"', r.text).group(1)
+    url = html.unescape(url)
+    assert url.startswith("https://wa.me/55"), url
+    return unquote(url.split("?text=", 1)[1])
 
 
 def _envios(mid):
@@ -155,3 +161,20 @@ def test_so_secretaria_e_adm_usam_a_fila():
         r = post(cli, f"/mutirao/lotes/{lt['id']}/zap/{m['id']}", {"acao": "enviar"}, pagina="/inicio")
         assert r.status_code == 403
     assert not _envios(m["id"])
+
+
+def test_nao_enviei_desfaz_o_registro():
+    sec, lt, [m] = _lote_com({"whatsapp": "62999990001"})
+    _texto(_zap(sec, lt, m["id"], "enviar"))
+    assert "Hoje: 1 de 15 contatos novos" in sec.get(f"/mutirao/lotes/{lt['id']}").text
+    _zap(sec, lt, m["id"], "desfazer")
+    assert not _envios(m["id"])
+    html_ = sec.get(f"/mutirao/lotes/{lt['id']}").text
+    assert "Hoje: 0 de 15 contatos novos" in html_ and "Fila do WhatsApp (1 para enviar)" in html_
+    _texto(_zap(sec, lt, m["id"], "enviar"))
+    _texto(_zap(sec, lt, m["id"], "respondeu"))
+    _zap(sec, lt, m["id"], "desfazer")
+    with db.engine().connect() as c:
+        assert c.execute(select(db.membros.c.whatsapp_situacao).where(db.membros.c.id == m["id"])).scalar() is None
+        assert c.execute(select(db.auditoria.c.acao).where(db.auditoria.c.acao == "WHATSAPP_DESFEITO")).first()
+    assert "Aguardando resposta (1)" in sec.get(f"/mutirao/lotes/{lt['id']}").text

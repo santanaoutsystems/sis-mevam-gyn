@@ -391,6 +391,11 @@ async def zap_acao(request: Request):
                             "invalido": f"{m['nome_completo']} saiu da fila (número inválido). Corrija o número na ficha.",
                             "reabrir": f"{m['nome_completo']} voltou para a fila."}[acao])
             return volta
+        if acao == "desfazer":
+            if zap.desfazer_ultimo(c, mid, tipo):
+                auditar(request, "WHATSAPP_DESFEITO", f"Membro #{mid}", f"lote #{lt['id']} · {tipo}", conexao=c)
+                flash(request, f"Registro desfeito: {m['nome_completo']} voltou para a etapa anterior.")
+            return volta
         if acao == "enviar" and st in ("na_fila", "lembrete"):
             direto = modo == zap.MODO_DIRETO and st == "na_fila"
             etapa, conta = (zap.LINK if direto else zap.LEMBRETE if st == "lembrete" else zap.CONVITE), True
@@ -414,7 +419,10 @@ async def zap_acao(request: Request):
             texto = zap.texto_convite(m, tipo, etapa, modelo)
         zap.registrar(c, m, lt["id"], tipo, etapa, conta, modelo, u["nome"])
         auditar(request, "WHATSAPP_" + etapa.upper(), f"Membro #{mid}", f"lote #{lt['id']} · {tipo}", conexao=c)
-    return ir(zap.url(m["whatsapp"], texto))
+    # A página abre o WhatsApp por link: o redirecionamento direto de um formulário para wa.me é bloqueado
+    # pelo navegador (Content-Security-Policy form-action 'self').
+    return render(request, "mutirao/abrir_whatsapp.html", {"url": zap.url(m["whatsapp"], texto), "m": m, "lt": lt,
+                                                            "texto": texto})
 
 
 CAMPOS = ("nome_completo", "data_nascimento", "cpf", "whatsapp", "email", "arquivo")

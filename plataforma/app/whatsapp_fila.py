@@ -209,3 +209,17 @@ def registrar(c, m: dict, lote_id: int, tipo: str, etapa: str, conta_cota: bool,
 def marcar_situacao(c, membro_id: int, situacao: str | None) -> None:
     c.execute(update(db.membros).where(db.membros.c.id == membro_id).values(
         whatsapp_situacao=situacao, whatsapp_situacao_em=datas.agora_utc()))
+
+
+def desfazer_ultimo(c, membro_id: int, tipo: str) -> bool:
+    """Apaga o último registro (a mensagem não chegou a ser enviada no WhatsApp). Não mexe em links já gerados."""
+    e = db.whatsapp_envios.c
+    ultimo = c.execute(select(e.id, e.etapa).where(e.membro_id == membro_id, e.tipo == tipo)
+                       .order_by(e.id.desc()).limit(1)).first()
+    if not ultimo:
+        return False
+    c.execute(db.whatsapp_envios.delete().where(e.id == ultimo.id))
+    if ultimo.etapa == LINK:
+        c.execute(update(db.membros).where(db.membros.c.id == membro_id, db.membros.c.whatsapp_situacao == RESPONDEU)
+                  .values(whatsapp_situacao=None))
+    return True
