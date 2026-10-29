@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}INTEGRA{% endblock %}
+{% macro corpo() %}
+<div class="cartao" style="max-width:520px;margin:1.5rem auto;text-align:center">
+  <div style="font-size:3rem">🎓</div>
+  {% if erro_codigo %}
+    <h1>INTEGRA</h1><div class="msg erro">{{ erro_codigo }}</div>
+    <p class="suave">Procure a Secretaria do MEVAM GYN.</p>
+  {% elif ok %}
+    <h1>Paz, {{ primeiro }}!</h1>
+    <div class="msg ok">INTEGRA registrado na sua ficha · {{ t.nome }} ({{ t.data_conclusao|data_br }}).</div>
+    {% if status == 'Aguardando Análise' %}<p>Sua ficha seguiu para a análise da Secretaria. Depois da validação você recebe o link para assinar o Credo.</p>
+    {% else %}<p>Obrigado! Seu cadastro está atualizado.</p>{% endif %}
+  {% else %}
+    <h1>Você concluiu o INTEGRA</h1>
+    <p><b>{{ t.nome }}</b> · {{ t.data_conclusao|data_br }}</p>
+    <p class="suave">Informe o seu CPF. Se você ainda não tem ficha, vamos abrir a ficha de membro com o INTEGRA já confirmado.</p>
+    {% if erro %}<div class="msg erro">{{ erro }}</div>{% endif %}
+    <form method="post" style="text-align:left">{{ ui.csrf_input() }}
+      <label for="cpf">CPF <span class="obrig">*</span></label>
+      <input id="cpf" name="cpf" required inputmode="numeric" data-mascara="cpf" value="{{ cpf or '' }}" placeholder="000.000.000-00">
+      <button class="botao dourado" style="width:100%;margin-top:.8rem">✅ Confirmar</button>
+    </form>
+  {% endif %}
+</div>
+{% endmacro %}
+{% block conteudo %}{{ corpo() }}{% endblock %}
+{% block publico %}{{ corpo() }}{% endblock %}

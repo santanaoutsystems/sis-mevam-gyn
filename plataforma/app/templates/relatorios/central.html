@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% import "parciais/tabela.html" as tb with context %}
+{% block titulo %}{{ rel.titulo }} · Relatórios{% endblock %}
+{% block conteudo %}
+<div class="central" data-relatorio="{{ rel.chave }}" data-csrf="{{ csrf }}" data-filtros="{{ filtros_texto }}" data-linhas="{{ t.total }}">
+  <details class="catalogo cartao nao-imprimir" style="margin:0" open>
+    <summary class="botao secundario bloco">📚 Escolher relatório · {{ rel.icone }} {{ rel.titulo }}</summary>
+    <nav class="catalogo-lista" aria-label="Relatórios disponíveis">
+      {% for grupo, itens in catalogo %}
+      <h3>{{ grupo }}</h3>
+      {% for r in itens %}<a href="/relatorios/{{ r.chave }}" class="{{ 'ativo' if r.chave == rel.chave }}"{% if r.chave == rel.chave %} aria-current="page"{% endif %}><span aria-hidden="true">{{ r.icone }}</span>{{ r.titulo }}</a>{% endfor %}
+      {% endfor %}
+      {% if salvos %}
+      <h3>⭐ Meus filtros</h3>
+      {% for s in salvos %}
+      <div class="salvo"><a href="/relatorios/{{ s.relatorio }}?{{ s.consulta }}">{{ s.nome }}</a>
+        <form method="post" action="/relatorios/salvos/{{ s.id }}/excluir"><input type="hidden" name="csrf" value="{{ csrf }}">
+          <button type="submit" aria-label="Excluir o filtro {{ s.nome }}" title="Excluir">✕</button></form></div>
+      {% endfor %}
+      {% endif %}
+    </nav>
+  </details>
+
+  <div>
+    <div class="cartao">
+      <div class="cab-relatorio">
+        <img src="/static/img/logo_round.jpg" alt="">
+        <div>
+          <h1 style="font-size:1.35rem;margin:0">{{ rel.icone }} {{ rel.titulo }}</h1>
+          <span class="pequeno suave">MINISTÉRIO MEVAM GYN · Emitido por {{ usuario.nome }} ({{ PERFIS_ROTULO[usuario.perfil] }}) em {{ emitido.strftime('%d/%m/%Y às %H:%M') }}</span>
+        </div>
+      </div>
+      <p class="suave pequeno nao-imprimir" style="margin:.25rem 0 .5rem">{{ rel.descricao }}</p>
+
+      {% if rel.filtros %}
+      <form method="get" action="/relatorios/{{ rel.chave }}" class="nao-imprimir">
+        {# Mantém filtros dos cabeçalhos e colunas ao trocar os filtros do topo #}
+        {% for k, v in t.pares %}{% if k.startswith('f.') or k in ('ordem', 'cols') %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
+        <div class="grade c3" style="align-items:end">
+          {% if 'periodo' in rel.filtros %}
+          <div><label for="de">De</label><input id="de" name="de" data-mascara="data" placeholder="dd/mm/aaaa" value="{{ ctx.de|data_br if ctx.de else '' }}"></div>
+          <div><label for="ate">Até</label><input id="ate" name="ate" data-mascara="data" placeholder="dd/mm/aaaa" value="{{ ctx.ate|data_br if ctx.ate else '' }}"></div>
+          {% endif %}
+          {% if 'setor' in rel.filtros %}
+          <div><label for="setor">Ministério / Área</label><select id="setor" name="setor">
+            <option value="">{{ 'Todas as minhas áreas' if ctx.escopo is not none and rel.grupo == 'Eventos' else 'Todos os ministérios e áreas' }}</option>
+            {% for cat, lista in setores|agrupar_areas %}<optgroup label="{{ cat }}">{% for d in lista %}<option {{ 'selected' if d.nome == ctx.setor }}>{{ d.nome }}</option>{% endfor %}</optgroup>{% endfor %}</select></div>
+          {% endif %}
+          {% if 'evento' in rel.filtros %}
+          <div class="campo-largo"><label for="evento">Evento</label><select id="evento" name="evento">
+            <option value="">Todos os eventos do período ({{ eventos_opcoes|length }})</option>
+            {% for e in eventos_opcoes %}<option value="{{ e.id }}" {{ 'selected' if e.id|string == ctx.evento }}>{{ e.quando.strftime('%d/%m') if e.quando }} · {{ e.titulo }}</option>{% endfor %}</select></div>
+          {% endif %}
+          {% if 'mes' in rel.filtros %}
+          <div><label for="mes">Mês</label><select id="mes" name="mes"><option value="">Todos</option>
+            {% for nome in MESES %}<option value="{{ loop.index }}" {{ 'selected' if ctx.mes == loop.index }}>{{ nome }}</option>{% endfor %}</select></div>
+          {% endif %}
+          <div><button class="botao">Ver relatório</button></div>
+        </div>
+        {% if atalhos %}<div class="atalhos" aria-label="Atalhos de período">{% for r, u in atalhos %}<a href="{{ u }}">{{ r }}</a>{% endfor %}
+          {% if not rel.periodo_padrao or ctx.de %}<a href="/relatorios/{{ rel.chave }}?de=&ate=">Todo o histórico</a>{% endif %}</div>{% endif %}
+      </form>
+      {% endif %}
+
+      <div class="acoes nao-imprimir" style="margin-top:.75rem">
+        <button type="button" class="botao secundario" data-imprimir>🖨️ Imprimir / PDF</button>
+        {% if pode_csv %}<a class="botao secundario" href="{{ t.url_csv }}">⬇️ Planilha (CSV)</a>{% endif %}
+        <details class="painel-colunas">
+          <summary class="botao secundario">⭐ Salvar filtro</summary>
+          <form method="post" action="/relatorios/salvar" class="painel-corpo" style="columns:auto">
+            <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="relatorio" value="{{ rel.chave }}">
+            <input type="hidden" name="consulta" value="{{ query_atual }}">
+            <label for="nome-filtro">Nome do filtro</label>
+            <input id="nome-filtro" name="nome" maxlength="80" placeholder="Ex.: Presença do Louvor" required>
+            <p class="pequeno suave">Guarda os filtros, a ordem e as colunas desta tela. Só você vê.</p>
+            <button class="botao peq">Salvar</button>
+          </form>
+        </details>
+      </div>
+
+      <div class="filtros-aplicados" style="margin-top:.75rem"><b>Filtros aplicados:</b> {{ filtros_texto }}</div>
+      {% if aviso %}<p class="msg aviso" style="margin-top:.75rem">{{ aviso }}</p>{% endif %}
+      {% if resumo %}<div class="resumo">{% for v, r in resumo %}<div><b>{{ v }}</b><span>{{ r }}</span></div>{% endfor %}</div>{% endif %}
+
+      {{ tb.barra(t) }}
+      {{ tb.tabela(t, assinatura=rel.assinatura) }}
+      <p class="pequeno" style="margin:.5rem 0 0"><b>Total:</b> {{ t.total }} linha(s)</p>
+      {% if rel.dados_pessoais %}<p class="rodape-lgpd">🔒 Contém dados pessoais · uso interno do MEVAM GYN · LGPD. Descarte esta folha após o uso.</p>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/js/tabela.js" defer></script>{% endblock %}

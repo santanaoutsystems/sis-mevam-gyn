@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block titulo %}Satisfação{% endblock %}
+{% block conteudo %}
+<h1>Pesquisa de satisfação</h1>
+<p class="suave" style="margin-top:0">Respostas dos membros ao e-mail de boas-vindas, enviado ao terminar a ficha. Total: <b>{{ total }}</b>.</p>
+<div class="cartao">
+  <table class="tabela responsiva">
+    <thead><tr><th>Resposta</th><th>Membros</th><th>%</th></tr></thead>
+    <tbody>{% for l in linhas %}<tr>
+      <td data-rotulo="Resposta"><b>{{ l.rotulo }}</b></td><td data-rotulo="Membros">{{ l.n }}</td>
+      <td data-rotulo="%"><div style="display:flex;align-items:center;gap:.5rem">
+        <div style="flex:1;max-width:220px;height:10px;border-radius:6px;background:var(--neutro-fundo)"><div style="width:{{ l.pct }}%;height:100%;border-radius:6px;background:var(--marca)"></div></div>{{ l.pct }}%</div></td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Início{% endblock %}
+{% block conteudo %}
+<h1>Paz, {{ usuario.nome.split(' ')[0] }}!</h1>
+<p class="suave" style="margin-top:0">Você está como <span class="selo {{ usuario.perfil }}">{{ PERFIS_ROTULO[usuario.perfil] }}</span></p>
+
+{% if pedido_integra %}
+<div class="cartao aviso-cpf nao-imprimir">
+  <h2 style="margin-top:0">🎓 Você fez o INTEGRA?</h2>
+  <p>O INTEGRA passou a ser a porta de entrada da membresia e dos ministérios. Responda até <b>{{ pedido_integra.prazo|data_br }}</b> para não ter o acesso suspenso.</p>
+  <a class="botao dourado" href="{{ pedido_integra.link }}">Responder agora</a>
+</div>
+{% endif %}
+{% if falta_cpf %}
+<div class="cartao aviso-cpf nao-imprimir">
+  <h2 style="margin-top:0">📇 Informe seu CPF</h2>
+  <p>Agora o CPF identifica cada pessoa no sistema. Leva menos de um minuto.</p>
+  <a class="botao" href="/meu-cpf">Informar meu CPF</a>
+</div>
+{% endif %}
+
+{% if pesquisa_pendente %}
+<div class="cartao nao-imprimir">
+  <h2 style="margin-top:0">📝 Pesquisa do mês</h2>
+  <p>Conte em que áreas você precisa de apoio. É anônimo e leva menos de um minuto.</p>
+  <a class="botao" href="/necessidades">Responder</a>
+</div>
+{% endif %}
+
+{% if pode('secretaria', 'admin') %}
+<div class="grade c2 c4" style="margin:1rem 0">
+  <a class="numero" href="/membros?status=Aguardando+Análise"><b>{{ numeros.aguardando }}</b>Fichas aguardando análise</a>
+  <a class="numero" href="/membros"><b>{{ numeros.membros }}</b>Membros cadastrados</a>
+  <a class="numero" href="/agenda"><b>{{ numeros.eventos_futuros }}</b>Eventos futuros</a>
+  {% if pode('admin') %}<a class="numero" href="/admin/usuarios"><b>{{ numeros.usuarios }}</b>Usuários com acesso</a>{% endif %}
+</div>
+{% if numeros.servicos in ('amarelo', 'vermelho') %}
+<a class="aviso-servicos {{ numeros.servicos }} nao-imprimir" href="/admin/servicos">{{ '🔴' if numeros.servicos == 'vermelho' else '🟡' }} Um serviço gratuito está perto do limite. Toque para ver o uso.</a>
+{% endif %}
+<div class="acoes nao-imprimir">
+  <a class="botao" href="/eventos/novo">➕ Novo evento</a>
+  <a class="botao secundario" href="/ficha">📝 Nova ficha de membro</a>
+  <a class="botao secundario" href="/relatorios">🖨️ Relatórios</a>
+  <a class="botao secundario" href="/aniversariantes">🎂 Aniversariantes</a>
+  {% if pode('admin') %}
+    <a class="botao secundario" href="/admin/setores">🏢 Ministérios e Áreas</a>
+    <a class="botao secundario" href="/admin/auditoria">🔍 Auditoria</a>
+    <a class="botao secundario" href="/admin/servicos">📶 Uso dos serviços</a>
+  {% endif %}
+</div>
+{% else %}
+{% if pode('coordenacao') %}
+<div class="cartao">
+  <h2>Minha coordenação</h2>
+  {% if minhas_coord %}
+    {% for d in minhas_coord %}
+    <div class="designacao">
+      <div class="designacao-cab"><b>{{ d.setor }}</b><span class="selo {{ d.classe }}">{{ d.situacao }}</span></div>
+      <p class="pequeno" style="margin:.2rem 0 0">{{ d.rotulo_tipo }}{% if d.inicio %} · desde {{ d.inicio|data_br }}{% endif %}{% if d.fim %} · até {{ d.fim|data_br }}{% endif %}
+        {% if d.evento %}<br>Evento: <a href="/eventos/{{ d.evento.id }}">{{ d.evento.titulo }}</a>{% endif %}</p>
+    </div>
+    {% endfor %}
+    <div class="acoes nao-imprimir" style="margin-bottom:0">
+      {% if meus_setores %}<a class="botao" href="/eventos/novo">➕ Novo evento</a>{% endif %}
+      <a class="botao secundario" href="/relatorios">🖨️ Relatórios</a>
+      <a class="botao secundario" href="/aniversariantes">🎂 Aniversariantes</a>
+    </div>
+    <details style="margin-top:.6rem"><summary class="pequeno"><b>📜 Diretrizes da Coordenação</b></summary>
+      <ol class="pequeno">{% for t in DIRETRIZES %}<li>{{ t }}</li>{% endfor %}</ol></details>
+  {% else %}
+    <p class="suave">Nenhum ministério atribuído ainda. Peça à Secretaria ou ao Adm para definir os ministérios que você coordena.</p>
+  {% endif %}
+</div>
+{% endif %}
+<div class="cartao">
+  <h2>Minha ficha</h2>
+  {% if minha_ficha %}
+    <p>Protocolo #{{ minha_ficha.id }} · {{ ui.selo(minha_ficha.status) }}</p>
+    <a class="botao" href="/minha-ficha">Ver minha ficha</a>
+  {% else %}
+    <p class="suave">Seu acesso ainda não está ligado a uma ficha de membro.</p>
+    <a class="botao" href="/ficha">Preencher minha ficha</a>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="cartao">
+  <h2>Próximos eventos</h2>
+  {% if proximos %}
+  <ul class="lista">
+    {% for e in proximos %}
+    <li><a class="linha" href="/eventos/{{ e.id }}">
+      <div style="text-align:center;min-width:52px"><b class="dia-destaque">{{ e.quando.strftime('%d') if e.quando }}</b><br><span class="pequeno suave">{{ e.quando.strftime('%m/%Y') if e.quando }}</span></div>
+      <div><b>{{ e.titulo }}</b><br><span class="pequeno suave">{{ e.quando.strftime('%H:%M') if e.quando }} · {{ e.departamento or 'Geral' }}</span></div>
+    </a></li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="suave">Nenhum evento agendado.</p>{% endif %}
+  <a class="botao secundario" href="/agenda">Ver agenda completa</a>
+</div>
+{% endblock %}

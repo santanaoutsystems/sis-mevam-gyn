@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}INTEGRA{% endblock %}
+{% block conteudo %}
+<h1>🎓 INTEGRA</h1>
+<p class="suave">O INTEGRA é a porta de entrada: só seguem para a análise, o Credo e o acesso as fichas com o INTEGRA concluído ou dispensado.</p>
+
+<div class="grade c3">
+  {% for chave in ['concluido', 'aguardando', 'nao_concluido', 'dispensado', 'bloqueado', None] %}
+  <div class="cartao numero"><b>{{ contagem.get(chave, 0) }}</b><span class="pequeno">{{ SITUACOES[chave] }}</span></div>
+  {% endfor %}
+</div>
+
+<details class="cartao" {{ 'open' if not turmas }}>
+  <summary class="botao peq" style="display:inline-flex">➕ Nova turma</summary>
+  <form method="post" action="/integra/turmas" class="grade c3" style="align-items:end;margin-top:.75rem">
+    {{ ui.csrf_input() }}
+    <div><label for="t_nome">Nome da turma <span class="obrig">*</span></label><input id="t_nome" name="nome" required placeholder="Ex.: INTEGRA Outubro 2026"></div>
+    <div><label for="t_data">Data do encerramento <span class="obrig">*</span></label><input id="t_data" name="data_conclusao" required data-mascara="data" placeholder="dd/mm/aaaa" value="{{ hoje }}"></div>
+    <div><label for="t_local">Local</label><input id="t_local" name="local" placeholder="Ex.: Templo sede"></div>
+    <div><button class="botao">Criar turma e gerar código</button></div>
+  </form>
+  <p class="pequeno suave">O código de 6 caracteres e o QR Code valem até o fim do dia do encerramento. Se precisar, prorrogue na tela da turma.</p>
+</details>
+
+<div class="cartao">
+  <h2>Turmas</h2>
+  {% if turmas %}
+  <table class="tabela"><thead><tr><th>Turma</th><th>Encerramento</th><th>Código</th><th>Concluintes</th></tr></thead><tbody>
+  {% for t in turmas %}
+    <tr><td data-rotulo="Turma"><a href="/integra/turmas/{{ t.id }}">{{ t.nome }}</a>{% if t.local %}<br><span class="pequeno suave">{{ t.local }}</span>{% endif %}</td>
+      <td data-rotulo="Encerramento">{{ t.data_conclusao|data_br }}</td>
+      <td data-rotulo="Código"><code>{{ t.codigo }}</code> {% if t.vigente %}<span class="selo ativo">válido</span>{% else %}<span class="selo inativo">vencido</span>{% endif %}</td>
+      <td data-rotulo="Concluintes">{{ t.concluintes }}</td></tr>
+  {% endfor %}
+  </tbody></table>
+  {% else %}<p class="suave">Nenhuma turma cadastrada.</p>{% endif %}
+</div>
+
+{% if aguardando %}
+<div class="cartao">
+  <h2>Aguardando confirmação ({{ aguardando|length }})</h2>
+  <p class="pequeno suave">Disseram que fizeram o INTEGRA, mas sem o código da turma. Confira a lista e registre a conclusão na ficha.</p>
+  <ul>{% for m in aguardando %}<li><a href="/membros/{{ m.id }}">{{ m.nome_completo }}</a>{% if m.integra_data %} · informou {{ m.integra_data|data_br }}{% endif %}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="cartao">
+  <h2>Quem já tinha cadastro</h2>
+  <p>Fichas validadas ou ativas que ainda não informaram o INTEGRA: <b>{{ candidatos }}</b> sem pedido · <b>{{ em_prazo }}</b> dentro do prazo.</p>
+  <p class="pequeno suave">O pedido vai por e-mail (até {{ LIMITE }} por dia, cota do Gmail) com link para responder em {{ PRAZO }} dias. Lembrete no 25º dia. Sem resposta, a ficha passa a N/C INTEGRA e o acesso é suspenso até a Secretaria lançar ou dispensar.</p>
+  {% if candidatos %}
+  <form method="post" action="/integra/campanha" onsubmit="return confirm('Enviar o pedido de atualização do INTEGRA para até {{ LIMITE }} fichas agora?')">{{ ui.csrf_input() }}
+    <button class="botao dourado">📨 Pedir atualização do INTEGRA</button></form>
+  {% endif %}
+</div>
+{% endblock %}
