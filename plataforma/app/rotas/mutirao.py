@@ -25,7 +25,7 @@ from sqlalchemy import func, insert, select, update
 from starlette.requests import Request
 from starlette.routing import Route
 
-from .. import config, datas, db, envios, ficha, integra, seguranca
+from .. import config, datas, db, duplicidade, envios, ficha, integra, seguranca
 from .. import whatsapp_fila as zap
 from ..web import auditar, flash, ir, render
 from . import regularizacao
@@ -426,7 +426,7 @@ async def zap_acao(request: Request):
                                                             "texto": texto})
 
 
-CAMPOS = ("nome_completo", "data_nascimento", "cpf", "whatsapp", "email", "arquivo")
+CAMPOS = ("nome_completo", "data_nascimento", "cpf", "whatsapp", "email", "arquivo", "outra_pessoa")
 
 
 def _validar_ficha(c, valores: dict) -> tuple[dict, dict]:
@@ -453,12 +453,14 @@ def _validar_ficha(c, valores: dict) -> tuple[dict, dict]:
     if not erros:
         if cpf and _cpf_em_uso(c, cpf):
             erros["cpf"] = ERRO_CPF_REPETIDO
-        else:
-            existe = c.execute(select(db.membros.c.id).where(
-                func.lower(db.membros.c.nome_completo) == nome.lower(), db.membros.c.data_nascimento == nasc,
-                db.membros.c.status.notin_((db.ANONIMIZADO, db.EXCLUIDO)))).first()
-            if existe:
-                erros["nome_completo"] = "Esta pessoa já está no sistema (mesmo nome e data de nascimento). Não lance de novo."
+        elif valores.get("outra_pessoa") != "sim":
+            parecidas = duplicidade.parecidas(c, {"nome_completo": nome, "data_nascimento": nasc, "cpf": cpf,
+                                                   "whatsapp": whats, "email": email})
+            if parecidas:
+                p = parecidas[0]
+                erros["nome_completo"] = (f"Parece que esta pessoa já está no sistema: {p['nome_completo']} "
+                                          f"({p['motivo']}). Não lance de novo; separe a ficha para a Secretaria.")
+                erros["duplicada"] = "sim"
     dados = {"nome_completo": nome, "data_nascimento": nasc, "cpf": cpf or None, "email": email or None,
              "whatsapp": ficha.fmt_telefone(whats) if whats else None,
              "ocr_documento_nome": valores["arquivo"][:200] or None}

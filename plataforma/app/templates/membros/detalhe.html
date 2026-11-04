@@ -20,6 +20,25 @@
 <div class="msg aviso"><b>⏸️ Membro inativo.</b>{% if m.inativado_em %} Inativado por {{ m.inativado_por or '-' }} em {{ m.inativado_em|data_hora_br }}.{% endif %}
   {% if m.motivo_inativacao %}<br>Justificativa: {{ m.motivo_inativacao }}{% endif %}</div>
 {% endif %}
+{% if parecidas and not propria %}
+<div class="msg aviso" id="duplicidade"><b>🔁 Possível ficha repetida.</b> Esta pessoa parece já ter outra ficha:
+  {% for p in parecidas %}
+  <div style="margin:.5rem 0;padding:.5rem .7rem;border-radius:10px;background:var(--fundo, #fff)">
+    <a href="/membros/{{ p.id }}"><b>#{{ p.id }} · {{ p.nome_completo }}</b></a> · {{ p.status }}
+    <span class="pequeno suave">({{ p.motivo }})</span>
+    <details style="margin-top:.35rem"><summary class="botao secundario peq" style="display:inline-flex">🔗 Juntar esta ficha na #{{ p.id }}</summary>
+      <form method="post" action="/membros/{{ m.id }}/juntar" style="margin-top:.5rem">{{ ui.csrf_input() }}
+        <input type="hidden" name="manter" value="{{ p.id }}">
+        <p class="pequeno" style="margin:0 0 .4rem">Fica a ficha <b>#{{ p.id }}</b>. Ela recebe o que estiver faltando nela (CPF, endereço, foto, Credo, INTEGRA, interesses e login),
+          e esta ficha <b>#{{ m.id }}</b> vai para a 🗑️ Lixeira, de onde pode ser restaurada. Mantenha a ficha mais completa (normalmente a Ativa).</p>
+        <label class="check"><input type="checkbox" name="confirmo" value="sim" required> Conferi: as duas fichas são da mesma pessoa.</label>
+        <button class="botao peq" style="margin-top:.4rem">Juntar e mandar a #{{ m.id }} para a lixeira</button>
+      </form></details>
+  </div>
+  {% endfor %}
+  <span class="pequeno">É outra pessoa (por exemplo, parentes com o mesmo WhatsApp)? Pode ignorar este aviso.</span>
+</div>
+{% endif %}
 <div class="cartao" style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
   <div class="foto3x4">{% if m.foto_3x4 %}<img src="{{ m.foto_3x4 }}" alt="Foto 3x4">{% else %}Sem foto{% endif %}</div>
   <div style="flex:1;min-width:220px">

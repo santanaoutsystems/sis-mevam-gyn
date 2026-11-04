@@ -16,6 +16,7 @@
 <div class="opcoes nao-imprimir" style="margin:.75rem 0">
   <a class="selo {{ 'validado' if not status_ativo else 'inativo' }}" href="/membros">Todos</a>
   {% for s in STATUS %}<a class="selo {{ 'validado' if status_ativo == s else 'inativo' }}" href="/membros?f.status={{ s|urlencode }}">{{ s }} ({{ contagem.get(s, 0) }})</a>{% endfor %}
+  {% if n_duplicados %}<a class="selo aguardando" href="/membros/duplicados">🔁 Possíveis duplicados ({{ n_duplicados }})</a>{% endif %}
 </div>
 <form class="cartao nao-imprimir" method="get" style="display:grid;gap:.5rem;grid-template-columns:1fr auto">
   {% for k, v in t.pares %}{% if k != 'q' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}

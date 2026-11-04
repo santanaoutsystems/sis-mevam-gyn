@@ -16,7 +16,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route
 
-from .. import areas, config, datas, db, envios, ficha, integra, lembretes, profissional, seguranca
+from .. import areas, config, datas, db, duplicidade, envios, ficha, integra, lembretes, profissional, seguranca
 from ..pdf import gerar_pdf_membro
 from ..web import auditar, flash, ir, render
 
@@ -316,6 +316,7 @@ async def lista(request: Request):
     busca = (request.query_params.get("q") or "").strip()
     with db.engine().connect() as c:
         linhas = _membros(c, com_setores=True)
+        n_duplicados = len(duplicidade.grupos(c))
     contagem = {}
     for l in linhas:
         contagem[l["status"]] = contagem.get(l["status"], 0) + 1
@@ -337,7 +338,7 @@ async def lista(request: Request):
                         headers={"Content-Disposition": f'attachment; filename="{nome}"', "Cache-Control": "no-store"})
     status_ativo = (estado["filtros"].get("status") or {}).get("em", [])
     return render(request, "membros/lista.html", {
-        "t": t, "busca": busca, "contagem": contagem, "STATUS": db.STATUS_MEMBRO,
+        "t": t, "busca": busca, "contagem": contagem, "STATUS": db.STATUS_MEMBRO, "n_duplicados": n_duplicados,
         "status_ativo": status_ativo[0] if len(status_ativo) == 1 else "", "emitido": datas.agora()})
 
 
@@ -357,10 +358,11 @@ async def detalhe(request: Request):
                                                             db.integra_turmas.c.data_conclusao)
                           .order_by(db.integra_turmas.c.data_conclusao.desc()).limit(30)).mappings()]
         turma_integra = next((x for x in turmas_integra if x["id"] == m.get("integra_turma_id")), None)
+        parecidas = duplicidade.parecidas(c, m, ignorar_id=mid) if m["status"] not in duplicidade.FORA else []
     auditar(request, "VISUALIZACAO_FICHA", f"Membro #{mid}")
     return render(request, "membros/detalhe.html", {
         "m": m, "setores": setores, "deptos": deptos, "login": login,
-        "turmas_integra": turmas_integra, "turma_integra": turma_integra,
+        "turmas_integra": turmas_integra, "turma_integra": turma_integra, "parecidas": parecidas,
         "link_credo": _link_credo(mid), "STATUS": db.STATUS_MEMBRO,
         "senha_provisoria": request.session.pop("senha_provisoria", None)})
 
@@ -852,6 +854,92 @@ async def nova_senha(request: Request):
     return ir(f"/membros/{mid}")
 
 
+
+# ---------------------------------------------------------------------------
+# Possíveis fichas duplicadas e juntar fichas (v2.16.3)
+# ---------------------------------------------------------------------------
+NAO_COPIAR = {"id", "status", "status_anterior", "origem", "criado_em", "atualizado_em", "data_registro",
+              "validado_por", "data_validacao", "observacoes", "excluido_em", "excluido_por", "motivo_exclusao",
+              "inativado_em", "inativado_por", "motivo_inativacao", "link_credo_enviado"}
+CAMPOS_CREDO = ("credo_aceito", "nome_assinante", "assinatura_rubrica", "data_assinatura")
+
+
+def _vazio(v) -> bool:
+    return v is None or v == "" or v == [] or v == {}
+
+
+@seguranca.exigir(*ADMIN_SECRETARIA)
+async def duplicados(request: Request):
+    with db.engine().connect() as c:
+        grupos = duplicidade.grupos(c)
+    for g in grupos:
+        for m in g:
+            m["motivo"] = next((duplicidade.motivo(m, o) for o in g if o is not m and duplicidade.motivo(m, o)), "")
+    return render(request, "membros/duplicados.html", {"grupos": grupos})
+
+
+@seguranca.exigir(*ADMIN_SECRETARIA)
+async def juntar(request: Request):
+    """Junta a ficha {id} (repetida) na ficha `manter`: completa o que falta, passa login e interesses e manda a repetida
+    para a lixeira (restaurável)."""
+    mid = request.path_params["id"]
+    form = await request.form()
+    u = seguranca.usuario_atual(request)
+    try:
+        alvo = int(form.get("manter") or 0)
+    except ValueError:
+        alvo = 0
+    if form.get("confirmo") != "sim":
+        flash(request, "Marque a confirmação de que as duas fichas são da mesma pessoa.", "erro")
+        return ir(f"/membros/{mid}#duplicidade")
+    with db.engine().begin() as c:
+        rep, fica = _carregar(c, mid), _carregar(c, alvo)
+        if not rep or not fica or alvo == mid or rep["status"] in duplicidade.FORA or fica["status"] in duplicidade.FORA:
+            flash(request, "Não foi possível juntar: confira as duas fichas.", "erro")
+            return ir(f"/membros/{mid}")
+        if not duplicidade.motivo(rep, fica):
+            flash(request, "Estas fichas não parecem ser da mesma pessoa (CPF diferente ou dados sem relação).", "erro")
+            return ir(f"/membros/{mid}")
+        novos, copiados = {}, []
+        if not fica.get("credo_aceito") and rep.get("credo_aceito"):
+            novos.update({k: rep.get(k) for k in CAMPOS_CREDO}); copiados.append("Credo assinado")
+            if fica["status"] == "Validado pela Secretaria":
+                novos["status"] = "Ativo"
+        if fica.get("integra_situacao") not in ("concluido", "dispensado") and rep.get("integra_situacao") in ("concluido", "dispensado"):
+            novos.update({k: rep.get(k) for k in rep if k.startswith("integra_")}); copiados.append("INTEGRA")
+        for k, v in rep.items():
+            if k in NAO_COPIAR or k in novos or k in CAMPOS_CREDO or k.startswith("integra_") or _vazio(v):
+                continue
+            if _vazio(fica.get(k)) and not isinstance(v, bool):
+                novos[k] = v; copiados.append(k)
+        cpf = rep.get("cpf")
+        agora = datas.agora_utc()
+        if cpf:  # o CPF passa para a ficha que fica (não pode estar nas duas)
+            c.execute(update(db.membros).where(db.membros.c.id == mid).values(cpf=None))
+        if novos:
+            c.execute(update(db.membros).where(db.membros.c.id == alvo).values(**novos, atualizado_em=agora))
+        # interesses e login
+        juntos = set(interesses_de(c, alvo)) | set(interesses_de(c, mid))
+        if juntos:
+            salvar_interesses(c, alvo, list(juntos))
+        login_fica = c.execute(select(db.usuarios.c.id).where(db.usuarios.c.membro_id == alvo)).first()
+        login_rep = c.execute(select(db.usuarios.c.id).where(db.usuarios.c.membro_id == mid)).first()
+        if login_rep and not login_fica:
+            c.execute(update(db.usuarios).where(db.usuarios.c.id == login_rep[0]).values(membro_id=alvo))
+            copiados.append("login")
+        motivo = f"Ficha repetida: juntada na ficha #{alvo} ({fica['nome_completo']}) por {u['nome']}."
+        c.execute(update(db.membros).where(db.membros.c.id == mid).values(
+            status=db.EXCLUIDO, status_anterior=rep["status"], excluido_em=agora, excluido_por=u["nome"],
+            motivo_exclusao=motivo, atualizado_em=agora))
+        _suspender_login(c, mid, u["nome"], motivo)
+        c.execute(update(db.regularizacoes).where(db.regularizacoes.c.membro_id == mid).values(revogado=True))
+        auditar(request, "FICHAS_JUNTADAS", f"Membro #{alvo}",
+                f"#{mid} ({rep['nome_completo']}) → #{alvo} · copiado: {', '.join(copiados) or 'nada'}"
+                + (f" · CPF {'movido' if 'cpf' in novos else 'retirado da repetida'}" if cpf else ""), conexao=c)
+    flash(request, f"Fichas juntadas. A ficha #{mid} foi para a lixeira (pode ser restaurada) e os dados que faltavam "
+                   f"passaram para esta ficha.")
+    return ir(f"/membros/{alvo}")
+
 from ..web import templates  # noqa: E402
 
 templates.env.globals["whatsapp_credo"] = whatsapp_credo
@@ -865,6 +953,7 @@ rotas = [
     Route("/membros", lista),
     Route("/membros/exportar.csv", exportar_csv),
     Route("/membros/lixeira", lixeira),
+    Route("/membros/duplicados", duplicados),
     Route("/membros/{id:int}", detalhe),
     Route("/membros/{id:int}/editar", editar, methods=["GET", "POST"]),
     Route("/membros/{id:int}/validar", validar, methods=["POST"]),
@@ -877,6 +966,7 @@ rotas = [
     Route("/membros/{id:int}/inativar", inativar, methods=["POST"]),
     Route("/membros/{id:int}/reativar", reativar, methods=["POST"]),
     Route("/membros/{id:int}/excluir", excluir, methods=["POST"]),
+    Route("/membros/{id:int}/juntar", juntar, methods=["POST"]),
     Route("/membros/{id:int}/restaurar", restaurar, methods=["POST"]),
     Route("/membros/{id:int}/excluir-definitivo", excluir_definitivo, methods=["POST"]),
     Route("/credo/{id:int}", credo, methods=["GET", "POST"]),
