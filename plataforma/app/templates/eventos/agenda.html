@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block titulo %}Agenda{% endblock %}
+{% block conteudo %}
+<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+  <h1>Agenda</h1>
+  {% if pode('coordenacao', 'secretaria', 'admin') %}<a class="botao dourado" href="/eventos/novo">➕ Novo evento</a>{% endif %}
+</div>
+{% if pode('secretaria', 'admin') %}<p class="pequeno" style="margin-top:0"><a href="/admin/ajustar-horarios">🕒 Ajustar horários vindos da Agenda antiga</a></p>{% endif %}
+<div class="cartao" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap">
+  <a class="botao secundario peq" href="?mes={{ anterior }}&visao={{ visao }}" aria-label="Mês anterior">‹</a>
+  <h2 style="margin:0;border:0;padding:0">{{ nome_mes }} de {{ ano }}</h2>
+  <a class="botao secundario peq" href="?mes={{ seguinte }}&visao={{ visao }}" aria-label="Próximo mês">›</a>
+  <div class="opcoes" style="width:100%;justify-content:center">
+    <a class="botao peq {{ '' if visao == 'lista' else 'secundario' }}" href="?mes={{ ano }}-{{ mes }}&visao=lista">Lista</a>
+    <a class="botao peq {{ '' if visao == 'calendario' else 'secundario' }}" href="?mes={{ ano }}-{{ mes }}&visao=calendario">Calendário</a>
+  </div>
+</div>
+
+{% if visao == 'calendario' %}
+<div class="cartao">
+  <table class="calendario">
+    <thead><tr>{% for d in ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'] %}<th>{{ d }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for semana in semanas %}<tr>
+      {% for dia in semana %}
+        {% if dia == 0 %}<td class="vazio"></td>
+        {% else %}
+        <td class="{{ 'ocupado' if por_dia.get(dia) }} {{ 'hoje' if hoje.year == ano and hoje.month == mes and hoje.day == dia }}">
+          <b>{{ dia }}</b>
+          {% for e in por_dia.get(dia, []) %}<a class="ev" href="/eventos/{{ e.id }}" title="{{ e.titulo }}">{{ e.quando.strftime('%H:%M') }} {{ e.titulo }}</a>{% endfor %}
+        </td>
+        {% endif %}
+      {% endfor %}
+    </tr>{% endfor %}
+    </tbody>
+  </table>
+  <p class="pequeno suave">Dias destacados já têm eventos. Toque no evento para ver os detalhes.</p>
+</div>
+{% endif %}
+
+<div class="cartao">
+  {% if eventos %}
+  <ul class="lista">
+    {% for e in eventos %}
+    <li><a class="linha" href="/eventos/{{ e.id }}">
+      <div class="caixa-data">
+        <b class="dia-numero">{{ e.quando.strftime('%d') }}</b><br>
+        <span class="pequeno suave">{{ e.dia_semana[:3] }}</span></div>
+      <div style="flex:1"><b>{{ e.titulo }}</b><br>
+        <span class="pequeno suave">🕒 {{ e.quando.strftime('%d/%m/%Y %H:%M') }} · 🏢 {{ e.departamento or 'Geral' }}{% if e.responsavel %} / {{ e.responsavel }}{% endif %}</span><br>
+        <span class="pequeno">💰 {{ e.valor_inscricao|moeda }} · 👥 {{ e.vagas_txt }}</span></div>
+    </a></li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="suave">Nenhum evento neste mês.</p>{% endif %}
+</div>
+{% endblock %}

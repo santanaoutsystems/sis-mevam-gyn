@@ -1,0 +1,14 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ t.nome }} · INTEGRA</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem;
+background:linear-gradient(160deg,#0f172a 0%,#1e3a8a 55%,#2563eb 100%);color:#fff;font-family:system-ui,sans-serif;text-align:center;padding:2rem;box-sizing:border-box}
+.sub{color:#fcd34d;font-weight:700;letter-spacing:.18em;font-size:clamp(14px,1.6vw,22px)}h1{margin:0;font-size:clamp(28px,4vw,56px)}
+#qr{background:#fff;padding:18px;border-radius:20px;box-shadow:0 0 0 6px #f59e0b55}.cod{font:800 clamp(40px,7vw,96px)/1 monospace;letter-spacing:.25em}
+p{margin:0;color:#cbd5e1;font-size:clamp(16px,1.8vw,26px)}</style></head><body>
+<div class="sub">INTEGRA · MEVAM GYN</div><h1>{{ t.nome }}</h1>
+<div id="qr"></div><div class="cod">{{ t.codigo }}</div>
+<p>Aponte a câmera do celular para o QR Code e informe o seu CPF.<br>Sem câmera? Digite o código na ficha de membro.</p>
+{% if not vigente %}<p style="color:#fca5a5">Código vencido: prorrogue na tela da turma.</p>{% endif %}
+<script>new QRCode(document.getElementById("qr"),{text:"{{ link }}",width:Math.min(window.innerWidth*0.32,380),height:Math.min(window.innerWidth*0.32,380),colorDark:"#0f172a"});</script>
+</body></html>

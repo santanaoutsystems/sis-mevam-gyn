@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Regularização · {{ m.nome_completo }}{% endblock %}
+{% block conteudo %}
+<div class="cartao">
+  <span class="pequeno suave">Protocolo #{{ m.id }}{% if (m.origem or '').startswith('ficha_impressa') %} · ficha impressa{% endif %}</span>
+  <h1 style="margin-bottom:.25rem">{{ m.nome_completo }}</h1>
+  {{ ui.selo(m.status) }}
+  <p class="pequeno">WhatsApp: <b>{{ m.whatsapp or '—' }}</b> · E-mail: <b>{{ m.email or '—' }}</b> · CPF: <b>{{ m.cpf|cpf or '—' }}</b></p>
+  {% if faltas %}
+    <div class="msg aviso"><b>Falta no cadastro:</b> {{ faltas|join(', ') }}.</div>
+  {% else %}
+    <div class="msg sucesso">Cadastro completo. Nada a regularizar.</div>
+  {% endif %}
+  <div class="acoes"><a class="botao secundario peq" href="/membros/{{ m.id }}">👤 Abrir ficha completa</a></div>
+</div>
+
+<div class="cartao">
+  <h2 style="margin-top:0">Ficha impressa escaneada</h2>
+  {% if m.ficha_escaneada %}
+    <p class="pequeno">Anexada em {{ m.ficha_escaneada_em|data_hora_br }} por {{ m.ficha_escaneada_por or '—' }}.</p>
+    {% if m.ficha_escaneada.startswith('data:image') %}
+      <a href="/regularizacao/membro/{{ m.id }}/escaneada" target="_blank"><img src="/regularizacao/membro/{{ m.id }}/escaneada" alt="Ficha impressa escaneada" style="max-width:100%;max-height:420px;border:1px solid var(--borda);border-radius:8px"></a>
+    {% else %}
+      <a class="botao secundario peq" href="/regularizacao/membro/{{ m.id }}/escaneada" target="_blank">📄 Abrir PDF da ficha</a>
+    {% endif %}
+  {% else %}<p class="suave">Nenhum escaneamento anexado.</p>{% endif %}
+  <form method="post" action="/regularizacao/membro/{{ m.id }}/escaneada/anexar" enctype="multipart/form-data" style="margin-top:.75rem">
+    {{ ui.csrf_input() }}
+    <input type="file" name="escaneada" accept="image/*,.pdf" capture="environment" required aria-label="Foto ou PDF da ficha impressa">
+    <div class="acoes"><button class="botao secundario peq">{{ '🔄 Substituir' if m.ficha_escaneada else '📎 Anexar' }} ficha escaneada</button></div>
+  </form>
+</div>
+
+{% if faltas %}
+<div class="cartao">
+  <h2 style="margin-top:0">Link exclusivo de atualização</h2>
+  {% if atual %}
+    <p>Válido até <b>{{ atual.expira_em|data_hora_br }}</b>.
+      {% if atual.enviado_em %}<span class="selo validado">Enviado ({{ atual.canais }}) em {{ atual.enviado_em|data_hora_br }}</span>
+      {% else %}<span class="selo aguardando">Ainda não enviado</span>{% endif %}</p>
+    <div class="acoes">
+      {% if atual.whatsapp %}
+      <form method="post" action="/regularizacao/link/{{ atual.id }}/whatsapp" target="_blank">{{ ui.csrf_input() }}
+        <button class="botao sucesso">📲 Enviar pelo WhatsApp</button></form>
+      {% endif %}
+      <button class="botao secundario" type="button" onclick="navigator.clipboard.writeText('{{ atual.link }}');this.textContent='Link copiado!'">🔗 Copiar link</button>
+      <form method="post" action="/regularizacao/link/{{ atual.id }}/revogar">{{ ui.csrf_input() }}
+        <button class="botao secundario" onclick="return confirm('Cancelar este link? Ele deixa de abrir.')">Cancelar link</button></form>
+    </div>
+  {% endif %}
+  <form method="post" action="/regularizacao/gerar" style="margin-top:.75rem">
+    {{ ui.csrf_input() }}
+    <input type="hidden" name="membro_id" value="{{ m.id }}">
+    <input type="hidden" name="voltar" value="/regularizacao/membro/{{ m.id }}">
+    <div class="grade c2" style="align-items:end">
+      <div><label for="prazo">Prazo (dias)</label>
+        <input type="number" id="prazo" name="prazo" min="1" max="180" value="{{ prazo_padrao }}" inputmode="numeric"></div>
+      <div class="acoes" style="margin:0">
+        <button class="botao" name="enviar" value="nao">🔗 {{ 'Gerar novo link' if atual else 'Gerar link' }}</button>
+        {% if email_ok or whatsapp_ok %}<button class="botao dourado" name="enviar" value="sim">📨 Gerar e enviar automático</button>{% endif %}
+      </div>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+{% if links %}
+<div class="cartao">
+  <h2 style="margin-top:0">Histórico de links</h2>
+  <table class="tabela responsiva">
+    <thead><tr><th>Gerado</th><th>Por</th><th>Prazo</th><th>Envio</th><th>Situação</th></tr></thead>
+    <tbody>{% for r in links %}<tr>
+      <td data-rotulo="Gerado">{{ r.criado_em|data_hora_br }}</td>
+      <td data-rotulo="Por">{{ r.criado_por or '—' }}</td>
+      <td data-rotulo="Prazo">{{ r.expira_em|data_hora_br }}</td>
+      <td data-rotulo="Envio">{{ (r.canais ~ ' · ' ~ (r.enviado_em|data_hora_br)) if r.enviado_em else '—' }}</td>
+      <td data-rotulo="Situação">{{ {'ativo': 'Válido', 'enviado': 'Válido', 'vencido': 'Prazo vencido', 'concluido': 'Atualizado', 'revogado': 'Cancelado'}[r.situacao] }}{% if r.desfecho %} · {{ 'em análise' if r.desfecho == 'em_analise' else 'inativado' }}{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
