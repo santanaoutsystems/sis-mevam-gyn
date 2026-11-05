@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Ministérios e Áreas{% endblock %}
+{% block conteudo %}
+<h1>Ministérios e Áreas</h1>
+<p class="suave" style="margin-top:0">Estrutura oficial do MEVAM GYN em {{ CATEGORIAS|length }} categorias ({{ total }} cadastradas). São as mesmas áreas da Agenda.
+  Quem coordena cada uma é definido em <a href="/coordenacao">🧭 Coordenação</a>.
+  <b>Estar numa área não dá acesso a nada:</b> o acesso vem só do perfil de cada usuário.</p>
+<details class="cartao">
+  <summary class="botao peq" style="display:inline-flex">➕ Nova área</summary>
+  <form method="post" action="/admin/setores/salvar" class="grade c3" style="align-items:end;margin-top:.75rem">
+    {{ ui.csrf_input() }}
+    <div><label for="s_nome">Nome <span class="obrig">*</span></label><input id="s_nome" name="nome" required minlength="2"></div>
+    <div><label for="s_cat">Categoria <span class="obrig">*</span></label>
+      <select id="s_cat" name="categoria" required><option value="">Escolha…</option>{% for c in CATEGORIAS %}<option>{{ c }}</option>{% endfor %}</select></div>
+    <div><label for="s_resp">Líder / responsável <span class="pequeno suave">(opcional)</span></label><input id="s_resp" name="responsavel"></div>
+    <button class="botao">Adicionar</button>
+  </form>
+</details>
+{% for categoria, lista in grupos %}
+<section class="cartao area-grupo">
+  <h2 style="margin-top:0">{{ categoria }} <span class="pequeno suave">({{ lista|length }})</span></h2>
+  {% if categoria == 'Fora da lista oficial' %}<p class="msg aviso pequeno">Estas áreas não estão na relação oficial. Escolha uma categoria para mantê-las, desative ou exclua (só se não tiver eventos).</p>{% endif %}
+  <ul class="lista">
+  {% for s in lista %}
+    <li id="a{{ s.id }}">
+      <form method="post" action="/admin/setores/salvar" class="grade c4 grade-area" style="align-items:end">
+        {{ ui.csrf_input() }}<input type="hidden" name="id" value="{{ s.id }}">
+        <div><label for="nome_{{ s.id }}">Nome</label><input id="nome_{{ s.id }}" name="nome" value="{{ s.nome }}" required minlength="2"></div>
+        <div><label for="cat_{{ s.id }}">Categoria</label>
+          <select id="cat_{{ s.id }}" name="categoria" required>{% if not s.categoria in CATEGORIAS %}<option value="">Escolha…</option>{% endif %}
+            {% for c in CATEGORIAS %}<option {{ 'selected' if c == s.categoria }}>{{ c }}</option>{% endfor %}</select></div>
+        <div><label for="resp_{{ s.id }}">Líder / responsável <span class="pequeno suave">(opcional)</span></label><input id="resp_{{ s.id }}" name="responsavel" value="{{ s.responsavel or '' }}"></div>
+        <div><label class="check" style="margin:0 0 .4rem"><input type="checkbox" name="ativo" value="1" {{ 'checked' if s.ativo is not false }}> Ativa</label>
+          <div class="acoes" style="margin:0"><button class="botao secundario peq">Salvar</button>
+          <button class="botao perigo peq" formaction="/admin/setores/{{ s.id }}/excluir" onclick="return confirm('Excluir {{ s.nome }}? Prefira desativar: o histórico fica guardado.')">Excluir</button></div></div>
+      </form>
+      <p class="pequeno" style="margin:.4rem 0 0">
+        {% if s.ativo is false %}<span class="selo inativo">Desativada</span> {% endif %}
+        🧭 Coordenação: {% if s.coordenadores %}<b>{{ s.coordenadores|join(', ') }}</b>{% else %}<span class="suave">ninguém ainda</span>{% endif %}
+        · 👥 {{ s.qtd }} membro{{ 's' if s.qtd != 1 }} · 📅 {{ s.eventos }} evento{{ 's' if s.eventos != 1 }}{% if s.lotados %} · 🪪 {{ s.lotados }} usuário{{ 's' if s.lotados != 1 }} lotado{{ 's' if s.lotados != 1 }}{% endif %}</p>
+    </li>
+  {% endfor %}
+  </ul>
+</section>
+{% else %}<div class="cartao suave">Nenhuma área cadastrada.</div>{% endfor %}
+{% endblock %}

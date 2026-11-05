@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titulo %}Possíveis duplicados{% endblock %}
+{% block conteudo %}
+<h1>🔁 Possíveis fichas duplicadas</h1>
+<p class="suave" style="margin-top:0">Fichas que parecem ser da mesma pessoa: nome parecido (abreviações contam) com a mesma data de nascimento,
+  ou o mesmo WhatsApp ou e-mail. Abra a ficha que deve sair e use <b>🔗 Juntar</b>: os dados que faltam passam para a ficha que fica,
+  e a repetida vai para a lixeira, de onde pode ser restaurada.</p>
+{% for g in grupos %}
+<div class="cartao">
+  {% for m in g %}
+  <p style="margin:.2rem 0"><a href="/membros/{{ m.id }}#duplicidade"><b>#{{ m.id }} · {{ m.nome_completo }}</b></a> · {{ m.status }}
+    <span class="pequeno suave">· {{ m.data_nascimento|data_br if m.data_nascimento else 'sem nascimento' }} · {{ m.whatsapp or 'sem WhatsApp' }}{{ ' · CPF informado' if m.cpf else ' · sem CPF' }}</span></p>
+  {% endfor %}
+  <p class="pequeno suave" style="margin:.3rem 0 0">Motivo: {{ g[0].motivo }}</p>
+</div>
+{% else %}
+<div class="cartao"><p>✅ Nenhuma ficha repetida encontrada.</p></div>
+{% endfor %}
+{% endblock %}

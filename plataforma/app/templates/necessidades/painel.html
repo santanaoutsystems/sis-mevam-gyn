@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block titulo %}Necessidades da igreja{% endblock %}
+{% block conteudo %}
+<h1>📊 Necessidades da igreja</h1>
+<p class="suave" style="margin-top:0">Respostas anônimas da pesquisa mensal. Use para direcionar conteúdos, cursos e programações.</p>
+<form method="get" class="cartao com-acao">
+  <label class="sr" for="mes">Mês</label>
+  <select id="mes" name="mes" onchange="this.form.submit()">{% for m, n in meses %}<option value="{{ m }}" {{ 'selected' if m == mes }}>{{ n|capitalize }}</option>{% endfor %}</select>
+  <noscript><button class="botao">Ver</button></noscript>
+</form>
+<div class="grade c3">
+  <div class="cartao numero"><b>{{ resumo.total }}</b><span>respostas em {{ nome_mes }}</span></div>
+  <div class="cartao numero"><b>{{ resumo.ranking[0].rotulo if resumo.ranking else '-' }}</b><span>maior necessidade</span></div>
+  <div class="cartao numero"><b>{{ resumo.bem }}</b><span>disseram "estou bem"</span></div>
+</div>
+<div class="cartao">
+  <h2>Ranking do mês</h2>
+  {% if resumo.ranking %}
+  <table class="tabela responsiva">
+    <thead><tr><th>Área</th><th>Pessoas</th><th>% de quem respondeu</th><th>Intensidade média (1 a 3)</th></tr></thead>
+    <tbody>{% for l in resumo.ranking %}<tr>
+      <td data-rotulo="Área"><b>{{ l.rotulo }}</b></td><td data-rotulo="Pessoas">{{ l.n }}</td>
+      <td data-rotulo="%"><div style="display:flex;align-items:center;gap:.5rem">
+        <div style="flex:1;max-width:220px;height:10px;border-radius:6px;background:var(--neutro-fundo)"><div style="width:{{ l.pct }}%;height:100%;border-radius:6px;background:var(--marca)"></div></div>{{ l.pct }}%</div></td>
+      <td data-rotulo="Intensidade">{{ l.media|string|replace('.', ',') }}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% else %}<p class="suave">Ainda não há respostas neste mês.</p>{% endif %}
+</div>
+{% if ultimos|length > 1 %}
+<div class="cartao">
+  <h2>Evolução (% de quem respondeu)</h2>
+  <div class="rolagem"><table class="tabela">
+    <thead><tr><th>Área</th>{% for m in ultimos %}<th>{{ nome_mes_curto(m) }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for k, ic, r in CATEGORIAS %}<tr><td>{{ ic }} {{ r }}</td>{% for m in ultimos %}<td>{{ evolucao[m].get(k, 0) }}%</td>{% endfor %}</tr>{% endfor %}
+      <tr><td class="suave">Respostas</td>{% for m in ultimos %}<td class="suave">{{ evolucao[m]._total }}</td>{% endfor %}</tr></tbody>
+  </table></div>
+</div>
+{% endif %}
+<div class="cartao">
+  <h2>Por faixa etária</h2>
+  {% for f in por_faixa %}<p><b>{{ f.faixa }}</b> <span class="suave">({{ f.n }} respostas)</span>:
+    {% for r, p in f.top %}{{ r }} {{ p }}%{{ ' · ' if not loop.last }}{% else %}<span class="suave">nenhuma necessidade marcada</span>{% endfor %}</p>
+  {% else %}<p class="suave">Ainda não há faixa com {{ MINIMO_GRUPO }} respostas ou mais.</p>{% endfor %}
+  {% if ocultas %}<p class="pequeno suave">{{ ocultas }} faixa(s) com menos de {{ MINIMO_GRUPO }} respostas não aparecem, para proteger quem respondeu.</p>{% endif %}
+</div>
+{% if ve_detalhes %}
+<div class="cartao">
+  <h2>🙋 Pediram para ser procurados ({{ contatos|length }})</h2>
+  {% for p in contatos %}<p><b>{{ p.nome }}</b> · {{ p.email }}<br><span class="pequeno suave">{{ p.areas|join(', ') or 'Sem área marcada' }}</span></p>
+  {% else %}<p class="suave">Ninguém pediu contato neste mês.</p>{% endfor %}
+</div>
+<div class="cartao">
+  <h2>💬 Comentários ({{ comentarios|length }})</h2>
+  <p class="pequeno suave" style="margin-top:0">Comentários anônimos. Só a Secretaria e o Adm veem esta parte.</p>
+  {% for t in comentarios %}<blockquote class="comentario">{{ t }}</blockquote>{% else %}<p class="suave">Nenhum comentário neste mês.</p>{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

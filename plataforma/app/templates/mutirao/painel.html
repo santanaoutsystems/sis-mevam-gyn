@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Mutirão de fichas{% endblock %}
+{% block conteudo %}
+<h1>📥 Mutirão de fichas</h1>
+<p class="suave">Para lançar fichas de papel antigas com a ajuda de voluntárias. Cada lote tem um link com código: as voluntárias abrem no celular, sem login, e digitam os dados de cada ficha. As fichas entram como <b>Validado pela Secretaria</b>, com o <b>INTEGRA concluído (registro histórico)</b>, prontas para o Credo.</p>
+
+<details class="cartao" {{ 'open' if not lotes }}>
+  <summary class="botao peq" style="display:inline-flex">➕ Novo lote</summary>
+  <form method="post" action="/mutirao/lotes" style="margin-top:.75rem">
+    {{ ui.csrf_input() }}
+    <div class="grade c2">
+      <div><label for="l_nome">Nome do lote <span class="obrig">*</span></label><input id="l_nome" name="nome" required maxlength="120" placeholder="Ex.: Fichas históricas 2026"></div>
+      <div><label for="l_dias">Link válido por</label><select id="l_dias" name="dias">{% for d in [7, 15, 30, 60, 90] %}<option value="{{ d }}" {{ 'selected' if d == VALIDADE }}>{{ d }} dias</option>{% endfor %}</select></div>
+    </div>
+    <label for="l_just">Justificativa do INTEGRA <span class="obrig">*</span></label>
+    <textarea id="l_just" name="justificativa" rows="2" required minlength="10">{{ JUSTIFICATIVA }}</textarea>
+    <p class="pequeno suave">Fica registrada em cada ficha do lote, no quadro 🎓 INTEGRA e na auditoria.</p>
+    <button class="botao">Criar lote e gerar link</button>
+  </form>
+</details>
+
+<div class="cartao">
+  <h2>Lotes</h2>
+  {% if lotes %}
+  <table class="tabela"><thead><tr><th>Lote</th><th>Código</th><th>Fichas</th><th>Credo assinado</th></tr></thead><tbody>
+  {% for l in lotes %}
+    <tr><td data-rotulo="Lote"><a href="/mutirao/lotes/{{ l.id }}">{{ l.nome }}</a><br><span class="pequeno suave">criado por {{ l.criado_por or '-' }}</span></td>
+      <td data-rotulo="Código"><code>{{ l.codigo }}</code> {% if l.vigente %}<span class="selo ativo">aberto</span>{% else %}<span class="selo inativo">encerrado</span>{% endif %}</td>
+      <td data-rotulo="Fichas">{{ l.total }}</td>
+      <td data-rotulo="Credo assinado">{{ l.assinadas }}</td></tr>
+  {% endfor %}
+  </tbody></table>
+  {% else %}<p class="suave">Nenhum lote criado.</p>{% endif %}
+</div>
+
+<div class="msg info">As digitalizações das fichas ficam no <b>Drive da Secretaria</b> (pasta do mutirão), não no sistema: assim o banco de dados não estoura o limite do plano gratuito. A voluntária informa o nome do arquivo para achar o original depois.</div>
+{% endblock %}

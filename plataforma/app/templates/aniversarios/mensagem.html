@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block titulo %}Mensagem de aniversário{% endblock %}
+{% block conteudo %}
+<h1>💬 Mensagem para {{ m.nome }}</h1>
+<p class="suave" style="margin-top:0">🎂 {{ quando.strftime('%d/%m') }} ·
+  {% if faltam == 0 %}<b>hoje!</b>{% elif faltam == 1 %}amanhã{% elif faltam > 1 %}em {{ faltam }} dias{% else %}foi há {{ -faltam }} dia(s){% endif %}
+  · {{ setores }}</p>
+{% if ja %}<div class="msg sucesso">✔ Já enviada este ano: {% for e in ja %}{{ e.usuario_nome }} por {{ CANAIS.get(e.canal, e.canal) }} em {{ e.enviado_em|data_hora_br }}{{ '; ' if not loop.last }}{% endfor %}.</div>{% endif %}
+
+<div class="grade-mensagem">
+<form class="cartao" method="post" action="/aniversariantes/{{ m.id }}/email" data-mensagem data-registrar="/aniversariantes/{{ m.id }}/registrar">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="modelo">Modelo</label>
+  <select id="modelo" onchange="location.href='?modelo='+this.value">
+    {% for x in mods %}<option value="{{ x.id }}" {{ 'selected' if x.id == mod.id }}>{{ x.titulo }}{{ ' (padrão)' if x.padrao }}</option>{% endfor %}
+  </select>
+  <label for="texto">Texto (pode editar antes de enviar)</label>
+  <textarea id="texto" name="texto" rows="8" maxlength="2000" required>{{ texto }}</textarea>
+  <p class="pequeno suave">Escolha como enviar. Ao enviar, o nome fica com ✔ no calendário para toda a equipe.</p>
+  <div class="acoes" style="margin-bottom:0">
+    {% if tem_whatsapp %}<a class="botao zap" href="{{ link_wa }}" target="_blank" rel="noopener" data-whatsapp data-numero="{{ numero_wa }}">💬 WhatsApp</a>
+    {% else %}<span class="botao secundario desativado" aria-disabled="true" title="Sem WhatsApp na ficha">💬 Sem WhatsApp</span>{% endif %}
+    {% if tem_email and email_ok %}<button class="botao secundario" type="submit">✉️ E-mail</button>
+    {% else %}<span class="botao secundario desativado" aria-disabled="true">✉️ {{ 'Sem e-mail na ficha' if not tem_email else 'E-mail indisponível' }}</span>{% endif %}
+    <button class="botao secundario" type="button" data-copiar>📋 Copiar</button>
+  </div>
+  <p class="msg sucesso pequeno" data-enviado hidden style="margin:.75rem 0 0">✔ Registrado. Obrigado por cuidar de {{ m.primeiro }}!</p>
+</form>
+<div class="cartao dica-mensagem">
+  <h2 style="margin-top:0">Dicas</h2>
+  <ul class="pequeno">
+    <li><b>WhatsApp</b> abre o seu WhatsApp com o texto pronto. A mensagem sai do seu celular.</li>
+    <li><b>E-mail</b> sai pelo e-mail da Secretaria, em nome do MEVAM GYN.</li>
+    <li><b>Copiar</b> serve para o grupo do ministério ou um cartão especial.</li>
+    <li>Nunca mencione a idade: a homenagem é à pessoa. 🎉</li>
+  </ul>
+</div>
+</div>
+{% endblock %}
