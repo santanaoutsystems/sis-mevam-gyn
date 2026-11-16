@@ -44,6 +44,12 @@
         {{ ui.campo('whatsapp', 'WhatsApp', mascara='telefone', dica='(62) 9 9999-9999', attrs='inputmode="tel"') }}
         {{ ui.campo('email', 'E-mail', tipo='email', attrs='autocapitalize="none"') }}
       </div>
+      <fieldset class="interesses" style="margin:.4rem 0 .8rem"><legend>Se for menor de 18 anos: responsável legal</legend>
+        {{ ui.campo('responsavel_nome', 'Nome completo do responsável', voz=True) }}
+        <div class="grade c2">{{ ui.campo('responsavel_telefone', 'WhatsApp do responsável', mascara='telefone') }}
+          {{ ui.campo('responsavel_parentesco', 'Parentesco (Pai, Mãe, Avô(ó), Tio(a), Tutor(a) legal, Outro)') }}</div>
+        <label class="check"><input type="checkbox" name="responsavel_ciencia" value="sim"> O responsável tem ciência e autoriza o cadastro.</label>
+      </fieldset>
       <p class="pequeno suave" style="margin-top:0">Informe pelo menos o WhatsApp ou o e-mail: é por eles que o membro recebe os links. Ficha sem CPF pode ser lançada: o membro recebe um link para completar os dados.</p>
       {% if not drive %}{{ ui.campo('arquivo', 'Nome do arquivo no Drive', voz='arquivo', dica='Ex.: Maria da Silva Souza.pdf') }}{% endif %}
       {% if erros.get('duplicada') %}

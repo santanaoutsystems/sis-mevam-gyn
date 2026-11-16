@@ -198,6 +198,7 @@
   <h2>1. Dados pessoais</h2>
   <div class="grade c2 pequeno">
     <div><b>CPF:</b> {% if m.cpf %}{{ m.cpf|cpf }}{% elif propria %}<a href="/meu-cpf">Informar meu CPF</a>{% else %}<span class="suave">Não informado</span>{% endif %}</div>
+    {% if m.responsavel_nome %}<div><b>Responsável legal:</b> {{ m.responsavel_nome }} ({{ m.responsavel_parentesco or '-' }}) · {{ m.responsavel_telefone or '-' }}{% if m.responsavel_cpf %} · CPF {{ m.responsavel_cpf }}{% endif %}{% if m.responsavel_ciencia_em %} · ciência em {{ m.responsavel_ciencia_em|data_hora_br }}{% endif %}</div>{% endif %}
     <div><b>Nascimento:</b> {{ m.data_nascimento|data_br or '-' }}</div>
     <div><b>Naturalidade:</b> {{ m.naturalidade or '-' }}</div>
     <div><b>Sexo:</b> {{ m.sexo or '-' }}</div>

@@ -123,6 +123,35 @@ def nome_proprio(v: str) -> str:
                     for i, p in enumerate(partes) if p)
 
 
+RESPONSAVEL_CAMPOS = ("responsavel_nome", "responsavel_telefone", "responsavel_parentesco")
+PARENTESCOS = ("Pai", "Mãe", "Avô(ó)", "Tio(a)", "Tutor(a) legal", "Outro")
+
+
+def validar_responsavel(form, nasc, erros: dict) -> dict:
+    """Responsável legal (LGPD: consentimento de quem tem menos de 18 anos). Obrigatório abaixo de 18."""
+    dados = {k: (form.get(k) or "").strip()[:120] or None for k in RESPONSAVEL_CAMPOS}
+    dados["responsavel_cpf"] = so_digitos(form.get("responsavel_cpf") or "")[:11] or None
+    dados["responsavel_ciencia_em"] = None
+    menor = bool(nasc) and (datas.idade(nasc) or 0) < 18
+    if dados["responsavel_nome"]:
+        dados["responsavel_nome"] = nome_proprio(dados["responsavel_nome"])
+    if not menor:
+        return dados
+    if not dados["responsavel_nome"] or len(dados["responsavel_nome"].split()) < 2:
+        erros["responsavel_nome"] = "Menor de 18 anos: informe o nome completo do responsável legal."
+    if not dados["responsavel_telefone"] or not telefone_valido(dados["responsavel_telefone"]):
+        erros["responsavel_telefone"] = "Menor de 18 anos: informe o WhatsApp do responsável (DDD + 9 dígitos)."
+    if dados["responsavel_parentesco"] not in PARENTESCOS:
+        erros["responsavel_parentesco"] = "Informe o parentesco ou a relação com o responsável."
+    if dados["responsavel_cpf"] and not cpf_valido(dados["responsavel_cpf"]):
+        erros["responsavel_cpf"] = "CPF do responsável inválido."
+    if (form.get("responsavel_ciencia") or "") != "sim":
+        erros["responsavel_ciencia"] = "O responsável precisa ter ciência e autorizar o cadastro (LGPD)."
+    else:
+        dados["responsavel_ciencia_em"] = datas.agora_utc()
+    return dados
+
+
 def validar(form, exigir_foto: bool = True, exigir_lgpd: bool = True, exigir_cpf: bool = True) -> tuple[dict, dict]:
     """Recebe o formulário e devolve (dados normalizados, erros por campo)."""
     dados: dict = {}
@@ -182,6 +211,7 @@ def validar(form, exigir_foto: bool = True, exigir_lgpd: bool = True, exigir_cpf
     elif nasc > datas.hoje() or nasc.year < 1900:
         erros["data_nascimento"] = "Data de nascimento fora do intervalo permitido."
     dados["data_nascimento"] = nasc
+    dados.update(validar_responsavel(form, nasc, erros))
 
     dados["data_batismo"] = None
     if dados["batizado"] == "Sim":

@@ -426,7 +426,8 @@ async def zap_acao(request: Request):
                                                             "texto": texto})
 
 
-CAMPOS = ("nome_completo", "data_nascimento", "cpf", "whatsapp", "email", "arquivo", "outra_pessoa")
+CAMPOS = ("nome_completo", "data_nascimento", "cpf", "whatsapp", "email", "arquivo", "outra_pessoa",
+          "responsavel_nome", "responsavel_telefone", "responsavel_parentesco", "responsavel_cpf", "responsavel_ciencia")
 
 
 def _validar_ficha(c, valores: dict) -> tuple[dict, dict]:
@@ -439,6 +440,8 @@ def _validar_ficha(c, valores: dict) -> tuple[dict, dict]:
         erros["data_nascimento"] = "Data de nascimento inválida (dd/mm/aaaa)."
     elif (integra.idade(nasc) or 0) < integra.IDADE_MINIMA:
         erros["data_nascimento"] = "Menor de 15 anos: não lance. Separe esta ficha para a Secretaria."
+    elif (integra.idade(nasc) or 0) < 18:
+        ficha.validar_responsavel(valores, nasc, erros)
     cpf = ficha.so_digitos(valores["cpf"])
     if cpf and not ficha.cpf_valido(cpf):
         erros["cpf"] = ficha.ERRO_CPF + " Se a ficha não tiver CPF, deixe em branco."
@@ -462,6 +465,7 @@ def _validar_ficha(c, valores: dict) -> tuple[dict, dict]:
                                           f"({p['motivo']}). Não lance de novo; separe a ficha para a Secretaria.")
                 erros["duplicada"] = "sim"
     dados = {"nome_completo": nome, "data_nascimento": nasc, "cpf": cpf or None, "email": email or None,
+             **(ficha.validar_responsavel(valores, nasc, {}) if (integra.idade(nasc) or 0) < 18 else {}),
              "whatsapp": ficha.fmt_telefone(whats) if whats else None,
              "ocr_documento_nome": valores["arquivo"][:200] or None}
     return dados, erros

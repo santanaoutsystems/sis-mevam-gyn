@@ -61,6 +61,20 @@
       {{ ui.campo('cpf', 'CPF', obrig=(modo != 'editar'), mascara='cpf') }}
       {{ ui.campo('data_nascimento', 'Data de nascimento', obrig=True, mascara='data', voz=True) }}
     </div>
+    <fieldset class="interesses" id="blocoResponsavel" style="margin-top:.6rem">
+      <legend>Responsável legal (obrigatório para menores de 18 anos)</legend>
+      <p class="pequeno suave" style="margin:0 0 .5rem">Para quem tem menos de 18 anos, o responsável precisa ter ciência do cadastro. Os dados são usados só pela Secretaria.</p>
+      {{ ui.campo('responsavel_nome', 'Nome completo do responsável', voz=True) }}
+      <div class="grade c2">
+        {{ ui.campo('responsavel_telefone', 'WhatsApp do responsável', mascara='telefone', dica='(62) 9 9999-9999') }}
+        {{ ui.campo('responsavel_cpf', 'CPF do responsável (opcional)', mascara='cpf') }}
+      </div>
+      {{ ui.selecao('responsavel_parentesco', 'Parentesco ou relação', ['Pai', 'Mãe', 'Avô(ó)', 'Tio(a)', 'Tutor(a) legal', 'Outro']) }}
+      <div class="{{ 'campo-erro' if erros.get('responsavel_ciencia') }}">
+        <label class="check"><input type="checkbox" name="responsavel_ciencia" value="sim" {{ 'checked' if valores.get('responsavel_ciencia_em') }}> O responsável tem ciência e autoriza este cadastro.</label>
+        {% if erros.get('responsavel_ciencia') %}<div class="erro-campo">{{ erros.responsavel_ciencia }}</div>{% endif %}
+      </div>
+    </fieldset>
     {{ ui.campo('naturalidade', 'Naturalidade', obrig=True, voz=True, dica='Ex: Goiânia - GO') }}
     {{ ui.radios('sexo', 'Sexo', SEXOS, obrig=True) }}
     <div class="grade c2">

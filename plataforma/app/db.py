@@ -124,6 +124,12 @@ membros = Table(
     Column("data_nascimento", Date), Column("naturalidade", String), Column("sexo", String),
     Column("estado_civil", String), Column("conjuge", String),
     Column("filhos", JSON),  # [{"nome":..., "data_nascimento":"dd/mm/aaaa"}]
+    # v2.17.0: responsável legal de quem tem menos de 18 anos (migração 018)
+    Column("responsavel_nome", String(120)),
+    Column("responsavel_cpf", String(14)),
+    Column("responsavel_telefone", String(30)),
+    Column("responsavel_parentesco", String(40)),
+    Column("responsavel_ciencia_em", DateTime(timezone=True)),
     # 2. Contato e profissão
     Column("email", String), Column("telefone", String), Column("whatsapp", String),
     Column("escolaridade", String), Column("formacao_academica", String),
@@ -572,7 +578,7 @@ def aplicar_migracoes_aditivas() -> None:
     for nome in ("003_coordenacao.sql", "004_setor_texto.sql", "005_colunas_agenda.sql", "006_cpf.sql", "007_regularizacao.sql",
                  "008_lembretes_interesses.sql", "009_relatorios_salvos.sql", "010_aniversariantes.sql",
                  "011_uso_servicos.sql", "012_coordenacao_membros.sql", "013_fase_a.sql", "014_integra.sql",
-                 "015_mutirao.sql", "016_areas.sql", "017_whatsapp_fila.sql"):
+                 "015_mutirao.sql", "016_areas.sql", "017_whatsapp_fila.sql", "018_responsavel.sql"):
         try:
             with open(os.path.join(pasta, nome), encoding="utf-8") as f:
                 sql = f.read()
