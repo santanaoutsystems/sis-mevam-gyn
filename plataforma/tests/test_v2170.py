@@ -35,3 +35,12 @@ def test_pediram_sair_aparece_na_lista_e_na_ficha():
     assert "Pediram SAIR no WhatsApp (1)" in sec.get("/membros").text
     assert "Pessoa Que Saiu" in sec.get("/membros/pediram-sair").text
     assert "Pediu SAIR no WhatsApp" in sec.get(f"/membros/{mid}").text
+
+
+def test_ficha_incompleta_mostra_excluir_em_destaque():
+    with db.engine().begin() as c:
+        mid = c.execute(insert(db.membros).values(nome_completo="Sem Contato Mais", status="Aguardando Análise",
+              data_registro=datas.hoje(), lgpd_consentimento=True, filhos=[],
+              criado_em=datas.agora_utc(), atualizado_em=datas.agora_utc())).inserted_primary_key[0]
+    sec = logado("secretaria")
+    assert "Excluir ficha incompleta" in sec.get(f"/membros/{mid}").text

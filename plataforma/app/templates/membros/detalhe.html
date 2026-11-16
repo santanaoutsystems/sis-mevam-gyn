@@ -52,6 +52,8 @@
       <a class="botao secundario peq" href="/membros/{{ m.id }}/pdf" target="_blank">🖨️ PDF da ficha</a>
       {% if not propria and m.status not in ('Anonimizado (LGPD)', 'Excluído') %}<a class="botao secundario peq" href="/membros/{{ m.id }}/editar">✏️ Editar</a>
       <a class="botao secundario peq" href="/regularizacao/membro/{{ m.id }}">📋 Regularização</a>{% endif %}
+      {% if not propria and m.status in ('Aguardando Análise', 'N/C INTEGRA') and not m.credo_aceito and not m.login_suspenso %}
+      <a class="botao perigo peq" href="#excluir" title="Ficha incompleta: a Secretaria pode mandar para a lixeira">🗑️ Excluir ficha incompleta</a>{% endif %}
     </div>
   </div>
 </div>
