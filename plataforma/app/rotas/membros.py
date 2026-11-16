@@ -205,7 +205,7 @@ async def ficha_publica(request: Request):
     erros.update(erros_integra)
     if dados.get("data_nascimento") and not erros.get("data_nascimento") \
             and (integra.idade(dados["data_nascimento"]) or 0) < integra.IDADE_MINIMA:
-        erros["data_nascimento"] = ("O cadastro de membro é a partir de 18 anos. "
+        erros["data_nascimento"] = ("O cadastro de membro é a partir de 15 anos. "
                                     "Menores de idade devem procurar a Secretaria com o responsável.")
     if erros:
         valores = dict(form)
@@ -317,6 +317,8 @@ async def lista(request: Request):
     with db.engine().connect() as c:
         linhas = _membros(c, com_setores=True)
         n_duplicados = len(duplicidade.grupos(c))
+        n_sair = c.execute(select(func.count()).select_from(db.membros).where(
+            db.membros.c.whatsapp_situacao == "nao_quer", db.membros.c.status.notin_(db.STATUS_FORA))).scalar() or 0
     contagem = {}
     for l in linhas:
         contagem[l["status"]] = contagem.get(l["status"], 0) + 1
@@ -338,7 +340,7 @@ async def lista(request: Request):
                         headers={"Content-Disposition": f'attachment; filename="{nome}"', "Cache-Control": "no-store"})
     status_ativo = (estado["filtros"].get("status") or {}).get("em", [])
     return render(request, "membros/lista.html", {
-        "t": t, "busca": busca, "contagem": contagem, "STATUS": db.STATUS_MEMBRO, "n_duplicados": n_duplicados,
+        "t": t, "busca": busca, "contagem": contagem, "STATUS": db.STATUS_MEMBRO, "n_duplicados": n_duplicados, "n_sair": n_sair,
         "status_ativo": status_ativo[0] if len(status_ativo) == 1 else "", "emitido": datas.agora()})
 
 
@@ -940,6 +942,20 @@ async def juntar(request: Request):
                    f"passaram para esta ficha.")
     return ir(f"/membros/{alvo}")
 
+# ---------------------------------------------------------------------------
+# Quem respondeu SAIR no WhatsApp (v2.17.0): a Secretaria encontra a lista e decide (inativar ou excluir).
+# ---------------------------------------------------------------------------
+@seguranca.exigir(*ADMIN_SECRETARIA)
+async def pediram_sair(request: Request):
+    with db.engine().connect() as c:
+        linhas = [dict(r) for r in c.execute(select(db.membros.c.id, db.membros.c.nome_completo, db.membros.c.status,
+                    db.membros.c.whatsapp, db.membros.c.cpf, db.membros.c.whatsapp_situacao_em)
+                    .where(db.membros.c.whatsapp_situacao == "nao_quer",
+                           db.membros.c.status.notin_(db.STATUS_FORA))
+                    .order_by(db.membros.c.whatsapp_situacao_em.desc())).mappings()]
+    return render(request, "membros/pediram_sair.html", {"linhas": linhas})
+
+
 from ..web import templates  # noqa: E402
 
 templates.env.globals["whatsapp_credo"] = whatsapp_credo
@@ -954,6 +970,7 @@ rotas = [
     Route("/membros/exportar.csv", exportar_csv),
     Route("/membros/lixeira", lixeira),
     Route("/membros/duplicados", duplicados),
+    Route("/membros/pediram-sair", pediram_sair),
     Route("/membros/{id:int}", detalhe),
     Route("/membros/{id:int}/editar", editar, methods=["GET", "POST"]),
     Route("/membros/{id:int}/validar", validar, methods=["POST"]),

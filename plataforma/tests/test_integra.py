@@ -49,9 +49,9 @@ def test_ficha_exige_resposta_codigo_existente_e_maioridade():
     assert enviar_ficha(cli, integra="").status_code == 400
     r = enviar_ficha(cli, integra_codigo="ZZZZZZ")
     assert r.status_code == 400 and "Código não encontrado" in r.text
-    menor = (datas.hoje() - timedelta(days=17 * 365)).strftime("%d/%m/%Y")
+    menor = (datas.hoje() - timedelta(days=14 * 365)).strftime("%d/%m/%Y")
     r = enviar_ficha(cli, data_nascimento=menor)
-    assert r.status_code == 400 and "a partir de 18 anos" in r.text
+    assert r.status_code == 400 and "a partir de 15 anos" in r.text
 
 
 def test_nc_integra_nao_valida_ate_secretaria_registrar():

@@ -38,7 +38,7 @@ SITUACOES = {
     None: "Não informado",
 }
 LIBERADO = ("concluido", "dispensado")  # pode seguir para análise e ter acesso
-IDADE_MINIMA = 18
+IDADE_MINIMA = 15  # v2.17.0: jovens a partir de 15 anos (Ricardo, 16/11). Abaixo de 18: ver responsável
 PRAZO_DIAS = 30
 LEMBRETE_DIA = 25
 LIMITE_DIARIO = 80  # cota do Gmail da Secretaria

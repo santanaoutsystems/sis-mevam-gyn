@@ -45,6 +45,7 @@
     <span class="pequeno suave">Protocolo #{{ m.id }} · registrado em {{ m.data_registro|data_br }}</span>
     <h1>{{ m.nome_completo }}</h1>
     {{ ui.selo(m.status) }}
+    {% if m.whatsapp_situacao == 'nao_quer' %}<span class="selo inativo">📵 Pediu SAIR no WhatsApp</span>{% endif %}
     {% if m.credo_aceito %}<span class="selo ativo">✍️ Credo assinado em {{ m.data_assinatura|data_hora_br }}</span>{% endif %}
     {% if setores %}<p class="pequeno">Ministérios e Áreas: {% for s in setores %}<span class="selo validado">{{ s.nome }} · {{ s.funcao }}</span> {% endfor %}</p>{% endif %}
     <div class="acoes">

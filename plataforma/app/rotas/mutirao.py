@@ -438,7 +438,7 @@ def _validar_ficha(c, valores: dict) -> tuple[dict, dict]:
     if not nasc or nasc > datas.hoje() or nasc.year < 1900:
         erros["data_nascimento"] = "Data de nascimento inválida (dd/mm/aaaa)."
     elif (integra.idade(nasc) or 0) < integra.IDADE_MINIMA:
-        erros["data_nascimento"] = "Menor de 18 anos: não lance. Separe esta ficha para a Secretaria."
+        erros["data_nascimento"] = "Menor de 15 anos: não lance. Separe esta ficha para a Secretaria."
     cpf = ficha.so_digitos(valores["cpf"])
     if cpf and not ficha.cpf_valido(cpf):
         erros["cpf"] = ficha.ERRO_CPF + " Se a ficha não tiver CPF, deixe em branco."

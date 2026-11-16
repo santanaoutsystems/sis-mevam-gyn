@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titulo %}Pediram SAIR no WhatsApp{% endblock %}
+{% block conteudo %}
+<h1>📵 Pediram SAIR no WhatsApp</h1>
+<p class="suave" style="margin-top:0">Estas pessoas responderam <b>SAIR</b> à mensagem da Secretaria. Elas saíram da fila de envios, mas a ficha continua no sistema.
+  Decida caso a caso: <b>⏸️ Inativar</b> (a ficha fica guardada) ou <b>🗑️ Excluir</b> (vai para a lixeira). Abra a ficha para agir.</p>
+{% for l in linhas %}
+<div class="cartao">
+  <p style="margin:.2rem 0"><a href="/membros/{{ l.id }}"><b>#{{ l.id }} · {{ l.nome_completo }}</b></a> · {{ l.status }}
+    <span class="pequeno suave">· {{ l.whatsapp or 'sem WhatsApp' }}{{ ' · CPF informado' if l.cpf else ' · sem CPF' }}{% if l.whatsapp_situacao_em %} · respondeu em {{ l.whatsapp_situacao_em|data_hora_br }}{% endif %}</span></p>
+</div>
+{% else %}
+<div class="cartao"><p>✅ Ninguém pediu para sair do WhatsApp.</p></div>
+{% endfor %}
+{% endblock %}

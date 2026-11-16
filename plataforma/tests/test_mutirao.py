@@ -75,9 +75,9 @@ def test_regras_duplicada_menor_contato_e_conferencia():
     assert r.status_code == 400 and "CPF" in r.text
     r = _lancar(cli, lt["codigo"])  # mesmo nome e nascimento
     assert r.status_code == 400 and "já está no sistema" in r.text
-    menor = (datas.hoje() - timedelta(days=16 * 365)).strftime("%d/%m/%Y")
+    menor = (datas.hoje() - timedelta(days=14 * 365)).strftime("%d/%m/%Y")
     r = _lancar(cli, lt["codigo"], nome_completo="Pedro Menor", data_nascimento=menor)
-    assert r.status_code == 400 and "Menor de 18 anos" in r.text
+    assert r.status_code == 400 and "Menor de 15 anos" in r.text
     r = _lancar(cli, lt["codigo"], nome_completo="Sem Contato", whatsapp="", email="")
     assert r.status_code == 400 and "WhatsApp ou o e-mail" in r.text
     r = _lancar(cli, lt["codigo"], nome_completo="Nao Conferiu", conferido="")
