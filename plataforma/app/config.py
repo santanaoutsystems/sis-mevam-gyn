@@ -48,7 +48,7 @@ if not SECRET_KEY:
 FUSO_HORARIO = "America/Sao_Paulo"
 URL_BASE = os.getenv("URL_BASE", "http://localhost:8000").rstrip("/")
 
-VERSAO = "2.16.3"
+VERSAO = "2.17.0"
 
 # Sessão
 # Sem uso por este tempo, o acesso é bloqueado e é preciso entrar de novo.
