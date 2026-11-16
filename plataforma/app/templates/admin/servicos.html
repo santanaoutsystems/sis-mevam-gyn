@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block titulo %}Uso dos serviços{% endblock %}
+{% block conteudo %}
+<h1>📶 Uso dos serviços</h1>
+<p class="suave" style="margin-top:0">Consumo dos planos gratuitos que mantêm o sistema no ar. Confira antes de cada atualização.
+  🟢 até 70% · 🟡 de 70% a 90% · 🔴 acima de 90% (risco de bloqueio).</p>
+
+{% for i in p.itens %}
+<div class="cartao uso-item {{ i.nivel }}">
+  <div class="uso-topo"><b>{{ '🔴' if i.nivel == 'vermelho' else '🟡' if i.nivel == 'amarelo' else '🟢' }} {{ i.nome }}</b>
+    <span><b>{{ i.usado | string | replace('.', ',') }}</b> de {{ i.limite | string | replace('.', ',') }} {{ i.unidade }} · {{ i.pct_real | string | replace('.', ',') }}%</span></div>
+  <div class="uso-barra"><div style="width:{{ i.pct }}%"></div></div>
+  <p class="pequeno">{{ i.detalhe }}{% if i.projecao is not none %} Previsão para o fim do mês: <b>{{ i.projecao | string | replace('.', ',') }} {{ i.unidade }}</b>.{% endif %}</p>
+</div>
+{% endfor %}
+
+<div class="grade-2">
+<div class="cartao">
+  <h2>E-mails por dia (30 dias)</h2>
+  <p class="pequeno">Canal atual: <b>{{ canal_email }}</b>. Falhas hoje: <b>{{ p.falhas_hoje }}</b>.</p>
+  <div class="uso-dias">{% set mx = (p.emails_30 | map(attribute=1) | max) or 1 %}
+    {% for d, n in p.emails_30 %}<div title="{{ d.strftime('%d/%m') }}: {{ n }}"><span style="height:{{ (n * 100 / mx) | round }}%"></span><small>{{ d.strftime('%d') }}</small></div>{% endfor %}
+  </div>
+</div>
+<div class="cartao">
+  <h2>Maiores tabelas do banco</h2>
+  {% if p.banco.tabelas %}
+  <table class="tabela"><tbody>{% for n, b in p.banco.tabelas %}<tr><td>{{ n }}</td><td style="text-align:right">{{ '%.1f' % (b / 1048576) }} MB</td></tr>{% endfor %}</tbody></table>
+  {% else %}<p class="pequeno">Disponível só no Supabase.</p>{% endif %}
+</div>
+</div>
+
+<div class="cartao">
+  <h2>O que não dá para medir daqui</h2>
+  <ul class="pequeno">
+    <li><b>Supabase · tráfego de saída (egress)</b>: limite de 5 GB por mês. Veja em <i>Supabase › Project › Usage</i>.</li>
+    <li><b>Render · minutos de build</b>: 500 por mês, gastos em cada publicação. Veja em <i>Render › Billing</i>.</li>
+    <li><b>UptimeRobot</b>: deve mostrar o /healthz no ar. Se ele parar, o Render dorme e o Supabase pode pausar após 7 dias sem uso.</li>
+  </ul>
+  <p class="pequeno">Servidor no ar desde {{ p.no_ar_desde.strftime('%d/%m/%Y %H:%M') }} · {{ p.requisicoes_hoje }} acessos hoje.</p>
+</div>
+{% endblock %}

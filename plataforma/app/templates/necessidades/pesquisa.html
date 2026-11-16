@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Pesquisa do mês{% endblock %}
+{% block conteudo %}
+<h1>📝 Pesquisa do mês</h1>
+<p class="suave" style="margin-top:0">Pesquisa de {{ mes }}. A liderança usa as respostas para planejar cultos, cursos, encontros e cuidado pastoral.</p>
+{% if respondida %}
+<div class="cartao">
+  <h2>Obrigado!</h2>
+  <p>Você já respondeu a pesquisa de {{ mes }}. A próxima abre no dia 1º do mês que vem.</p>
+  <a class="botao secundario" href="/inicio">Voltar ao início</a>
+</div>
+{% else %}
+<form method="post" class="cartao pesquisa-necessidades">
+  {{ ui.csrf_input() }}
+  <div class="msg info" role="note">🔒 <b>Sua resposta é anônima.</b> A liderança vê só os números, nunca quem respondeu, a não ser que você peça para ser procurado no fim.</div>
+  {% if erro %}<div class="msg erro" role="alert">{{ erro }}</div>{% endif %}
+  <fieldset>
+    <legend><b>Em que áreas você precisa de apoio neste mês?</b> <span class="pequeno suave">(marque quantas quiser)</span></legend>
+    <div class="lista-necessidades">
+    {% for k, ic, rotulo in CATEGORIAS %}
+      <div class="necessidade">
+        <label class="check"><input type="checkbox" name="cat_{{ k }}" value="1" data-cat="{{ k }}"> <span><span aria-hidden="true">{{ ic }}</span> {{ rotulo }}</span></label>
+        <label class="sr" for="int_{{ k }}">Quanto, em {{ rotulo }}</label>
+        <select name="int_{{ k }}" id="int_{{ k }}" disabled>
+          {% for v, r in INTENSIDADES %}<option value="{{ v }}" {{ 'selected' if v == 2 }}>{{ r }}</option>{% endfor %}
+        </select>
+      </div>
+    {% endfor %}
+    </div>
+    <label class="check" style="margin-top:.6rem"><input type="checkbox" name="nenhuma" value="sim"> <span>🙌 Neste mês estou bem</span></label>
+  </fieldset>
+  <label for="comentario" style="margin-top:1rem">Quer contar mais? <span class="pequeno suave">(opcional; não escreva nomes de outras pessoas)</span></label>
+  <textarea id="comentario" name="comentario" rows="3" maxlength="1000" data-voz></textarea>
+  <label class="check" style="margin-top:.8rem"><input type="checkbox" name="quer_contato" value="sim">
+    <span>Quero que alguém da igreja me procure<br><span class="pequeno suave">Marcado, seu nome e as áreas escolhidas vão para a Secretaria. O comentário continua sem nome.</span></span></label>
+  <div class="acoes"><button class="botao">Enviar resposta</button></div>
+</form>
+<script>
+document.querySelectorAll("[data-cat]").forEach(function (c) {
+  var s = document.getElementById("int_" + c.dataset.cat);
+  c.addEventListener("change", function () { s.disabled = !c.checked; });
+});
+</script>
+{% endif %}
+{% endblock %}

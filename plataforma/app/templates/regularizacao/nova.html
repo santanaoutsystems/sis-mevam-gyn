@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Cadastrar ficha antiga{% endblock %}
+{% block conteudo %}
+<div class="cartao" style="max-width:720px">
+  <h1>Cadastrar ficha antiga</h1>
+  <p class="suave" style="margin-top:0">Digite o que estiver legível na ficha impressa e anexe a foto ou o PDF dela.
+    O membro completa o resto pelo link exclusivo.</p>
+  {% if erros %}<div class="msg erro">Confira os campos destacados.</div>{% endif %}
+  <form method="post" enctype="multipart/form-data">
+    {{ ui.csrf_input() }}
+    {{ ui.campo('nome_completo', 'Nome completo', obrig=True, voz=True) }}
+    <div class="grade c2">
+      {{ ui.campo('whatsapp', 'WhatsApp', tipo='tel', mascara='telefone') }}
+      {{ ui.campo('email', 'E-mail', tipo='email') }}
+      {{ ui.campo('data_nascimento', 'Data de nascimento', mascara='data') }}
+      {{ ui.campo('cpf', 'CPF (se constar na ficha)', mascara='cpf') }}
+    </div>
+    <div class="{{ 'campo-erro' if erros.get('escaneada') }}">
+      <label for="escaneada">Ficha impressa escaneada (foto ou PDF)</label>
+      <input type="file" id="escaneada" name="escaneada" accept="image/*,.pdf" capture="environment">
+      {% if erros.get('escaneada') %}<div class="erro-campo">{{ erros.escaneada }}</div>{% endif %}
+      <p class="pequeno suave">Fotos grandes são reduzidas automaticamente. Máximo 6 MB.</p>
+    </div>
+    <p class="pequeno suave">Para mandar o link, informe ao menos o WhatsApp ou o e-mail.</p>
+    <div class="acoes">
+      <button class="botao" name="proxima" value="nao">💾 Salvar</button>
+      <button class="botao secundario" name="proxima" value="sim">💾 Salvar e cadastrar outra</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

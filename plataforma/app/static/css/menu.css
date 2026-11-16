@@ -1,0 +1,148 @@
+/* SIS MEVAM-GYN · Menu lateral (fixo no PC, gaveta no celular)
+   Cores só por variáveis: cada uma herda um token de app.css, que já tem versão dia e noite
+   com contraste AA (4,5:1). Tamanhos em rem para acompanhar "Letras maiores". */
+
+:root {
+  --menu-largura: 264px;
+  --menu-texto: var(--t-principal);
+  --menu-texto-2: var(--t-suave);
+  --menu-linha: var(--borda);
+  --menu-campo: var(--superficie-2);
+  --menu-cartao: var(--superficie);
+  --menu-cabecalho: var(--gradiente);
+  --menu-ativo-texto: #ffffff;              /* sobre o degradê: ≥ 5,1:1 até no tom mais claro (#2563eb) */
+  --menu-sub-hover: rgba(30, 58, 138, .08);
+  --menu-sub-hover-texto: var(--t-titulo);
+  --menu-sair: var(--t-perigo);
+}
+html[data-tema="escuro"] { --menu-sub-hover: rgba(147, 197, 253, .12); }
+@media (prefers-color-scheme: dark) { html:not([data-tema="claro"]) { --menu-sub-hover: rgba(147, 197, 253, .12); } }
+@media (min-width: 1500px) { :root { --menu-largura: 284px; } }
+
+/* Letras maiores: todo o sistema cresce junto (rem) */
+html[data-letras="maior"] { font-size: 112.5%; }
+
+/* ---------- Estrutura do menu ---------- */
+.menu {
+  position: fixed; top: 0; bottom: 0; left: 0; z-index: 50; width: var(--menu-largura);
+  display: flex; flex-direction: column; background: var(--menu-cartao); color: var(--menu-texto);
+  border-right: 1px solid var(--menu-linha);
+}
+.menu-marca {
+  display: flex; align-items: center; gap: .75rem; padding: 1rem 1rem;
+  padding-top: calc(1rem + env(safe-area-inset-top)); background: var(--menu-cabecalho); color: #fff;
+}
+.menu-marca img { width: 44px; height: 44px; border-radius: 12px; flex: none; object-fit: cover;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.85), 0 0 0 4px var(--ouro); }
+.menu-marca-txt { min-width: 0; line-height: 1.2; }
+.menu-marca-txt b { display: block; font-family: "Outfit", sans-serif; font-weight: 800; font-size: 1.05rem; color: #fff; }
+.menu-marca-txt small { display: block; font-size: .75rem; color: #dbe4f5; }
+.menu-fechar { display: none; margin-left: auto; background: rgba(255,255,255,.14); color: #fff; border: 0; border-radius: 12px;
+  min-width: 44px; min-height: 44px; font-size: 1.1rem; cursor: pointer; }
+
+.menu-usuario { display: flex; align-items: center; gap: .5rem; padding: .8rem 1.1rem; border-bottom: 1px solid var(--menu-linha); }
+.menu-usuario > div { flex: 1; min-width: 0; line-height: 1.25; }
+.menu-usuario b { display: block; font-size: 1rem; font-weight: 800; color: var(--menu-texto); }
+.menu-usuario span { display: block; font-size: .8rem; color: var(--menu-texto-2); }
+
+/* Botão dia/noite sempre à vista, ao lado do sino */
+.menu-tema-rapido { flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px;
+  border-radius: 12px; background: var(--menu-campo); border: 1px solid var(--menu-linha); color: var(--menu-texto);
+  font-size: 1.15rem; line-height: 1; cursor: pointer; }
+.menu-tema-rapido:hover { background: var(--menu-sub-hover); }
+.menu-tema-rapido:focus-visible { outline: 3px solid var(--foco); outline-offset: 1px; }
+
+.menu-itens { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: .6rem .6rem; display: flex; flex-direction: column; gap: .2rem; }
+
+/* Itens principais: soltos e cabeçalhos de grupo */
+.menu-item {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 50px; padding: 10px 12px; border-radius: 14px;
+  font: inherit; font-size: 1rem; font-weight: 800; color: var(--menu-texto); text-decoration: none; text-align: left;
+  background: transparent; border: 0; cursor: pointer;
+}
+.menu-item .ic, .menu-subitem .ic { flex: none; width: 26px; text-align: center; font-size: 1.1875rem; line-height: 1; }
+.menu-item .txt { flex: 1; min-width: 0; }
+.menu-item:hover { background: var(--menu-campo); }
+.menu-item:focus-visible, .menu-subitem:focus-visible, .atalho:focus-visible { outline: 3px solid var(--foco); outline-offset: 1px; }
+
+/* Seta do grupo: bordas de 8px, gira 90° ao abrir */
+.seta { flex: none; width: 8px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg); transition: transform .15s; margin-right: 4px; opacity: .7; }
+.menu-grupo.aberto > .grupo .seta { transform: rotate(45deg); }
+
+/* Sub-itens */
+.menu-sub { display: none; flex-direction: column; gap: .1rem; padding: .15rem 0 .35rem; }
+.menu-grupo.aberto > .menu-sub { display: flex; }
+.menu-subitem {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 46px; padding: 8px 12px 8px 36px; border-radius: 12px;
+  font: inherit; font-size: .9375rem; font-weight: 600; color: var(--menu-texto-2); text-decoration: none; text-align: left;
+  background: transparent; border: 0; cursor: pointer;
+}
+.menu-subitem .ic { width: 22px; font-size: 1rem; }
+.menu-subitem:hover { background: var(--menu-sub-hover); color: var(--menu-sub-hover-texto); }
+.menu-subitem[aria-pressed="true"] { color: var(--menu-sub-hover-texto); background: var(--menu-sub-hover); }
+
+/* Tela atual */
+.menu-item.ativo, .menu-subitem.ativo, .menu-item.ativo:hover, .menu-subitem.ativo:hover {
+  background: var(--menu-cabecalho); color: var(--menu-ativo-texto); box-shadow: 0 4px 10px rgba(30,58,138,.25);
+}
+
+/* Sair e rodapé */
+.menu-sair-form { margin: 0; padding: .4rem .6rem; border-top: 1px solid var(--menu-linha); }
+.menu-sair { color: var(--menu-sair); }
+.menu-rodape { padding: .5rem 1.1rem; padding-bottom: calc(.6rem + env(safe-area-inset-bottom)); font-size: .75rem; color: var(--menu-texto-2);
+  border-top: 1px solid var(--menu-linha); }
+
+/* Painel flutuante (PC com mouse): sub-tarefas de um grupo fechado */
+.menu-grupo.flutuante > .menu-sub {
+  display: flex; position: fixed; left: calc(var(--menu-largura) - 6px); top: var(--flutuante-topo, 0px); z-index: 60;
+  min-width: 250px; padding: .5rem; background: var(--menu-cartao); border: 1px solid var(--menu-linha); border-radius: 16px;
+  box-shadow: var(--sombra-forte), 0 20px 40px rgba(15,23,42,.18);
+}
+.menu-grupo.flutuante > .menu-sub .menu-subitem { padding-left: 12px; }
+.menu-grupo.flutuante > .menu-sub::before { content: ""; position: absolute; left: -14px; top: 0; bottom: 0; width: 14px; } /* ponte para o mouse */
+
+/* ---------- Barra inferior e diálogo ---------- */
+.barra-inferior { display: none; }
+.menu-scrim { position: fixed; inset: 0; z-index: 45; background: rgba(2, 6, 23, .55); }
+.menu-scrim[hidden] { display: none; }
+
+.dialogo-sair { border: 1px solid var(--menu-linha); border-radius: 20px; padding: 1.4rem; max-width: min(92vw, 380px);
+  background: var(--menu-cartao); color: var(--menu-texto); box-shadow: var(--sombra-forte); }
+.dialogo-sair::backdrop { background: rgba(2, 6, 23, .55); }
+.dialogo-sair h2 { margin: 0 0 .4rem; }
+.acoes-dialogo { display: flex; gap: .6rem; justify-content: flex-end; margin-top: 1.1rem; flex-wrap: wrap; }
+.acoes-dialogo .botao { min-height: 44px; }
+
+/* ---------- PC: menu fixo e conteúdo com recuo ---------- */
+@media (min-width: 900px) {
+  body.com-menu { padding-bottom: 0; }
+  body.com-menu .topo { display: none; }
+  body.com-menu .layout { padding-left: var(--menu-largura); }
+}
+
+/* ---------- Celular e tablet: gaveta ---------- */
+@media (max-width: 899px) {
+  .menu { width: min(320px, 86vw); transform: translateX(-105%); transition: transform .22s ease; box-shadow: none; visibility: hidden; }
+  .menu.aberto { transform: none; visibility: visible; box-shadow: 0 20px 50px rgba(0,0,0,.35); }
+  .menu-fechar { display: inline-flex; align-items: center; justify-content: center; }
+  .menu .menu-usuario .sino, .menu .menu-tema-rapido { display: none; } /* no celular sino e tema ficam no topo */
+  .barra-inferior {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; background: var(--menu-cartao);
+    border-top: 1px solid var(--menu-linha); padding-bottom: env(safe-area-inset-bottom);
+  }
+  .atalho { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    min-height: 58px; padding: .4rem .2rem; font: inherit; font-size: clamp(.66rem, 2.9vw, .8rem); color: var(--menu-texto-2);
+    text-decoration: none; background: transparent; border: 0; cursor: pointer; white-space: nowrap; }
+  .atalho .ic { font-size: 1.3rem; line-height: 1; }
+  .atalho .txt { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .atalho.ativo { color: var(--t-titulo); font-weight: 800; }
+  .abrir-menu { color: var(--menu-texto); font-weight: 700; }
+}
+
+@media (prefers-reduced-motion: reduce) { .menu, .seta { transition: none; } }
+
+@media print {
+  .menu, .menu-scrim, .barra-inferior, .dialogo-sair { display: none !important; }
+  body.com-menu .layout { padding-left: 0 !important; }
+}

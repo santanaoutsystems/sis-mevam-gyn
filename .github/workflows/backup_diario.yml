@@ -1,0 +1,37 @@
+name: Backup diário do banco (Supabase)
+
+# Só roda depois que os segredos DATABASE_URL e BACKUP_SENHA forem cadastrados em
+# Settings > Secrets and variables > Actions. O arquivo é CRIPTOGRAFADO antes de ser guardado,
+# porque contém dados pessoais (LGPD). Para abrir: gpg -d backup.tar.gz.gpg > backup.tar.gz
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 03:00 em Goiânia
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    if: ${{ vars.BACKUP_ATIVO == 'sim' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "psycopg[binary]>=3.2" tzdata
+      - name: Exportar tabelas
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_DIR: saida
+        run: python plataforma/scripts/backup_supabase.py
+      - name: Compactar e criptografar
+        env:
+          BACKUP_SENHA: ${{ secrets.BACKUP_SENHA }}
+        run: |
+          tar czf backup.tar.gz -C saida .
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_SENHA" --symmetric --cipher-algo AES256 backup.tar.gz
+          rm -rf saida backup.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backup-supabase-${{ github.run_id }}
+          path: backup.tar.gz.gpg
+          retention-days: 30

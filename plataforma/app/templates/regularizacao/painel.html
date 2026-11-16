@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Regularização{% endblock %}
+{% macro selo_link(m) -%}
+  {% set s = m.situacao %}
+  {% if s == 'sem_link' %}<span class="selo inativo">Sem link</span>
+  {% elif s == 'ativo' %}<span class="selo aguardando">Gerado, não enviado</span>
+  {% elif s == 'enviado' %}<span class="selo validado">Enviado ({{ m.reg.canais }}) · até {{ (m.reg.expira_em|data_hora_br)[:10] }}</span>
+  {% elif s == 'vencido' %}<span class="selo aguardando">Prazo vencido em {{ (m.reg.expira_em|data_hora_br)[:10] }}</span>
+  {% elif s == 'concluido' %}<span class="selo ativo">Atualizado em {{ m.reg.concluido_em|data_hora_br }}</span>
+  {% else %}<span class="selo inativo">Cancelado</span>{% endif %}
+{%- endmacro %}
+{% block conteudo %}
+<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+  <h1>Regularização de fichas antigas</h1>
+  <div class="acoes" style="margin:0">
+    <a class="botao" href="/regularizacao/nova">➕ Cadastrar ficha antiga</a>
+  </div>
+</div>
+<p class="suave" style="margin-top:0">Membros sem CPF, foto ou campos obrigatórios recebem um link exclusivo, com prazo,
+  para completar o cadastro. O próprio registro é atualizado, sem duplicar.</p>
+
+<div class="grade c2 c4" style="margin:1rem 0">
+  <a class="numero" href="?aba=pendentes"><b>{{ numeros.pendentes }}</b>Com cadastro incompleto</a>
+  <a class="numero" href="?aba=pendentes"><b>{{ numeros.com_link }}</b>Com link válido</a>
+  <a class="numero" href="?aba=vencidos"><b>{{ numeros.vencidos }}</b>Não atualizaram no prazo</a>
+  <a class="numero" href="?aba=concluidos"><b>{{ numeros.concluidos }}</b>Atualizados pelo link</a>
+</div>
+
+<div class="opcoes" style="margin:.75rem 0">
+  <a class="selo {{ 'validado' if aba == 'pendentes' else 'inativo' }}" href="?aba=pendentes">Pendentes</a>
+  <a class="selo {{ 'validado' if aba == 'vencidos' else 'inativo' }}" href="?aba=vencidos">Prazo vencido</a>
+  <a class="selo {{ 'validado' if aba == 'concluidos' else 'inativo' }}" href="?aba=concluidos">Concluídos</a>
+</div>
+
+{% if aba == 'pendentes' %}
+<form class="cartao" method="post" action="/regularizacao/gerar" id="formLinks">
+  {{ ui.csrf_input() }}
+  <h2 style="margin-top:0">Gerar e enviar links</h2>
+  <p class="pequeno suave" style="margin-top:0">
+    E-mail automático: <b>{{ 'ligado' if email_ok else 'não configurado' }}</b> ·
+    WhatsApp automático: <b>{{ 'ligado' if whatsapp_ok else 'não configurado (use o botão 📲 de cada membro)' }}</b>.
+    Gerar um link novo cancela o anterior do mesmo membro.</p>
+  <div class="grade c2" style="align-items:end">
+    <div><label for="prazo">Prazo para atualizar (dias)</label>
+      <input type="number" id="prazo" name="prazo" min="1" max="180" value="{{ prazo_padrao }}" inputmode="numeric"></div>
+    <div class="acoes" style="margin:0">
+      <button class="botao" name="enviar" value="nao">🔗 Gerar links</button>
+      <button class="botao dourado" name="enviar" value="sim">📨 Gerar e enviar (e-mail/WhatsApp)</button>
+    </div>
+  </div>
+  {% if lista %}
+  <label class="check" style="margin-top:.75rem"><input type="checkbox" id="marcarTodos"> Selecionar todos ({{ lista|length }})</label>
+  <table class="tabela responsiva" style="margin-top:.5rem">
+    <thead><tr><th></th><th>Nome</th><th>O que falta</th><th>Ficha escaneada</th><th>Link</th></tr></thead>
+    <tbody>
+    {% for m in lista %}
+      <tr>
+        <td data-rotulo="Selecionar"><input type="checkbox" name="membro_id" value="{{ m.id }}" aria-label="Selecionar {{ m.nome_completo }}"></td>
+        <td data-rotulo="Nome"><a href="/regularizacao/membro/{{ m.id }}"><b>{{ m.nome_completo }}</b></a>
+          {% if (m.origem or '').startswith('ficha_impressa') %}<br><span class="pequeno suave">ficha impressa</span>{% endif %}</td>
+        <td data-rotulo="Falta">{{ m.faltas[:3]|join(', ') }}{% if m.faltas|length > 3 %} e mais {{ m.faltas|length - 3 }}{% endif %}</td>
+        <td data-rotulo="Escaneada">{{ '✅' if m.tem_escaneada else '—' }}</td>
+        <td data-rotulo="Link">{{ selo_link(m) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="suave">Nenhum cadastro incompleto. 🎉</p>{% endif %}
+</form>
+
+<details class="cartao">
+  <summary><b>📥 Importar planilha de fichas antigas (CSV)</b></summary>
+  <p class="pequeno">Colunas aceitas na primeira linha: <b>nome</b>, whatsapp, email, nascimento (dd/mm/aaaa), cpf.
+    No Excel: Arquivo › Salvar como › CSV. Quem já existe (mesmo CPF, ou mesmo nome e nascimento) não é duplicado.</p>
+  <form method="post" action="/regularizacao/importar" enctype="multipart/form-data">
+    {{ ui.csrf_input() }}
+    <input type="file" name="arquivo" accept=".csv,text/csv" required>
+    <div class="acoes"><button class="botao secundario">Importar</button></div>
+  </form>
+</details>
+
+{% elif aba == 'vencidos' %}
+<form class="cartao" method="post" action="/regularizacao/desfecho">
+  {{ ui.csrf_input() }}
+  <h2 style="margin-top:0">Não atualizaram dentro do prazo</h2>
+  {% if lista %}
+  <label class="check"><input type="checkbox" id="marcarTodos"> Selecionar todos ({{ lista|length }})</label>
+  <table class="tabela responsiva" style="margin-top:.5rem">
+    <thead><tr><th></th><th>Nome</th><th>WhatsApp</th><th>O que falta</th><th>Prazo</th><th>Situação</th></tr></thead>
+    <tbody>
+    {% for m in lista %}
+      <tr>
+        <td data-rotulo="Selecionar"><input type="checkbox" name="membro_id" value="{{ m.id }}" aria-label="Selecionar {{ m.nome_completo }}"></td>
+        <td data-rotulo="Nome"><a href="/regularizacao/membro/{{ m.id }}"><b>{{ m.nome_completo }}</b></a></td>
+        <td data-rotulo="WhatsApp">{{ m.whatsapp or '-' }}</td>
+        <td data-rotulo="Falta">{{ m.faltas[:3]|join(', ') }}{% if m.faltas|length > 3 %} e mais {{ m.faltas|length - 3 }}{% endif %}</td>
+        <td data-rotulo="Prazo">{{ (m.reg.expira_em|data_hora_br)[:10] }}</td>
+        <td data-rotulo="Situação">{% if m.reg.desfecho == 'em_analise' %}<span class="selo validado">Em análise</span>{% else %}<span class="selo aguardando">Aguardando decisão</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="grade c2" style="margin-top:1rem;align-items:end">
+    <div><label for="motivo">Motivo (obrigatório para inativar)</label>
+      <input type="text" id="motivo" name="motivo" placeholder="Ex: Mudou de cidade / Não frequenta desde 2024" data-voz></div>
+    <div class="acoes" style="margin:0">
+      <button class="botao secundario" name="acao" value="em_analise">🔎 Marcar para análise</button>
+      <button class="botao perigo" name="acao" value="inativar" onclick="return confirm('Inativar o vínculo dos membros selecionados?')">Inativar vínculo</button>
+    </div>
+  </div>
+  <p class="pequeno suave">Para dar mais uma chance, abra o membro e gere um novo link com outro prazo.</p>
+  {% else %}<p class="suave">Ninguém com prazo vencido.</p>{% endif %}
+</form>
+
+{% else %}
+<div class="cartao">
+  {% if lista %}
+  <table class="tabela responsiva">
+    <thead><tr><th>Nome</th><th>Atualizado em</th></tr></thead>
+    <tbody>{% for m in lista %}<tr>
+      <td data-rotulo="Nome"><a href="/membros/{{ m.id }}"><b>{{ m.nome_completo }}</b></a></td>
+      <td data-rotulo="Atualizado">{{ m.reg.concluido_em|data_hora_br }}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% else %}<p class="suave">Ninguém atualizou pelo link ainda.</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById("marcarTodos")?.addEventListener("change", (e) => {
+  e.target.closest("form").querySelectorAll('input[name="membro_id"]').forEach((c) => { c.checked = e.target.checked; });
+});
+</script>
+{% endblock %}
