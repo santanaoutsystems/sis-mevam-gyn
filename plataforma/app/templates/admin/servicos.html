@@ -3,7 +3,8 @@
 {% block conteudo %}
 <h1>📶 Uso dos serviços</h1>
 <p class="suave" style="margin-top:0">Consumo dos planos gratuitos que mantêm o sistema no ar. Confira antes de cada atualização.
-  🟢 até 70% · 🟡 de 70% a 90% · 🔴 acima de 90% (risco de bloqueio).</p>
+  🟢 até 70% · 🟡 de 70% a 90% · 🔴 acima de 90% (risco de bloqueio).
+  Exceção: as horas do Render ficam 🟢 enquanto o mês couber em 750 h. O UptimeRobot mantém o serviço acordado, então a projeção sempre chega perto do limite e, sem essa regra, o alerta ficaria vermelho todo mês.</p>
 
 {% for i in p.itens %}
 <div class="cartao uso-item {{ i.nivel }}">
