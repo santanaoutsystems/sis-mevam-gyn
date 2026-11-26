@@ -1,0 +1,113 @@
+{# Tabela com filtro e ordenação pelos cabeçalhos. Importar com: {% import "parciais/tabela.html" as tb with context %}
+   t = tabelas.montar(...). No celular os cabeçalhos somem (tabela vira cartões) e os mesmos menus ficam em "Filtrar e ordenar". #}
+
+{% macro _ocultos(pares) %}{% for k, v in pares %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}{% endmacro %}
+
+{% macro _rotulos_ordem(tipo) -%}
+{%- if tipo == 'data' %}{{ ('Mais antiga primeiro', 'Mais recente primeiro')|join('|') }}
+{%- elif tipo in ('numero', 'moeda') %}Menor primeiro|Maior primeiro
+{%- elif tipo == 'aniversario' %}Janeiro → Dezembro|Dezembro → Janeiro
+{%- elif tipo == 'simnao' %}Sim primeiro|Não primeiro
+{%- else %}A → Z|Z → A{% endif -%}
+{%- endmacro %}
+
+{% macro menu(m, t) %}
+{% set col = m.col %}{% set f = m.filtro or {} %}{% set rot = _rotulos_ordem(col.tipo).split('|') %}
+<div class="menu-col-corpo">
+  {% if m.asc %}
+  <a class="opcao {{ 'sel' if m.direcao == 'asc' and m.nivel == 1 }}" href="{{ m.asc }}">↑ {{ rot[0] }}</a>
+  <a class="opcao {{ 'sel' if m.direcao == 'desc' and m.nivel == 1 }}" href="{{ m.desc }}">↓ {{ rot[1] }}</a>
+  {% if m.tambem %}<a class="opcao" href="{{ m.tambem }}">➕ Ordenar também por esta coluna</a>{% endif %}
+  {% if m.sem_ordem %}<a class="opcao" href="{{ m.sem_ordem }}">✕ Tirar da ordem ({{ m.nivel }}º)</a>{% endif %}
+  {% endif %}
+  {% if col.filtravel and not (col.tipo == 'lista' and col.sensivel) %}
+  <form method="get" action="{{ t.caminho }}" class="filtro-col" data-sem-voz>
+    {{ _ocultos(m.ocultos) }}
+    {% if col.tipo == 'lista' %}
+      {% if m.opcoes|length > 6 %}<input type="search" class="busca-opcoes" placeholder="🔎 Procurar {{ col.rotulo|lower }}..." aria-label="Procurar {{ col.rotulo }}">{% endif %}
+      <div class="lista-opcoes">
+      {% for v, n in m.opcoes %}
+        <label class="check"><input type="checkbox" name="f.{{ col.chave }}" value="{{ v }}" {{ 'checked' if v in (f.em or []) }}>
+          <span>{{ '(em branco)' if v == '__vazio__' else v }} <small class="suave">({{ n }})</small></span></label>
+      {% else %}<p class="suave pequeno">Nenhum valor.</p>{% endfor %}
+      </div>
+    {% elif col.tipo == 'texto' %}
+      <input type="search" name="f.{{ col.chave }}" value="{{ f.contem or '' }}" placeholder="Contém..." aria-label="{{ col.rotulo }} contém">
+    {% elif col.tipo == 'simnao' %}
+      <div class="opcoes">
+        {% for v, r in [('', 'Todos'), ('sim', 'Sim'), ('nao', 'Não')] %}
+        <label><input type="radio" name="f.{{ col.chave }}" value="{{ v }}" {{ 'checked' if (f.sim or '') == v }}> {{ r }}</label>{% endfor %}
+      </div>
+    {% elif col.tipo == 'aniversario' %}
+      <label>Mês do aniversário
+        <select name="f.{{ col.chave }}.mes"><option value="">Todos</option>
+          {% for nome in MESES %}<option value="{{ loop.index }}" {{ 'selected' if f.mes == loop.index }}>{{ nome }}</option>{% endfor %}
+        </select></label>
+    {% elif col.tipo == 'data' %}
+      <div class="grade c2"><label>De<input name="f.{{ col.chave }}.de" data-mascara="data" value="{{ f.de|data_br if f.de else '' }}" placeholder="dd/mm/aaaa"></label>
+      <label>Até<input name="f.{{ col.chave }}.ate" data-mascara="data" value="{{ f.ate|data_br if f.ate else '' }}" placeholder="dd/mm/aaaa"></label></div>
+    {% elif col.tipo in ('numero', 'moeda') %}
+      <div class="grade c2"><label>De<input name="f.{{ col.chave }}.de" inputmode="decimal" value="{{ f.de if f.de is not none else '' }}"></label>
+      <label>Até<input name="f.{{ col.chave }}.ate" inputmode="decimal" value="{{ f.ate if f.ate is not none else '' }}"></label></div>
+    {% endif %}
+    <div class="acoes" style="margin-top:.5rem"><button class="botao peq">Aplicar</button><a class="botao peq secundario" href="{{ m.limpar }}">Limpar</a></div>
+  </form>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro barra(t) %}
+<div class="barra-tabela nao-imprimir">
+  {% if t.chips %}
+  <div class="chips" aria-label="Filtros e ordem ativos">
+    {% for ch in t.chips %}<a class="chip {{ ch.tipo }}" href="{{ ch.remover }}" title="Remover">{{ ch.texto }} <span aria-hidden="true">✕</span><span class="sr">remover</span></a>{% endfor %}
+    <a class="limpar-tudo" href="{{ t.limpar_tudo }}">Limpar tudo</a>
+  </div>
+  {% endif %}
+  <div class="acoes" style="margin:.4rem 0 0">
+    <details class="painel-filtros">
+      <summary class="botao peq secundario">🎛️ Filtrar e ordenar</summary>
+      <div class="painel-corpo">
+        {% for m in t.menus %}{% if m.asc or m.col.filtravel %}
+        <details class="item-painel"><summary>{{ m.col.rotulo }}{% if m.nivel %} · {{ m.nivel }}º {{ '↑' if m.direcao == 'asc' else '↓' }}{% endif %}{% if m.filtro %} · filtrado{% endif %}</summary>{{ menu(m, t) }}</details>
+        {% endif %}{% endfor %}
+      </div>
+    </details>
+    {% if t.todas|length > t.colunas|length or t.todas|selectattr('padrao', 'false')|list %}
+    <details class="painel-colunas">
+      <summary class="botao peq secundario">▦ Colunas</summary>
+      <form method="get" action="{{ t.caminho }}" class="painel-corpo">
+        {{ _ocultos(t.ocultos_cols) }}
+        <p class="pequeno suave" style="margin:0 0 .4rem">Escolha o que aparece na tela, na impressão e na planilha. Colunas com dado pessoal começam desmarcadas.</p>
+        {% for c in t.todas %}<label class="check"><input type="checkbox" name="cols" value="{{ c.chave }}" {{ 'checked' if c.chave in t.visiveis }}> {{ c.rotulo }}</label>{% endfor %}
+        <button class="botao peq" style="margin-top:.5rem">Mostrar colunas</button>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro tabela(t, assinatura=False) %}
+<div class="rolagem" tabindex="0" role="region" aria-label="Tabela">
+<table class="tabela responsiva tabela-filtro">
+  <thead><tr>
+    {% for m in t.menus %}
+    <th class="{{ 'on' if m.filtro or m.nivel }}" aria-sort="{{ ('ascending' if m.direcao == 'asc' else 'descending') if m.nivel == 1 else 'none' }}">
+      {% if m.asc or m.col.filtravel %}
+      <details class="menu-col"><summary>{{ m.col.rotulo }} <span class="ind" aria-hidden="true">{% if m.filtro %}▼{% endif %}{% if m.nivel %}{{ '↑' if m.direcao == 'asc' else '↓' }}{{ m.nivel }}º{% elif not m.filtro %}⇅{% endif %}</span><span class="sr">: filtrar e ordenar</span></summary>
+        <div class="menu-col-painel">{{ menu(m, t) }}</div></details>
+      {% else %}{{ m.col.rotulo }}{% endif %}
+    </th>{% endfor %}
+    {% if assinatura %}<th>Assinatura</th>{% endif %}
+  </tr></thead>
+  <tbody>
+  {% for linha in t.corpo %}<tr>
+    {% for cel in linha %}<td data-rotulo="{{ cel.col.rotulo }}">{% if cel.link %}<a href="{{ cel.link }}">{% endif %}{% if cel.col.destaque %}<b>{{ cel.texto }}</b>{% else %}{{ cel.texto }}{% endif %}{% if cel.link %}</a>{% endif %}</td>{% endfor %}
+    {% if assinatura %}<td data-rotulo="Assinatura" class="assinatura"></td>{% endif %}
+  </tr>{% else %}<tr><td colspan="{{ t.colunas|length + (1 if assinatura else 0) }}">Nenhum registro com estes filtros.{% if t.chips %} <a href="{{ t.limpar_tudo }}">Limpar filtros</a>{% endif %}</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% if t.cortado %}<p class="msg aviso nao-imprimir">Mostrando {{ t.corpo|length }} de {{ t.total }} linhas para a tela ficar rápida. <a href="{{ t.url_tudo }}">Imprimir com todas as linhas</a>.</p>{% endif %}
+{% endmacro %}

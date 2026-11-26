@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1e3a8a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>{% block titulo %}SIS MEVAM-GYN{% endblock %} · MEVAM GYN</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" href="/static/img/logo_round.jpg">
+  <link rel="apple-touch-icon" href="/static/img/icone-192.png">
+  <link rel="preload" href="/static/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <script>try{var t=localStorage.getItem("tema");if(t==="claro"||t==="escuro")document.documentElement.dataset.tema=t;if(localStorage.getItem("letras")==="maior")document.documentElement.dataset.letras="maior";}catch(e){}</script>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/menu.css">
+  {% block cabeca %}{% endblock %}
+</head>
+<body{% if usuario %} class="com-menu" data-inatividade="{{ inatividade }}"{% endif %}>
+<a class="pular" href="#conteudo">Pular para o conteúdo</a>
+{% if usuario %}
+  {# Topo só no celular; no PC a marca e o usuário ficam no menu lateral #}
+  <header class="topo">
+    <img src="/static/img/logo_round.jpg" alt="MEVAM GYN" width="40" height="40">
+    <div class="nome-app">SIS MEVAM-GYN<small>Ministério MEVAM Goiânia</small></div>
+    <div class="usuario">
+      {{ usuario.nome.split(' ')[0] }}<br><span class="perfil">{{ PERFIS_ROTULO[usuario.perfil] }}</span>
+    </div>
+    {% if pode('coordenacao', 'secretaria', 'admin') %}<a class="sino" href="/avisos" aria-label="Avisos{{ ': ' ~ aniv.avisos_n ~ ' novo(s)' if aniv.avisos_n }}" title="Avisos">🔔{% if aniv.avisos_n %}<i>{{ aniv.avisos_n }}</i>{% endif %}</a>{% endif %}
+    <button type="button" class="botao-tema" aria-label="Alternar tema">🌙</button>
+  </header>
+  {% include "parciais/menu_lateral.html" %}
+  <div class="layout">
+    <main class="conteudo" id="conteudo" tabindex="-1">
+      {% if voltar_para %}<a class="botao-voltar" href="{{ voltar_para }}" data-voltar>← Voltar</a>{% endif %}
+      {% for m in mensagens %}<div class="msg {{ m.tipo }}" role="status">{{ m.texto }}</div>{% endfor %}
+      {% block conteudo %}{% endblock %}
+    </main>
+  </div>
+  {% if aniv.janela or aniv.felicitacao %}{% include "parciais/aniversario_janela.html" %}{% endif %}
+{% else %}
+  <header class="topo">
+    <img src="/static/img/logo_round.jpg" alt="MEVAM GYN" width="40" height="40">
+    <div class="nome-app">SIS MEVAM-GYN<small>Ministério MEVAM Goiânia</small></div>
+    <div class="usuario"><a class="botao peq" href="/entrar">Entrar</a></div>
+    <button type="button" class="botao-tema" aria-label="Alternar tema">🌙</button>
+  </header>
+  <main class="conteudo" id="conteudo" tabindex="-1">
+    {% for m in mensagens %}<div class="msg {{ m.tipo }}" role="status">{{ m.texto }}</div>{% endfor %}
+    {% block publico %}{% endblock %}
+  </main>
+{% endif %}
+<script src="/static/js/tema.js" defer></script>
+<script src="/static/js/mascaras.js" defer></script>
+<script src="/static/js/voz.js" defer></script>
+{% if usuario %}<script src="/static/js/menu.js" defer></script>
+<script src="/static/js/aniversarios.js" defer></script>{% endif %}
+{% block scripts %}{% endblock %}
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(function(){});</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titulo %}Abrindo o WhatsApp{% endblock %}
+{% block conteudo %}
+<div class="cartao" style="max-width:560px;margin:1rem auto;text-align:center">
+  <h1 style="font-size:1.4rem">💬 Abrindo o WhatsApp…</h1>
+  <p>Conversa com <b>{{ m.nome_completo }}</b>. Confira a mensagem e toque em <b>Enviar</b> no WhatsApp.</p>
+  <p><a id="abrir-whatsapp" class="botao dourado" href="{{ url }}" rel="noopener">💬 Abrir o WhatsApp</a></p>
+  <blockquote class="pequeno" style="white-space:pre-line;text-align:left;background:#f0fdf4;border-left:4px solid #22c55e;padding:.6rem .8rem;color:#14532d">{{ texto }}</blockquote>
+  <p class="pequeno suave">Se o WhatsApp não abrir sozinho, toque no botão acima. Depois, feche esta aba e volte para a fila.
+    Se não enviar a mensagem, use <b>↩️ Não enviei</b> na fila.</p>
+  <p><a href="/mutirao/lotes/{{ lt.id }}#fila">← Voltar para a fila</a></p>
+</div>
+<script>setTimeout(function () { location.href = document.getElementById("abrir-whatsapp").href; }, 400);</script>
+{% endblock %}

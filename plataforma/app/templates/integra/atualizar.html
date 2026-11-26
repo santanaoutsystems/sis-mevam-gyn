@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% import "parciais/ui.html" as ui with context %}
+{% block titulo %}Atualizar INTEGRA{% endblock %}
+{% macro corpo() %}
+<div class="cartao" style="max-width:560px;margin:1.5rem auto">
+  <div style="font-size:2.6rem;text-align:center">🎓</div>
+  <h1 style="text-align:center">Paz, {{ primeiro }}!</h1>
+  {% if respondido %}
+    <div class="msg ok">Resposta registrada: <b>{{ rotulo }}</b>.</div>
+    {% if respondido == 'aguardando' %}<p>A Secretaria vai conferir a lista da turma. Seu acesso continua normal enquanto isso.</p>
+    {% elif respondido == 'nao_concluido' %}<p>Sua ficha fica como <b>N/C INTEGRA</b> e o acesso ao sistema fica suspenso até você concluir o INTEGRA. Fale com a Secretaria para saber a próxima turma.</p>
+    {% else %}<p>Obrigado! Seu cadastro está atualizado.</p>{% endif %}
+  {% elif m.integra_situacao in ('concluido', 'dispensado', 'bloqueado') %}
+    <div class="msg ok">Seu INTEGRA já está registrado: <b>{{ rotulo }}</b>. Não precisa fazer mais nada.</div>
+  {% else %}
+    <p>O MEVAM GYN passou a usar o <b>INTEGRA</b> como porta de entrada para a membresia, os ministérios e as atividades da agenda. Responda abaixo{% if m.integra_prazo %} até <b>{{ m.integra_prazo|data_br }}</b>{% endif %}.</p>
+    <form method="post">{{ ui.csrf_input() }}<input type="hidden" name="t" value="{{ token }}">
+      {{ ui.radios('integra', 'Você fez o INTEGRA?', SIM_NAO, obrig=True) }}
+      <div class="grade c2">
+        {{ ui.campo('integra_data', 'Data de conclusão (se Sim)', mascara='data', dica='dd/mm/aaaa') }}
+        {{ ui.campo('integra_codigo', 'Código da turma (se tiver)', voz='codigo', dica='Ex.: K7P3QX') }}
+      </div>
+      <p class="pequeno suave">Fez o INTEGRA há muito tempo e não tem o código? Informe a data aproximada: a Secretaria confere.</p>
+      <button class="botao dourado" style="width:100%">Enviar resposta</button>
+    </form>
+  {% endif %}
+</div>
+{% endmacro %}
+{% block conteudo %}{{ corpo() }}{% endblock %}
+{% block publico %}{{ corpo() }}{% endblock %}
